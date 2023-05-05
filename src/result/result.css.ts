@@ -36,9 +36,6 @@ export default Styles.style({
       color: '#FD4A4C',
       textDecoration: 'none'
     },
-    '.mb': {
-      marginBottom: '1rem'
-    },
     'i-button': {
       padding: '1rem 2rem',
       textAlign: 'center'
@@ -57,10 +54,9 @@ export default Styles.style({
     },
     '.btn-os': {
       background: 'transparent linear-gradient(90deg, #AC1D78 0%, #E04862 100%) 0% 0% no-repeat padding-box',
-      fontFamily: 'Raleway Bold',
       fontSize: '1rem',
       fontWeight: 'bold',
-      color: Theme.colors.secondary.main
+      color: '#fff'
     }
   }
 })

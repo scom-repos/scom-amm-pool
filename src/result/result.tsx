@@ -122,9 +122,10 @@ export class Result extends Module {
       
       const image = await Image.create({
         width: '50px',
-        url: Assets.fullPath('img/success-icon.svg')
+        url: Assets.fullPath('img/success-icon.svg'),
+        margin: {bottom: '1rem'},
+        display: 'inline-block'
       });
-      image.classList.add("inline-block", "mb");
       mainSection.appendChild(image);
       
       const label = await Label.create();
@@ -150,9 +151,9 @@ export class Result extends Module {
         section.appendChild(label1);
 
         const label2 = await Label.create({
-          caption: this.message.txtHash.substr(33, this.message.txtHash.length)
+          caption: this.message.txtHash.substr(33, this.message.txtHash.length),
+          margin: {bottom: '1rem'}
         });
-        label2.classList.add("mb-1");
         section.appendChild(label2);
 
         const link = await Label.create({
@@ -167,41 +168,43 @@ export class Result extends Module {
 
       const button = new Button(mainSection, {
         width: '100%',
-        caption: 'Close'
+        caption: 'Close',
+        margin: {top: '1rem'}
       });
       button.classList.add('btn-os');
-      button.classList.add('mt-1');
       button.onClick = () => this.closeModal();
       mainSection.appendChild(button);
     } else {
       const image = await Image.create({
         width: '50px',
-        url: Assets.fullPath('img/oswap_error.png')
+        url: Assets.fullPath('img/oswap_error.png'),
+        margin: {bottom: '1rem'},
+        display: 'inline-block'
       });
-      image.classList.add("inline-block", "mb");
       mainSection.appendChild(image);
 
       const label = await Label.create({
-        caption: 'Transaction Rejected.'
+        caption: 'Transaction Rejected.',
+        margin: {bottom: '1rem'}
       });
-      label.classList.add("waiting-txt", "mb");
+      label.classList.add("waiting-txt");
       mainSection.appendChild(label);
 
       const section = await VStack.create();
       section.id = "contentSection";
       const contentLabel =  await Label.create({
-        caption: await this.onErrMsgChanged()
+        caption: await this.onErrMsgChanged(),
+        margin: {bottom: '1rem'}
       });
-      contentLabel.classList.add("mb-1");
       section.appendChild(contentLabel);
       mainSection.appendChild(section);
 
       const button = new Button(mainSection, {
         width: '100%',
-        caption: 'Cancel'
+        caption: 'Cancel',
+        margin: {top: '1rem'}
       });
       button.classList.add('btn-os');
-      button.classList.add('mt-1');
       button.onClick = () => this.closeModal();
       mainSection.appendChild(button);
     }

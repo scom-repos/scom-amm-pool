@@ -1,11 +1,11 @@
-import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema } from '@ijstech/components';
+import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema, observable } from '@ijstech/components';
 import {} from '@ijstech/eth-contract';
 import { Result } from './result/index';
 import { TokenSelection } from './token-selection/index';
 import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, PageBlock, IProvider } from './global/index';
 import { BigNumber } from "@ijstech/eth-wallet";
 import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress} from './store/index';
-import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity } from './API';
+import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut } from './API';
 import { poolAddStyle } from './index.css';
 import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
 import { IWalletPlugin } from '@scom/scom-wallet-modal';
@@ -78,6 +78,14 @@ export default class ScomAmmPool extends Module implements PageBlock {
   private pricePanel: Panel;
   private dappContainer: ScomDappContainer;
 
+  private pnlLiquidityImage: Panel;
+  private lbLiquidityBalance: Label;
+  private liquidityInput: Input;
+  private pnlLiquidity: Panel;
+  private lbLabel1: Label;
+  private lbLabel2: Label;
+  private pnlInfo: Panel;
+
   private _data: IPoolConfig = {
     providers: [],
     tokens: [],
@@ -92,10 +100,19 @@ export default class ScomAmmPool extends Module implements PageBlock {
     wallets: [],
     networks: []
   }
-  private isInited: boolean = false;
   private currentChainId: number;
   private allTokenBalancesMap: any;
-  private liquidity: string = '';
+  private maxLiquidityBalance: number | string = '0';
+  private lpToken: ITokenObject;
+  private isInited: boolean = false;
+  @observable()
+  private removeInfo = {
+    maxBalance: '',
+    totalPoolTokens:  '',
+    poolShare: '',
+    tokenAShare: '',
+    tokenBShare: ''
+  };
 
   tag: any = {};
   private oldTag: any = {};
@@ -112,12 +129,24 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return self;
   }
 
+  private get getInputLabel() {
+    return this.isFixedPair ? 'Output' : 'Input';
+  }
+
   get firstTokenDecimals() {
     return this.firstToken?.decimals || 18;
   }
 
   get secondTokenDecimals() {
     return this.secondToken?.decimals || 18;
+  }
+
+  get firstTokenSymbol() {
+    return this.firstToken?.symbol || '';
+  }
+
+  get secondTokenSymbol() {
+    return this.secondToken?.symbol || '';
   }
 
   get providers() {
@@ -486,8 +515,12 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   private async refreshUI() {
-    // this.resetFirstInput();
-    // this.resetSecondInput();
+    if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
+    if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
+    if (!this.firstInput.isConnected) await this.firstInput.ready();
+    if (!this.secondInput.isConnected) await this.secondInput.ready();
+    this.resetFirstInput();
+    this.resetSecondInput();
     const dexList = getDexList();
     setDexInfoList(dexList);
     this.setProviders();
@@ -541,15 +574,23 @@ export default class ScomAmmPool extends Module implements PageBlock {
     if (!this.btnSupply.isConnected) await this.btnSupply.ready();
     if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
     if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
+    if (!this.lbLabel1.isConnected) await this.lbLabel1.ready();
+    if (!this.lbLabel2.isConnected) await this.lbLabel2.ready();
     tokenStore.updateTokenMapData();
     if (connected) {
       await tokenStore.updateAllTokenBalances();
+      if (!this.approvalModelAction) await this.initApprovalModelAction();
     }
-    if (this.isFixedPair) this.setFixedPairData();
+    this.pnlLiquidity.visible = this.isFixedPair;
+    this.firstTokenSelection.isBtnMaxShown = !this.isFixedPair;
+    this.secondTokenSelection.isBtnMaxShown = !this.isFixedPair;
     this.firstTokenSelection.disableSelect = this.isFixedPair;
     this.secondTokenSelection.disableSelect = this.isFixedPair;
     this.firstTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
     this.secondTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
+    this.lbLabel1.caption = this.getInputLabel;
+    this.lbLabel2.caption = this.getInputLabel;
+    this.isFixedPair && this.setFixedPairData();
     if (connected) {
       try {
         this.updateButtonText();
@@ -564,14 +605,70 @@ export default class ScomAmmPool extends Module implements PageBlock {
         this.pricePanel.visible = isShown || this.isFixedPair;
         await this.checkPairExists();
         await this.callAPIBundle(false);
-        
-      } catch (err) {
-        console.log(err)
-        this.btnSupply.caption = 'Supply';
+        if (this.isFixedPair) {
+          this.renderLiquidity();
+          if (new BigNumber(this.liquidityInput.value).gt(0))
+            this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
+        } else {
+          this.pnlInfo.clearInnerHTML();
+          this.pnlInfo.append(
+            <i-label font={{color: Theme.colors.warning.main}} caption="*OpenSwap is in Beta, please use it at your own discretion"></i-label>
+          )
+        }
+      } catch {
+        this.btnSupply.caption = this.isFixedPair ? 'Remove' : 'Supply';
       }
     } else {
       this.resetData();
     }
+  }
+
+  private renderLiquidity() {
+    let firstTokenImagePath = tokenAssets.tokenPath(this.firstToken, getChainId());
+    let secondTokenImagePath = tokenAssets.tokenPath(this.secondToken, getChainId());
+    this.pnlLiquidityImage.clearInnerHTML();
+    this.pnlLiquidityImage.append(
+      <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap="4px">
+        <i-button
+          caption="Max"
+          font={{color: '#fff'}}
+          padding={{top: '0.25rem', bottom: '0.25rem', left: '0.5rem', right: '0.5rem'}}
+          background={{color: Theme.background.gradient}}
+          onClick={() => this.setMaxLiquidityBalance()}
+        />
+        <i-image width={20} height={20} url={firstTokenImagePath} />
+        <i-image width={20} height={20} url={secondTokenImagePath} />
+        <i-label font={{color: Theme.colors.warning.main}} caption={this.firstTokenSymbol || '-'} />
+        <i-label font={{color: Theme.colors.warning.main}} caption="-" />
+        <i-label font={{color: Theme.colors.warning.main}} caption={this.secondTokenSymbol || '-'} />
+      </i-hstack>
+    )
+    this.pnlInfo.clearInnerHTML();
+    this.pnlInfo.append(
+      <i-vstack padding={{left: '1rem', right: '1rem'}} gap="0.5rem" margin={{top: '1.75rem'}}>
+        <i-label font={{color: '#E53780'}} caption="Your position" />
+        <i-hstack horizontalAlignment="space-between">
+          <i-hstack verticalAlignment="center" gap={4}>
+            <i-image url={firstTokenImagePath} width={20} height={20}/>
+            <i-image url={secondTokenImagePath} width={20} height={20}/>
+            <i-label caption={`${this.firstTokenSymbol} / ${this.secondTokenSymbol}`}/>
+          </i-hstack>
+          <i-label caption={this.removeInfo.totalPoolTokens} />
+        </i-hstack>
+        <i-hstack horizontalAlignment="space-between">
+          <i-label font={{color: '#E53780'}} caption="Your Pool Share" />
+          <i-label caption={this.removeInfo.poolShare} />
+        </i-hstack>
+        <i-hstack horizontalAlignment="space-between">
+          <i-label caption={this.firstTokenSymbol} />
+          <i-label caption={this.removeInfo.tokenAShare} />
+        </i-hstack>
+        <i-hstack horizontalAlignment="space-between">
+          <i-label caption={this.secondTokenSymbol} />
+          <i-label caption={this.removeInfo.tokenBShare} />
+        </i-hstack>
+      </i-vstack>
+    )
   }
 
   private setFixedPairData() {
@@ -593,6 +690,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   private async initTokenSelection() {
+    if (this.isInited) return;
     await this.firstTokenSelection.ready();
     await this.secondTokenSelection.ready();
     this.firstTokenSelection.disableSelect = false;
@@ -603,6 +701,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.secondTokenSelection.onSelectToken = (token: ITokenObject) => this.onSelectToken(token, false);
     this.secondTokenSelection.onSetMaxBalance = () => this.setMaxBalance(false);
     this.secondTokenSelection.isCommonShown = false;
+    this.isInited = true;
   }
 
   private getBalance(token?: ITokenObject) {
@@ -616,28 +715,31 @@ export default class ScomAmmPool extends Module implements PageBlock {
 
   private async updateBalance() {
     if (isWalletConnected()) await tokenStore.updateAllTokenBalances();
+    if (this.isFixedPair) {
+      this.lbFirstBalance.visible = false;
+      this.lbSecondBalance.visible = false;
+      return;
+    }
     this.allTokenBalancesMap = isWalletConnected() ? tokenStore.tokenBalances : [];
     if (this.firstToken) {
-      const balance = this.getBalance(this.firstToken);
-      this.firstBalance = balance;
-      this.lbFirstBalance.caption = `Balance: ${formatNumber(balance, 4)} ${this.firstToken.symbol}`;
+      this.firstBalance = this.getBalance(this.firstToken);
+      this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance, 4)} ${this.firstToken.symbol}`;
     } else {
-      // this.firstInput.value = '';
-      // this.firstToken = Object.values(tokenStore.tokenMap).find(v => v.isNative);
-      // this.firstTokenSelection.token = this.firstToken;
-      // this.firstBalance = tokenStore.getTokenBalance(this.firstToken!);
-      // this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance)}`;
+      this.firstInput.value = '';
+      this.firstToken = Object.values(tokenStore.tokenMap).find(v => v.isNative);
+      this.firstTokenSelection.token = this.firstToken;
+      this.firstBalance = tokenStore.getTokenBalance(this.firstToken!);
+      this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance)}`;
     }
     if (this.secondToken) {
-      const balance = this.getBalance(this.secondToken);
-      this.secondBalance = balance;
-      this.lbSecondBalance.caption = `Balance: ${formatNumber(balance, 4)} ${this.secondToken.symbol}`;
+      this.secondBalance = this.getBalance(this.secondToken);
+      this.lbSecondBalance.caption = `Balance: ${formatNumber(this.secondBalance, 4)} ${this.secondToken.symbol}`;
     } else {
-      // this.secondToken = undefined;
-      // this.secondInput.value = '';
-      // this.secondBalance = '0';
-      // this.secondTokenSelection.token = this.secondToken;
-      // this.lbSecondBalance.caption = '-';
+      this.secondToken = undefined;
+      this.secondInput.value = '';
+      this.secondBalance = '0';
+      this.secondTokenSelection.token = this.secondToken;
+      this.lbSecondBalance.caption = '-';
     }
   }
 
@@ -652,10 +754,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   private async initData() {
-    if (!this.isInited) {
-      await this.initTokenSelection();
-      this.isInited = true;
-    }
+    await this.initTokenSelection();
     await this.initApprovalModelAction();
   }
 
@@ -677,6 +776,8 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
     if (this.btnSupply.rightIcon.visible) {
       this.btnSupply.caption = 'Loading';
+    } else if (this.isFixedPair) {
+      this.btnSupply.caption = 'Remove';
     } else if (
       !this.firstToken?.symbol ||
       !this.secondToken?.symbol ||
@@ -709,7 +810,27 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return inputValue.gt(0);
   }
 
-  async handleEnterAmount(source: Control, event: Event) {
+  private async handleOutputChange(source: Control, event: Event) {
+    if (!this.firstToken || !this.secondToken) return;
+    if (source === this.firstInput) {
+      limitInputNumber(this.firstInput, this.firstToken.decimals);
+      let tokensBack = await getTokensBackByAmountOut(this.firstToken, this.secondToken, this.firstToken, this.firstInput.value);
+      if (tokensBack) {
+        this.liquidityInput.value = tokensBack.liquidity;
+        this.secondInput.value = tokensBack.amountB;
+      }
+    } else {
+      limitInputNumber(this.secondInput, this.secondToken.decimals);
+      let tokensBack = await getTokensBackByAmountOut(this.firstToken, this.secondToken, this.secondToken, this.secondInput.value);
+      if (tokensBack) {
+        this.liquidityInput.value = tokensBack.liquidity;
+        this.firstInput.value = tokensBack.amountA;
+      }
+    }
+    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
+  }
+
+  private async handleInputChange(source: Control, event: Event) {
     let amount = (source as Input).value;
     if (source == this.firstInput) {
       limitInputNumber(this.firstInput, this.firstTokenDecimals);
@@ -726,13 +847,11 @@ export default class ScomAmmPool extends Module implements PageBlock {
     };
     this.updateButton(true);
     try {
-      this.isFromEstimated = source == this.secondInput;
-      if (source == this.firstInput) {
+      this.isFromEstimated = source === this.secondInput;
+      if (source === this.firstInput)
         this.firstInputAmount = this.firstInput.value;
-      }
-      else if (source == this.secondInput) {
+      else if (source === this.secondInput)
         this.secondInputAmount = this.secondInput.value;
-      }
       await this.checkPairExists();
       await this.callAPIBundle(true);
       this.updateButton(false);
@@ -740,7 +859,16 @@ export default class ScomAmmPool extends Module implements PageBlock {
       this.updateButton(false);
     }
   }
-  resetFirstInput() {
+
+  async handleEnterAmount(source: Control, event: Event) {
+    if (this.isFixedPair) {
+      await this.handleOutputChange(source, event);
+    } else {
+      await this.handleInputChange(source, event);
+    }
+  }
+
+  async resetFirstInput() {
     this.firstToken = undefined;
     this.firstBalance = '0';
     this.lbFirstBalance.caption = '-';
@@ -757,6 +885,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.btnApproveFirstToken.visible = false;
     this.btnApproveSecondToken.visible = false;
   }
+
   private async setMaxBalance(isFrom: boolean) {
     if (!isWalletConnected()) return;
     this.isFromEstimated = !isFrom;
@@ -779,6 +908,23 @@ export default class ScomAmmPool extends Module implements PageBlock {
       await this.callAPIBundle(true);
     } catch {}
     this.updateButton(false);
+  }
+
+  private setMaxLiquidityBalance() {
+    if (!this.firstToken || !this.secondToken) return;
+    this.liquidityInput.value = this.maxLiquidityBalance;
+    this.onLiquidityChange();
+  }
+
+  private async onLiquidityChange() {
+    if (!this.firstToken || !this.secondToken) return;
+    limitInputNumber(this.liquidityInput, 18);
+    let tokensBack = await getTokensBack(this.firstToken, this.secondToken, this.liquidityInput.value);
+    if (tokensBack) {
+      this.firstInput.value = tokensBack.amountA;
+      this.secondInput.value = tokensBack.amountB;
+    }
+    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
   }
 
   updateButton(status: boolean) {
@@ -851,15 +997,18 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   handleApprove(source: Control, event: Event) {
-    this.showResultMessage(this.resultEl, 'warning', `Approving ${this.secondToken?.symbol} allowance`);
-    if (source == this.btnApproveFirstToken) {
+    if (this.isFixedPair) {
+      this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
+    } else if (source === this.btnApproveFirstToken) {
+      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.secondToken?.symbol} allowance`);
       this.btnApproveFirstToken.rightIcon.visible = true;
       if (this.firstToken) {
         this.approvalModelAction.doApproveAction(this.firstToken, this.firstInputAmount);
       }
       this.btnApproveFirstToken.rightIcon.visible = false;
     }
-    else if (source == this.btnApproveSecondToken) {
+    else if (source === this.btnApproveSecondToken) {
+      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.secondToken?.symbol} allowance`);
       this.btnApproveSecondToken.rightIcon.visible = true;
       if (this.secondToken) {
         this.approvalModelAction.doApproveAction(this.secondToken, this.secondInputAmount);
@@ -867,6 +1016,13 @@ export default class ScomAmmPool extends Module implements PageBlock {
       this.btnApproveSecondToken.rightIcon.visible = false;
     }
   }
+
+  private handleAction() {
+    this.isFixedPair ?
+    this.approvalModelAction.doPayAction() :
+    this.handleSupply()
+  }
+
   handleSupply() {
     if (!this.firstToken || !this.secondToken) return;
     const chainId = getChainId();
@@ -884,6 +1040,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.lbPoolTokenAmount.caption = formatNumber(this.poolTokenAmount, 4);
     this.confirmSupplyModal.visible = true;
   }
+
   handleConfirmSupply() {
     this.approvalModelAction.doPayAction();
   }
@@ -893,7 +1050,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
       removeLiquidity(
         this.firstToken,
         this.secondToken,
-        this.liquidity,
+        this.liquidityInput.value,
         this.firstInput.value,
         this.secondInput.value
       );
@@ -919,7 +1076,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   async initApprovalModelAction() {
-    if (!isWalletConnected() || this.approvalModelAction) return;
+    if (!isWalletConnected()) return;
     this.approvalModelAction = await getApprovalModelAction({
       sender: this,
       payAction: async () => {
@@ -927,8 +1084,8 @@ export default class ScomAmmPool extends Module implements PageBlock {
         this.onSubmit();
       },
       onToBeApproved: async (token: ITokenObject) => {
-        if (token == this.firstToken) {
-          this.btnApproveFirstToken.caption = `Approve ${token.symbol}`;
+        if (token == this.firstToken || this.isFixedPair) {
+          this.btnApproveFirstToken.caption = `Approve ${this.isFixedPair ? '' : token.symbol}`;
           this.btnApproveFirstToken.visible = true
           this.btnApproveFirstToken.enabled = true;
           this.btnSupply.enabled = false;
@@ -941,18 +1098,22 @@ export default class ScomAmmPool extends Module implements PageBlock {
         }
       },
       onToBePaid: async (token: ITokenObject) => {
-        if (token == this.firstToken) {
-          this.btnApproveFirstToken.visible = false;
-        }
-        else if (token == this.secondToken) {
-          this.btnApproveSecondToken.visible = false;
+        if (this.isFixedPair) {
+          this.btnApproveFirstToken.enabled = false;
+          this.btnApproveFirstToken.visible = true;
+          this.btnSupply.enabled = new BigNumber(this.liquidityInput.value).gt(0);
+        } else {
+          if (token === this.firstToken)
+            this.btnApproveFirstToken.visible = false;
+          else if (token === this.secondToken)
+            this.btnApproveSecondToken.visible = false;
         }
       },
       onApproving: async (token: ITokenObject, receipt?: string) => {
-        if (token == this.firstToken) {
+        if (token == this.firstToken || this.isFixedPair) {
           this.btnApproveFirstToken.rightIcon.visible = true;
           this.btnApproveFirstToken.enabled = false;
-          this.btnApproveFirstToken.caption = `Approving ${token.symbol}`;
+          this.btnApproveFirstToken.caption = `Approving ${this.isFixedPair ? '' : token.symbol}`;
         }
         else if (token == this.secondToken) {
           this.btnApproveSecondToken.rightIcon.visible = true;
@@ -964,7 +1125,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
         }
       },
       onApproved: async (token: ITokenObject) => {
-        if (token == this.firstToken || token.symbol == this.firstToken?.symbol) {
+        if (token == this.firstToken || token.symbol == this.firstToken?.symbol || this.isFixedPair) {
           this.btnApproveFirstToken.rightIcon.visible = false;
           this.btnApproveFirstToken.visible = false;
         }
@@ -972,10 +1133,18 @@ export default class ScomAmmPool extends Module implements PageBlock {
           this.btnApproveSecondToken.rightIcon.visible = false;
           this.btnApproveSecondToken.visible = false;
         }
-        this.updateButtonText();
+        if (this.isFixedPair) {
+          this.btnApproveFirstToken.caption = 'Approved';
+          this.btnSupply.enabled = new BigNumber(this.liquidityInput.value).gt(0);
+        } else this.updateButtonText();
       },
       onApprovingError: async (token: ITokenObject, err: Error) => {
         this.showResultMessage(this.resultEl, 'error', err);
+        if (this.isFixedPair) {
+          this.btnApproveFirstToken.rightIcon.visible = false;
+          this.btnApproveFirstToken.enabled = true;
+          this.btnApproveFirstToken.caption = 'Approve';
+        }
       },      
       onPaying: async (receipt?: string) => {
         if (receipt) {
@@ -985,6 +1154,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
         this.btnSupply.rightIcon.visible = true;
       },
       onPaid: async () => {
+        if (this.isFixedPair) return;
         await tokenStore.updateAllTokenBalances();
         if (this.firstToken) {
           this.firstBalance = tokenStore.getTokenBalance(this.firstToken);
@@ -1002,127 +1172,121 @@ export default class ScomAmmPool extends Module implements PageBlock {
       }
     });
   }
+
   async checkPairExists() {
-    if (this.isFixedPair || !this.firstToken || !this.secondToken) {
+    if (this.isFixedPair || !this.firstToken || !this.secondToken)
       return;
-    }
     try {
       let pair = await getPairFromTokens(this.firstToken, this.secondToken);
       if (!pair || pair.address === nullAddress) {
         this.toggleCreateMessage(true)
       } else {
         let totalSupply = await pair?.totalSupply();
-        if (totalSupply?.isZero()) {
-          this.toggleCreateMessage(true)
-        } else {
-          this.toggleCreateMessage(false)
-        }
+        this.toggleCreateMessage(totalSupply?.isZero())
       }
     } catch (err) {
       this.toggleCreateMessage(true)
     }
   }
+
   async callAPIBundle(isNewShare: boolean) {
     if (!this.firstToken || !this.secondToken) return;
     if (!this.lbFirstPrice.isConnected) await this.lbFirstPrice.ready();
     if (!this.lbSecondPrice.isConnected) await this.lbSecondPrice.ready();
     if (!this.lbShareOfPool.isConnected) await this.lbShareOfPool.ready();
     if (this.isFixedPair) {
-      let info = await getRemoveLiquidityInfo(this.firstToken, this.secondToken);
-      const firstSymbol = this.firstToken?.symbol || '';
-      const secondSymbol = this.secondToken?.symbol || '';
-      this.lbFirstPrice.caption = `1 ${firstSymbol} = ${formatNumber(info.price0, 4)} ${secondSymbol}`;
-      this.lbSecondPrice.caption = `1 ${secondSymbol} = ${formatNumber(info.price1, 4)} ${firstSymbol}`;
-      this.lbShareOfPool.caption = `${formatNumber(new BigNumber(info.poolShare).times(100), 2)}%`;
-      this.firstInput.value = formatNumber(info.tokenAShare, 4);
-      this.firstInput.readOnly = true;
-      this.secondInput.value = formatNumber(info.tokenBShare, 4);
-      this.secondInput.readOnly = true;
-      this.liquidity = formatNumber(info.totalPoolTokens, 4);
+      const info = await getRemoveLiquidityInfo(this.firstToken, this.secondToken);
+      this.removeInfo = {
+        maxBalance: info?.totalPoolTokens || '',
+        totalPoolTokens: info.totalPoolTokens ? formatNumber(info.totalPoolTokens, 4) : '',
+        poolShare: info.poolShare ? `${formatNumber(new BigNumber(info.poolShare).times(100), 2)}%` : '',
+        tokenAShare: info.tokenAShare ? formatNumber(info.tokenAShare, 4) : '',
+        tokenBShare: info.tokenBShare ? formatNumber(info.tokenBShare, 4) : ''
+      }
+      this.lbFirstPrice.caption = `1 ${this.firstTokenSymbol} = ${formatNumber(info.price0, 4)} ${this.secondTokenSymbol}`;
+      this.lbSecondPrice.caption = `1 ${this.secondTokenSymbol} = ${formatNumber(info.price1, 4)} ${this.firstTokenSymbol}`;
+      this.lbShareOfPool.caption = this.removeInfo.poolShare;
+      this.firstInput.value = this.removeInfo.tokenAShare;
+      this.secondInput.value = this.removeInfo.tokenBShare;
+      this.lbLiquidityBalance.caption = `Balance: ${this.removeInfo.totalPoolTokens}`;
+      this.liquidityInput.value = this.removeInfo.totalPoolTokens;
+      this.maxLiquidityBalance = info.totalPoolTokens;
+      this.lpToken = info.lpToken;
       return;
     }
 
-    if (!this.firstInputAmount || !this.secondInputAmount || this.firstInputAmount == '0' || this.secondInputAmount == '0') {
-      this.lbFirstPrice.caption = '0';
-      this.lbSecondPrice.caption = '0';
-      this.lbShareOfPool.caption = '0%';
-    } else {
-      if (isNewShare) {
-        let newShareInfo;
-        let invalidVal = false;
-        if (this.isFromEstimated) {
-          invalidVal = new BigNumber(this.firstInput.value).isNaN();
-          newShareInfo = await getNewShareInfo(false, this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
-          const val = limitDecimals(newShareInfo?.quote || '0', this.firstTokenDecimals);
-          this.firstInputAmount = val;
-          this.firstInput.value = val;
-          if (invalidVal) {
-            newShareInfo = await getNewShareInfo(false, this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
-          }
-        }
-        else {
-          invalidVal = new BigNumber(this.secondInput.value).isNaN();
-          newShareInfo = await getNewShareInfo(false, this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
-          const val = limitDecimals(newShareInfo?.quote || '0', this.secondTokenDecimals);
-          this.secondInputAmount = val;
-          this.secondInput.value = val;
-          if (invalidVal) {
-            newShareInfo = await getNewShareInfo(false, this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
-          }
-        }
-        if (!newShareInfo) {
-          this.lbFirstPrice.caption = '0';
-          this.lbSecondPrice.caption = '0';
-          this.lbShareOfPool.caption = '0%';
-          this.poolTokenAmount = '0';
-        }
-        else {
-          let shareOfPool = new BigNumber(newShareInfo.newShare).times(100).toFixed();
-          this.lbFirstPrice.caption = formatNumber(newShareInfo.newPrice0, 3);
-          this.lbSecondPrice.caption = formatNumber(newShareInfo.newPrice1, 3);
-          this.lbShareOfPool.caption = `${formatNumber(shareOfPool, 2)}%`;
-          this.poolTokenAmount = newShareInfo.minted;
-        }
+    if (isNewShare) {
+      let newShareInfo;
+      let invalidVal = false;
+      if (this.isFromEstimated) {
+        invalidVal = new BigNumber(this.firstInput.value).isNaN();
+        newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
+        const val = limitDecimals(newShareInfo?.quote || '0', this.firstTokenDecimals);
+        this.firstInputAmount = val;
+        this.firstInput.value = val;
+        if (invalidVal)
+          newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
       }
       else {
-        let pricesInfo = await getPricesInfo(false, this.firstToken, this.secondToken);
-        if (!pricesInfo) {
-          let newPairShareInfo = calculateNewPairShareInfo(this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount);
-          this.lbFirstPrice.caption = formatNumber(newPairShareInfo.price0, 3);
-          this.lbSecondPrice.caption = formatNumber(newPairShareInfo.price1, 3);
-          this.poolTokenAmount = newPairShareInfo.minted;
-          this.lbShareOfPool.caption = '100%';
-        }
-        else if (!pricesInfo.price0 || !pricesInfo.price1) {
-          this.lbFirstPrice.caption = '0';
-          this.lbSecondPrice.caption = '0';
-          this.lbShareOfPool.caption = '0%';
-        }
-        else {
-          const { price0, price1 } = pricesInfo;
-          let shareOfPool = pricesInfo.totalSupply == '0' ? '0' : new BigNumber(pricesInfo.balance).div(pricesInfo.totalSupply).times(100).toFixed();
-          this.lbFirstPrice.caption = formatNumber(price0, 3);
-          this.lbSecondPrice.caption = formatNumber(price1, 3);
-          this.lbShareOfPool.caption = `${formatNumber(shareOfPool, 2)}%`;
-          if (this.isFromEstimated) {
-            if (new BigNumber(this.secondInput.value).gt(0)) {
-              const price = new BigNumber(price1).multipliedBy(this.secondInput.value).toFixed();
-              const val = limitDecimals(price, this.firstTokenDecimals);
-              this.firstInput.value = val;
-              this.firstInputAmount = val;
-            }
-          } else {
-            if (new BigNumber(this.firstInput.value).gt(0)) {
-              const price = new BigNumber(price0).multipliedBy(this.firstInput.value).toFixed();
-              const val = limitDecimals(price, this.secondTokenDecimals);
-              this.secondInput.value = val;
-              this.secondInputAmount = val;
-            }
+        invalidVal = new BigNumber(this.secondInput.value).isNaN();
+        newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
+        const val = limitDecimals(newShareInfo?.quote || '0', this.secondTokenDecimals);
+        this.secondInputAmount = val;
+        this.secondInput.value = val;
+        if (invalidVal)
+          newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
+      }
+      if (!newShareInfo) {
+        this.lbFirstPrice.caption = '0';
+        this.lbSecondPrice.caption = '0';
+        this.lbShareOfPool.caption = '0%';
+        this.poolTokenAmount = '0';
+      }
+      else {
+        let shareOfPool = new BigNumber(newShareInfo.newShare).times(100).toFixed();
+        this.lbFirstPrice.caption = formatNumber(newShareInfo.newPrice0, 3);
+        this.lbSecondPrice.caption = formatNumber(newShareInfo.newPrice1, 3);
+        this.lbShareOfPool.caption = `${formatNumber(shareOfPool, 2)}%`;
+        this.poolTokenAmount = newShareInfo.minted;
+      }
+    }
+    else {
+      let pricesInfo = await getPricesInfo(this.firstToken, this.secondToken);
+      if (!pricesInfo) {
+        let newPairShareInfo = calculateNewPairShareInfo(this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount);
+        this.lbFirstPrice.caption = formatNumber(newPairShareInfo.price0, 3);
+        this.lbSecondPrice.caption = formatNumber(newPairShareInfo.price1, 3);
+        this.poolTokenAmount = newPairShareInfo.minted;
+        this.lbShareOfPool.caption = '100%';
+      }
+      else if (!pricesInfo.price0 || !pricesInfo.price1) {
+        this.lbFirstPrice.caption = '0';
+        this.lbSecondPrice.caption = '0';
+        this.lbShareOfPool.caption = '0%';
+      }
+      else {
+        const { price0, price1 } = pricesInfo;
+        let shareOfPool = pricesInfo.totalSupply == '0' ? '0' : new BigNumber(pricesInfo.balance).div(pricesInfo.totalSupply).times(100).toFixed();
+        this.lbFirstPrice.caption = formatNumber(price0, 3);
+        this.lbSecondPrice.caption = formatNumber(price1, 3);
+        this.lbShareOfPool.caption = `${formatNumber(shareOfPool, 2)}%`;
+        if (this.isFromEstimated) {
+          if (new BigNumber(this.secondInput.value).gt(0)) {
+            const price = new BigNumber(price1).multipliedBy(this.secondInput.value).toFixed();
+            const val = limitDecimals(price, this.firstTokenDecimals);
+            this.firstInput.value = val;
+            this.firstInputAmount = val;
+          }
+        } else {
+          if (new BigNumber(this.firstInput.value).gt(0)) {
+            const price = new BigNumber(price0).multipliedBy(this.firstInput.value).toFixed();
+            const val = limitDecimals(price, this.secondTokenDecimals);
+            this.secondInput.value = val;
+            this.secondInputAmount = val;
           }
         }
       }
     }
-
     this.btnSupply.enabled = true;
     this.approvalModelAction.checkAllowance(this.firstToken, this.firstInputAmount);
     this.approvalModelAction.checkAllowance(this.secondToken, this.secondInputAmount);
@@ -1166,132 +1330,134 @@ export default class ScomAmmPool extends Module implements PageBlock {
             width="100%"
             padding={{left: '1rem', right: '1rem', top: '1rem', bottom: '1rem'}}
           >
-            <i-panel maxWidth='100%' margin={{top: '0.25rem', bottom: '0.75rem'}}>
-              <i-vstack
-                margin={{top: '0.25rem'}}
-                padding={{left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem'}}
-                border={{radius: '1rem'}}
-                maxWidth={520} width="100%"
-                background={{color: Theme.background.modal}}
-              >
-                {/* <i-hstack
-                  horizontalAlignment="space-between"
-                  padding={{bottom: '1rem'}}
-                  margin={{bottom: '1.5rem'}}
-                  border={{bottom: {width: '1px', style: 'solid', color: Theme.divider}}}
+            <i-vstack
+              margin={{top: '0.5rem', left: 'auto', right: 'auto', bottom: '0.75rem'}}
+              padding={{left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem'}}
+              border={{radius: '1rem'}}
+              width="100%" maxWidth={520}
+              background={{color: Theme.background.modal}}
+            >
+              <i-panel>
+                <i-vstack
+                  id="pnlCreatePairMsg" visible={false}
+                  background={{color: Theme.background.gradient}}
+                  padding={{left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem'}}
+                  margin={{bottom: '1rem'}}
+                  gap="1rem"
                 >
-                  <i-label class="bold" id="lbMainTitle" font={{ size: '18px' }} caption='Add Liquidity To Pool'></i-label>
-                  <i-icon
-                    tooltip={{
-                      content: 'When you add liquidity, you are given pool tokens representing your position. These tokens automatically earn fees proportional to your share of the pool, and can be redeemed at any time.',
-                      placement: 'topRight'
-                    }}
-                    name="question-circle"
-                    fill='#fff' width={20} height={20}
-                  ></i-icon>
-                </i-hstack> */}
-                <i-panel>
-                  <i-vstack
-                    id="pnlCreatePairMsg" visible={false}
-                    background={{color: Theme.background.gradient}}
-                    padding={{left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem'}}
-                    margin={{bottom: '1rem'}}
-                    gap="1rem"
-                  >
-                    <i-label caption='You are the first liquidity provider.' font={{color: '#fff'}} />
-                    <i-label caption='The ratio of tokens you add will set the price of this pool.' font={{color: '#fff'}} />
-                    <i-label caption='Once you are happy with the rate click supply to review.' font={{color: '#fff'}} />
-                  </i-vstack>
+                  <i-label caption='You are the first liquidity provider.' font={{color: '#fff'}} />
+                  <i-label caption='The ratio of tokens you add will set the price of this pool.' font={{color: '#fff'}} />
+                  <i-label caption='Once you are happy with the rate click supply to review.' font={{color: '#fff'}} />
+                </i-vstack>
+                <i-vstack id="pnlLiquidity" visible={false}>
                   <i-vstack
                     padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
                     border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
                     margin={{top: 10, bottom: 10}}
                     gap="0.5rem"
                   >
-                    <i-hstack horizontalAlignment="space-between">
+                    <i-hstack horizontalAlignment="space-between" margin={{ bottom: 4 }}>
                       <i-label caption="Input" />
-                      <i-label id="lbFirstBalance" font={{color: Theme.colors.warning.main}} caption="-" />
+                      <i-label id="lbLiquidityBalance" caption="-" font={{color: Theme.colors.warning.main}} />
                     </i-hstack>
                     <i-hstack horizontalAlignment="space-between">
-                      <i-input id="firstInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount}/>
-                      <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
+                      <i-input id="liquidityInput" class="bg-transparent" value="0" onChanged={this.onLiquidityChange} />
+                      <i-panel id="pnlLiquidityImage" class="text-right"></i-panel>
                     </i-hstack>
                   </i-vstack>
                   <i-hstack horizontalAlignment="center">
-                    <i-icon width={20} height={20} name="plus" fill="#fff" />
+                    <i-icon width={20} height={20} name="arrow-down" fill="#fff" />
                   </i-hstack>
-                  <i-vstack
-                    padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
-                    border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
-                    margin={{top: 10, bottom: 10}}
-                    gap="0.5rem"
-                  >
-                    <i-hstack horizontalAlignment="space-between">
-                      <i-label caption="Input" />
-                      <i-label id="lbSecondBalance" font={{color: Theme.colors.warning.main}} caption="-" />
-                    </i-hstack>
-                    <i-hstack horizontalAlignment="space-between">
-                      <i-input id="secondInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount} />
-                      <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
-                    </i-hstack>
-                  </i-vstack>
-                  <i-vstack
-                    id="pricePanel"
-                    padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
-                    border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
-                    margin={{top: 10, bottom: 10}}
-                    gap="0.5rem"
-                    visible={false}
-                  >
-                    <i-label margin={{ bottom: 12 }} caption="Prices and pool share" />
-                    <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
-                      <i-panel>
-                        <i-panel class="text-center">
-                          <i-label id="lbFirstPrice" caption="-" />
-                        </i-panel>
-                        <i-panel class="text-center">
-                          <i-label id="lbFirstPriceTitle" opacity={0.7} caption="per" />
-                        </i-panel>
+                </i-vstack>
+                <i-vstack
+                  padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
+                  border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
+                  margin={{top: 10, bottom: 10}}
+                  gap="0.5rem"
+                >
+                  <i-hstack horizontalAlignment="space-between">
+                    <i-label id="lbLabel1" caption='' />
+                    <i-label id="lbFirstBalance" font={{color: Theme.colors.warning.main}} caption="-" />
+                  </i-hstack>
+                  <i-hstack horizontalAlignment="space-between">
+                    <i-input id="firstInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount}/>
+                    <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
+                  </i-hstack>
+                </i-vstack>
+                <i-hstack horizontalAlignment="center">
+                  <i-icon width={20} height={20} name="plus" fill="#fff" />
+                </i-hstack>
+                <i-vstack
+                  padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
+                  border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
+                  margin={{top: 10, bottom: 10}}
+                  gap="0.5rem"
+                >
+                  <i-hstack horizontalAlignment="space-between">
+                    <i-label id="lbLabel2" caption='' />
+                    <i-label id="lbSecondBalance" font={{color: Theme.colors.warning.main}} caption="-" />
+                  </i-hstack>
+                  <i-hstack horizontalAlignment="space-between">
+                    <i-input id="secondInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount} />
+                    <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
+                  </i-hstack>
+                </i-vstack>
+                <i-vstack
+                  id="pricePanel"
+                  padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
+                  border={{color: '#E53780', width: '1px', style: 'solid', radius: 12}}
+                  margin={{top: 10, bottom: 10}}
+                  gap="0.5rem"
+                  visible={false}
+                >
+                  <i-label margin={{ bottom: 12 }} caption="Prices and pool share" />
+                  <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
+                    <i-panel>
+                      <i-panel class="text-center">
+                        <i-label id="lbFirstPrice" caption="-" />
                       </i-panel>
-                      <i-panel>
-                        <i-panel class="text-center">
-                          <i-label id="lbSecondPrice" caption="-" />
-                        </i-panel>
-                        <i-panel class="text-center">
-                          <i-label id="lbSecondPriceTitle" opacity={0.7} caption="per" />
-                        </i-panel>
+                      <i-panel class="text-center">
+                        <i-label id="lbFirstPriceTitle" opacity={0.7} caption="per" />
                       </i-panel>
-                      <i-panel>
-                        <i-panel class="text-center">
-                          <i-label id="lbShareOfPool" caption="0%" />
-                        </i-panel>
-                        <i-panel class="text-center">
-                          <i-label opacity={0.7} caption="Share of pool" />
-                        </i-panel>
+                    </i-panel>
+                    <i-panel>
+                      <i-panel class="text-center">
+                        <i-label id="lbSecondPrice" caption="-" />
                       </i-panel>
-                    </i-hstack>
-                  </i-vstack>
-                  <i-button
-                    id="btnApproveFirstToken" visible={false}
-                    class="btn-swap" height="65"
-                    caption="Approve"
-                    rightIcon={{ spin: true, visible: false }}
-                    onClick={this.handleApprove}
-                  ></i-button>
-                  <i-button
-                    id="btnApproveSecondToken" visible={false} class="btn-swap" height="65" caption="Approve"
-                    onClick={this.handleApprove}
-                    rightIcon={{ spin: true, visible: false }}
-                  ></i-button>
-                  <i-button
-                    id="btnSupply" class="btn-swap" enabled={false} height="65" caption=''
-                    rightIcon={{ spin: true, visible: false }}
-                    onClick={this.handleSupply}
-                  ></i-button>
-                  <i-label font={{color: Theme.colors.warning.main}} caption="*OpenSwap is in Beta, please use it at your own discretion"></i-label>
-                </i-panel>
-              </i-vstack>
-            </i-panel>
+                      <i-panel class="text-center">
+                        <i-label id="lbSecondPriceTitle" opacity={0.7} caption="per" />
+                      </i-panel>
+                    </i-panel>
+                    <i-panel>
+                      <i-panel class="text-center">
+                        <i-label id="lbShareOfPool" caption="0%" />
+                      </i-panel>
+                      <i-panel class="text-center">
+                        <i-label opacity={0.7} caption="Share of pool" />
+                      </i-panel>
+                    </i-panel>
+                  </i-hstack>
+                </i-vstack>
+                <i-button
+                  id="btnApproveFirstToken" visible={false}
+                  class="btn-swap" height="65"
+                  caption="Approve"
+                  rightIcon={{ spin: true, visible: false }}
+                  onClick={this.handleApprove}
+                ></i-button>
+                <i-button
+                  id="btnApproveSecondToken" visible={false} class="btn-swap" height="65" caption="Approve"
+                  onClick={this.handleApprove}
+                  rightIcon={{ spin: true, visible: false }}
+                ></i-button>
+                <i-button
+                  id="btnSupply" class="btn-swap" enabled={false} height="65" caption=''
+                  rightIcon={{ spin: true, visible: false }}
+                  onClick={this.handleAction}
+                ></i-button>
+                <i-vstack id="pnlInfo"></i-vstack>
+              </i-panel>
+            </i-vstack>
             <i-modal id="confirmSupplyModal" title="Add Liquidity To Pool" closeIcon={{ name: 'times' }}>
               <i-label font={{color: Theme.colors.warning.main, size: '1.125rem'}} caption='You will receive' />
               <i-hstack horizontalAlignment="space-between" margin={{ bottom: 24 }}>
