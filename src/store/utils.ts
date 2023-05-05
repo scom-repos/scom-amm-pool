@@ -16,7 +16,6 @@ export type ProxyAddresses = { [key: number]: string };
 
 export const state = {
   currentChainId: 0,
-  isExpertMode: false,
   slippageTolerance: 0.5,
   transactionDeadline: 30,
   userTokens: {} as { [key: string]: ITokenObject[] },
@@ -24,10 +23,8 @@ export const state = {
   networkMap: {} as { [key: number]: IExtendedNetwork },
   dexInfoList: [] as IDexInfo[],
   providerList: [] as IProvider[],
-  proxyAddresses: {} as ProxyAddresses,
   ipfsGatewayUrl: "",
   apiGatewayUrls: {} as Record<string, string>,
-  embedderCommissionFee: "0",
   tokens: []
 }
 
@@ -38,31 +35,12 @@ export const setDataFromConfig = (options: any) => {
   if (options.networks) {
     setNetworkList(options.networks, options.infuraId)
   }
-  if (options.proxyAddresses) {
-    setProxyAddresses(options.proxyAddresses)
-  }
   if (options.ipfsGatewayUrl) {
     setIPFSGatewayUrl(options.ipfsGatewayUrl);
   }
   if (options.apiGatewayUrls) {
     setAPIGatewayUrls(options.apiGatewayUrls);
   }
-  if (options.embedderCommissionFee) {
-    setEmbedderCommissionFee(options.embedderCommissionFee);
-  }
-}
-
-export const setProxyAddresses = (data: ProxyAddresses) => {
-  state.proxyAddresses = data;
-}
-
-export const getProxyAddress = (chainId?: number) => {
-  const _chainId = chainId || Wallet.getInstance().chainId;
-  const proxyAddresses = state.proxyAddresses;
-  if (proxyAddresses) {
-    return proxyAddresses[_chainId];
-  }
-  return null;
 }
 
 export const setIPFSGatewayUrl = (url: string) => {
@@ -77,28 +55,12 @@ export const setAPIGatewayUrls = (urls: Record<string, string>) => {
   state.apiGatewayUrls = urls;
 }
 
-const setEmbedderCommissionFee = (fee: string) => {
-  state.embedderCommissionFee = fee;
-}
-
-export const getEmbedderCommissionFee = () => {
-  return state.embedderCommissionFee;
-}
-
 export const setCurrentChainId = (value: number) => {
   state.currentChainId = value;
 }
 
 export const getCurrentChainId = (): number => {
   return state.currentChainId;
-}
-
-export const isExpertMode = (): boolean => {
-  return state.isExpertMode;
-}
-
-export function toggleExpertMode() {
-  state.isExpertMode = !state.isExpertMode
 }
 
 export const getSlippageTolerance = (): any => {
@@ -155,36 +117,6 @@ export const getSupportedNetworks = () => {
 
 export const getNetworkInfo = (chainId: number) => {
   return state.networkMap[chainId];
-}
-
-export const getUserTokens: (chainId: number) => any[] | null = (chainId: number) => {
-  let tokens = localStorage[TOKENS + chainId];
-  if (tokens) {
-    tokens = JSON.parse(tokens);
-  } else {
-    tokens = [];
-  }
-  const userTokens = state.userTokens[chainId];
-  if (userTokens && userTokens.length) {
-    tokens = tokens.concat(userTokens);
-  }
-  return tokens.length ? tokens : null;
-}
-
-export const addUserTokens = (token: ITokenObject) => {
-  const chainId = getChainId();
-  let tokens = localStorage[TOKENS + chainId];
-  let i = -1;
-  if (tokens) {
-    tokens = JSON.parse(tokens);
-    i = tokens.findIndex((item: ITokenObject) => item.address == token.address);
-  } else {
-    tokens = [];
-  }
-  if (i == -1) {
-    tokens.push(token);
-  }
-  localStorage[TOKENS + chainId] = JSON.stringify(tokens);
 }
 
 interface NetworkConditions {

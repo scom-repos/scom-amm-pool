@@ -9802,7 +9802,6 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
     };
     export const state: {
         currentChainId: number;
-        isExpertMode: boolean;
         slippageTolerance: number;
         transactionDeadline: number;
         userTokens: {
@@ -9814,23 +9813,16 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
         };
         dexInfoList: IDexInfo[];
         providerList: IProvider[];
-        proxyAddresses: ProxyAddresses;
         ipfsGatewayUrl: string;
         apiGatewayUrls: Record<string, string>;
-        embedderCommissionFee: string;
         tokens: any[];
     };
     export const setDataFromConfig: (options: any) => void;
-    export const setProxyAddresses: (data: ProxyAddresses) => void;
-    export const getProxyAddress: (chainId?: number) => string;
     export const setIPFSGatewayUrl: (url: string) => void;
     export const getIPFSGatewayUrl: () => string;
     export const setAPIGatewayUrls: (urls: Record<string, string>) => void;
-    export const getEmbedderCommissionFee: () => string;
     export const setCurrentChainId: (value: number) => void;
     export const getCurrentChainId: () => number;
-    export const isExpertMode: () => boolean;
-    export function toggleExpertMode(): void;
     export const getSlippageTolerance: () => any;
     export const setSlippageTolerance: (value: any) => void;
     export const getTransactionDeadline: () => any;
@@ -9838,8 +9830,6 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
     export const getInfuraId: () => string;
     export const getSupportedNetworks: () => IExtendedNetwork[];
     export const getNetworkInfo: (chainId: number) => IExtendedNetwork;
-    export const getUserTokens: (chainId: number) => any[] | null;
-    export const addUserTokens: (token: ITokenObject) => void;
     interface NetworkConditions {
         isDisabled?: boolean;
         isTestnet?: boolean;
@@ -10110,7 +10100,7 @@ declare module "@scom/scom-amm-pool/API.ts" {
         poolShare: string;
     }>;
     const getPairFromTokens: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<Contracts.OSWAP_Pair>;
-    const getPricesInfo: (isPoolV1: boolean, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
+    const getPricesInfo: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
         pair: Contracts.OSWAP_Pair;
         price0: string;
         price1: string;
@@ -10122,7 +10112,7 @@ declare module "@scom/scom-amm-pool/API.ts" {
         price1: string;
         minted: string;
     };
-    const getNewShareInfo: (isPoolV1: boolean, tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => Promise<{
+    const getNewShareInfo: (tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => Promise<{
         quote: string;
         newPrice0: string;
         newPrice1: string;
@@ -10132,7 +10122,9 @@ declare module "@scom/scom-amm-pool/API.ts" {
     const addLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
     const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
     const getApprovalModelAction: (options: IERC20ApprovalEventOptions) => Promise<import("@scom/scom-amm-pool/global/index.ts").IERC20ApprovalAction>;
-    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity };
+    const getTokensBack: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
+    const getTokensBackByAmountOut: (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
+    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
 }
 /// <amd-module name="@scom/scom-amm-pool/index.css.ts" />
 declare module "@scom/scom-amm-pool/index.css.ts" {
@@ -10202,18 +10194,30 @@ declare module "@scom/scom-amm-pool" {
         private pnlCreatePairMsg;
         private pricePanel;
         private dappContainer;
+        private pnlLiquidityImage;
+        private lbLiquidityBalance;
+        private liquidityInput;
+        private pnlLiquidity;
+        private lbLabel1;
+        private lbLabel2;
+        private pnlInfo;
         private _data;
         private _oldData;
-        private isInited;
         private currentChainId;
         private allTokenBalancesMap;
-        private liquidity;
+        private maxLiquidityBalance;
+        private lpToken;
+        private isInited;
+        private removeInfo;
         tag: any;
         private oldTag;
         constructor(parent?: Container, options?: any);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
+        private get getInputLabel();
         get firstTokenDecimals(): number;
         get secondTokenDecimals(): number;
+        get firstTokenSymbol(): string;
+        get secondTokenSymbol(): string;
         get providers(): IProviderUI[];
         set providers(value: IProviderUI[]);
         get tokens(): ITokenObject[];
@@ -10271,6 +10275,7 @@ declare module "@scom/scom-amm-pool" {
         private updateStyle;
         private updateTheme;
         private onSetupPage;
+        private renderLiquidity;
         private setFixedPairData;
         private initTokenSelection;
         private getBalance;
@@ -10280,14 +10285,19 @@ declare module "@scom/scom-amm-pool" {
         private setProviders;
         updateButtonText(): void;
         private onCheckInput;
+        private handleOutputChange;
+        private handleInputChange;
         handleEnterAmount(source: Control, event: Event): Promise<void>;
-        resetFirstInput(): void;
+        resetFirstInput(): Promise<void>;
         resetSecondInput(): void;
         private setMaxBalance;
+        private setMaxLiquidityBalance;
+        private onLiquidityChange;
         updateButton(status: boolean): void;
         onUpdateToken(token: ITokenObject, isFrom: boolean): Promise<void>;
         onSelectToken(token: any, isFrom: boolean): Promise<void>;
         handleApprove(source: Control, event: Event): void;
+        private handleAction;
         handleSupply(): void;
         handleConfirmSupply(): void;
         onSubmit(): void;

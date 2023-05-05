@@ -13,7 +13,8 @@ import {
 } from '@ijstech/components'; 
 import { Wallet } from '@ijstech/eth-wallet';
 import { EventId, ITokenObject } from '../global/index';
-import { addUserTokens, viewOnExplorerByAddress } from '../store/index';
+import { viewOnExplorerByAddress } from '../store/index';
+import { addUserTokens } from '@scom/scom-token-list';
 import { tokenStore } from '@scom/scom-token-list';
 
 declare global {

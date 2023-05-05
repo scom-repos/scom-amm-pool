@@ -118,11 +118,8 @@ export class TokenSelection extends Module {
 
   set isSortBalanceShown(value: boolean) {
     this._isSortBalanceShown = value;
-    if (value) {
-      this.sortBalancePanel.classList.remove('hidden');
-    } else {
-      this.sortBalancePanel.classList.add('hidden');
-    }
+    if (this.sortBalancePanel)
+      this.sortBalancePanel.visible = value;
   }
 
   get isBtnMaxShown(): boolean {
@@ -131,12 +128,7 @@ export class TokenSelection extends Module {
 
   set isBtnMaxShown(value: boolean) {
     this._isBtnMaxShown = value;
-    if (!this.btnMax) return;
-    if (value) {
-      this.btnMax.classList.remove('hidden');
-    } else {
-      this.btnMax.classList.add('hidden');
-    }
+    if (this.btnMax) this.btnMax.visible = value;
   }
 
   get onSetMaxBalance(): any {
@@ -159,7 +151,6 @@ export class TokenSelection extends Module {
   set disableSelect(value: boolean) {
     this._disableSelect = value;
     this.btnToken.enabled = !value;
-    // this.btnToken.rightIcon.name = value ? '' : 'caret-down';
     this.btnToken.rightIcon.visible = !value;
   }
 
@@ -314,7 +305,7 @@ export class TokenSelection extends Module {
     if (!this.commonTokenList) return;
     this.commonTokenList.innerHTML = '';
     if (this.isCommonShown && this.commonTokenDataList) {
-      this.commonTokenPanel.classList.remove('hidden');
+      this.commonTokenPanel.visible = true;
       this.commonTokenDataList.forEach((token: ITokenObject) => {
         const logoAddress = token.address && !this.targetChainId ? getTokenIcon(token.address) : tokenAssets.tokenPath(token, this.chainId);
 
@@ -332,7 +323,7 @@ export class TokenSelection extends Module {
         )
       })
     } else {
-      this.commonTokenPanel.classList.add('hidden');
+      this.commonTokenPanel.visible = false;
     }
   }
 
@@ -385,7 +376,10 @@ export class TokenSelection extends Module {
             token.isNew ? (
               <i-hstack horizontalAlignment="center"> 
                 <i-button caption='Import'
-                  class="btn-import" margin={{ top: 10 }} height={34}
+                  margin={{ top: 10 }} height={34}
+                  padding={{top: '0.25rem', bottom: '0.25rem', left: '1.25rem', right: '1.25rem'}}
+                  background={{color: Theme.background.gradient}}
+                  font={{color: '#fff'}}
                   onClick={(source: Control, event: Event) => this.showImportTokenModal(event, token)}
                 ></i-button>
               </i-hstack>
@@ -489,7 +483,7 @@ export class TokenSelection extends Module {
       if (!token) {
         btnToken.caption = 'Select a token';
         btnToken.classList.remove('has-token');
-        this.btnMax.classList.add('hidden');
+        this.btnMax.visible = false;
         if (image) {
           btnToken.removeChild(image);
         }
@@ -497,7 +491,7 @@ export class TokenSelection extends Module {
         btnToken.caption = token.symbol;
         btnToken.classList.add('has-token');
         if (this.isBtnMaxShown) {
-          this.btnMax.classList.remove('hidden');
+          this.btnMax.visible = true;
         }
         const logoAddress = token.address && !this.targetChainId ? getTokenIcon(token.address) : tokenAssets.tokenPath(token, this.chainId);
         if (!image) {
@@ -562,30 +556,42 @@ export class TokenSelection extends Module {
         <i-hstack gap="0.25rem">
           <i-button
             id="btnMax" enabled={false}
-            class="custom-btn hidden"
+            class="custom-btn"
             caption="Max"
             font={{color: '#fff'}}
+            visible={false}
             onClick={() => this.onSetMaxBalance()}
           />
           <i-button
             id="btnToken" enabled={false}
             class="custom-btn"
-            rightIcon={{ name: "caret-down", fill: Theme.text.primary }}
+            rightIcon={{ name: "caret-down", fill: Theme.text.primary, margin: {left: '0.25rem'}}}
             caption="Select a token"
+            background={{color: 'transparent'}}
+            font={{color: Theme.text.primary}}
+            height="auto" width="max-content"
+            border={{radius: 12}}
             onClick={() => this.showModal()}
           />
         </i-hstack>
         <i-modal id="tokenSelectionModal" class="bg-modal" title="Select Token" closeIcon={{ name: 'times' }} onClose={() => this.onCloseModal()}>
           <i-panel class="search">
             <i-icon width={16} height={16} name="search" fill={Theme.text.primary} />
-            <i-input id="tokenSearch" height="auto" placeholder="Search name or paste address" width="100%" onKeyUp={this.filterSearch.bind(this)}></i-input>
+            <i-input id="tokenSearch" height="auto" width="100% !important" placeholder="Search name or paste address" onKeyUp={this.filterSearch.bind(this)}></i-input>
           </i-panel>
           <i-panel id="commonTokenPanel" class="common-token">
             <i-label caption="Common Token" />
             <i-grid-layout
               id="commonTokenList"
               columnsPerRow={4} gap={{ row: '1rem', column: '1rem' }}
-              class="common-list" verticalAlignment="center"
+              class="common-list"
+              verticalAlignment="center"
+              mediaQueries={[
+                {
+                  maxWidth: '425px',
+                  properties: {templateColumns: ['repeat(3, 1fr)']}
+                }
+              ]}
             ></i-grid-layout>
           </i-panel>
           <i-panel id="sortBalancePanel" class="token-header">

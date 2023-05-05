@@ -235,7 +235,7 @@ const getReserves = async (pair: Contracts.OSWAP_Pair, tokenA: ITokenObject, tok
   return reserveObj;
 }
 
-const getPricesInfo = async (isPoolV1: boolean, tokenA: ITokenObject, tokenB: ITokenObject) => {
+const getPricesInfo = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
   let pricesData = await getPrices(tokenA, tokenB);
   if (!pricesData) return null;
 
@@ -267,7 +267,7 @@ const calculateNewPairShareInfo = (tokenA: ITokenObject, tokenB: ITokenObject, a
   }
 }
 
-const getNewShareInfo = async (isPoolV1: boolean, tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => {
+const getNewShareInfo = async (tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => {
   let wallet = Wallet.getClientInstance();
   let chainId = getChainId();
   const WETH = getWETH(chainId);
@@ -439,6 +439,103 @@ const getApprovalModelAction = async (options: IERC20ApprovalEventOptions) => {
   return approvalModelAction;
 }
 
+const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => {
+  let wallet = Wallet.getClientInstance();
+  let chainId = getChainId();
+  const WETH = getWETH(chainId);
+  if (!tokenA.address) tokenA = WETH;
+  if (!tokenB.address) tokenB = WETH;
+  const factoryAddress = getFactoryAddress(chainId);
+  const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
+  let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
+  if (!pairAddress || pairAddress == Utils.nullAddress) {
+    return null;
+  }
+  let pair = new Contracts.OSWAP_Pair(wallet, pairAddress);
+  let balance = await pair.balanceOf(wallet.address);
+  let totalSupply = await pair.totalSupply();
+  let reserve = await pair.getReserves();
+
+  let liquidityToDecimals = Utils.toDecimals(liquidity);
+
+  let reserve0: BigNumber;
+  let reserve1: BigNumber;
+  if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
+    reserve0 = reserve._reserve0;
+    reserve1 = reserve._reserve1;
+  }
+  else {
+    reserve0 = reserve._reserve1;
+    reserve1 = reserve._reserve0;
+  }
+
+  totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
+  let erc20A = new Contracts.ERC20(wallet, tokenA.address);
+  let erc20B = new Contracts.ERC20(wallet, tokenB.address);
+  let balanceA = await erc20A.balanceOf(pair.address);
+  let balanceB = await erc20B.balanceOf(pair.address);
+  let amountA = Utils.fromDecimals(liquidityToDecimals.times(balanceA).idiv(totalSupply), tokenA.decimals);
+  let amountB = Utils.fromDecimals(liquidityToDecimals.times(balanceB).idiv(totalSupply), tokenB.decimals);
+
+  let percent = liquidityToDecimals.div(balance).times(100).toFixed();
+  let newshare = new BigNumber(balance).minus(liquidity).div(new BigNumber(totalSupply).minus(liquidity)).toFixed();
+  let result: ITokensBack = {
+    amountA: amountA.toFixed(),
+    amountB: amountB.toFixed(),
+    [tokenA.symbol]: amountA.toFixed(),
+    [tokenB.symbol]: amountB.toFixed(),
+    liquidity: liquidity,
+    percent: percent,
+    newshare: newshare
+  }
+  return result;
+}
+
+const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => {
+  let wallet: any = Wallet.getClientInstance();
+  let chainId = getChainId();
+  const WETH = getWETH(chainId);
+  if (!tokenA.address) tokenA = WETH;
+  if (!tokenB.address) tokenB = WETH;
+  if (!tokenOut.address) tokenOut = WETH;
+
+  const factoryAddress = getFactoryAddress(chainId);
+  const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
+  let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
+  if (!pairAddress || pairAddress == Utils.nullAddress) {
+    return null;
+  }
+  let pair = new Contracts.OSWAP_Pair(wallet, pairAddress);
+  let totalSupply = await pair.totalSupply();
+  let reserve = await pair.getReserves();
+  
+  let reserve0: BigNumber;
+  let reserve1: BigNumber;
+  if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
+    reserve0 = reserve._reserve0;
+    reserve1 = reserve._reserve1;
+  }
+  else {
+    reserve0 = reserve._reserve1;
+    reserve1 = reserve._reserve0;
+  }
+  totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
+
+  let liquidityInDecimals: BigNumber;
+  if (tokenA.address == tokenOut.address) {
+    let erc20A = new Contracts.ERC20(wallet, tokenA.address);
+    let balanceA = await erc20A.balanceOf(pair.address);
+    liquidityInDecimals = Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceA).plus(1);
+  } else {
+    let erc20B = new Contracts.ERC20(wallet, tokenB.address);
+    let balanceB = await erc20B.balanceOf(pair.address);  
+    liquidityInDecimals = Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceB).plus(1);
+  }
+  let liquidity = Utils.fromDecimals(liquidityInDecimals).toFixed();
+  let tokensBack = await getTokensBack(tokenA, tokenB, liquidity);
+  return tokensBack;
+}
+
 export {
   IAmmPair,
   IUserShare,
@@ -451,5 +548,7 @@ export {
   calculateNewPairShareInfo,
   getPairFromTokens,
   getRemoveLiquidityInfo,
-  removeLiquidity
+  removeLiquidity,
+  getTokensBack,
+  getTokensBackByAmountOut
 }

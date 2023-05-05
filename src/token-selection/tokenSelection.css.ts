@@ -3,9 +3,6 @@ const Theme = Styles.Theme.ThemeVars;
 
 Styles.cssRule('.token-selection', {
   $nest: {
-    '#tokenSearch': {
-      width: '100% !important',
-    },
     '.token-agree-input': {
       $nest: {
         '.i-checkbox_label': {
@@ -58,16 +55,6 @@ Styles.cssRule('.token-selection', {
     '.i-modal_header > i-icon': {
       fill: `#F15E61 !important`
     },
-    'i-icon': {
-      display: 'inline-block'
-    },
-    '.btn-import': {
-      background: 'linear-gradient(90deg, #a8327f 0%, #d4626a 100%)',
-      borderRadius: '5px',
-      color: Theme.text.primary,
-      fontSize: '1rem',
-      padding: '0.25rem 1.25rem'
-    },
     '::-webkit-scrollbar': {
       width: '3px',
     },
@@ -76,8 +63,6 @@ Styles.cssRule('.token-selection', {
       borderRadius: '5px',
     },
     '.custom-btn': {
-      display: 'flex',
-      alignItems: 'center',
       width: 'max-content',
       padding: '0.25rem 0.5rem',
       boxShadow: 'none',
@@ -112,18 +97,6 @@ Styles.cssRule('.token-selection', {
           }
         },
       },
-    },
-    '#btnToken': {
-      background: 'transparent',
-      color: Theme.text.primary,
-      height: 'auto',
-      width: 'max-content',
-      borderRadius: '12px',
-      $nest: {
-        'i-icon': {
-          marginLeft: '0.25rem',
-        },
-      }
     },
     '.bg-modal': {
       $nest: {
@@ -268,13 +241,6 @@ Styles.cssRule('.token-selection', {
               color: '#f50057'
             }
           }
-        }
-      }
-    },
-    '@media screen and (max-width: 425px)': {
-      $nest: {
-        '.common-list': {
-          gridTemplateColumns: 'repeat(3, 1fr) !important',
         }
       }
     }

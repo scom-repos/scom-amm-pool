@@ -33,13 +33,6 @@ export default class Module1 extends Module {
       "providers": this._providers,
       "tokens": [
         {
-          "name": "USDT",
-          "address": "0x29386B60e0A9A1a30e1488ADA47256577ca2C385",
-          "symbol": "USDT",
-          "decimals": 6,
-          "chainId": 97
-        },
-        {
           "name": "OpenSwap",
           "address": "0x45eee762aaeA4e5ce317471BDa8782724972Ee19",
           "symbol": "OSWAP",
@@ -47,11 +40,11 @@ export default class Module1 extends Module {
           "chainId": 97
         },
         {
-          "name": "Tether USD",
-          "address": "0xb9C31Ea1D475c25E58a1bE1a46221db55E5A7C6e",
-          "symbol": "USDT.e",
+          "name": "BUSD",
+          "address": "0xDe9334C157968320f26e449331D6544b89bbD00F",
+          "symbol": "BUSD",
           "decimals": 6,
-          "chainId": 43113
+          "chainId": 97
         },
         {
           "name": "OpenSwap",
