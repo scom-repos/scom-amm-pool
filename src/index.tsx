@@ -236,45 +236,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
   getEmbedderActions() {
     const propertiesSchema: IDataSchema = {
       type: "object",
-      properties: {
-        mode: {
-          type: "string",
-          required: true,
-          enum: [
-            "add-liquidity",
-            "remove-liquidity"
-          ]
-        },
-        providers: {
-          type: "array",
-          required: true,
-          items: {
-            type: "object",
-            properties: {
-              caption: {
-                type: "string",
-                required: true
-              },
-              image: {
-                type: "string",
-                required: true
-              },
-              key: {
-                type: "string",
-                required: true
-              },
-              dexId: {
-                type: "number"
-              },
-              chainId: {
-                type: "number",
-                enum: [1, 56, 137, 250, 97, 80001, 43113, 43114],
-                required: true
-              }
-            }
-          }
-        }
-      }
+      properties: {}
     }
 
     const themeSchema: IDataSchema = {
@@ -515,12 +477,6 @@ export default class ScomAmmPool extends Module implements PageBlock {
   }
 
   private async refreshUI() {
-    if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
-    if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
-    if (!this.firstInput.isConnected) await this.firstInput.ready();
-    if (!this.secondInput.isConnected) await this.secondInput.ready();
-    this.resetFirstInput();
-    this.resetSecondInput();
     const dexList = getDexList();
     setDexInfoList(dexList);
     this.setProviders();
@@ -576,6 +532,12 @@ export default class ScomAmmPool extends Module implements PageBlock {
     if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
     if (!this.lbLabel1.isConnected) await this.lbLabel1.ready();
     if (!this.lbLabel2.isConnected) await this.lbLabel2.ready();
+    if (!this.firstInput.isConnected) await this.firstInput.ready();
+    if (!this.secondInput.isConnected) await this.secondInput.ready();
+    if (!this.liquidityInput.isConnected) await this.liquidityInput.ready();
+    this.resetFirstInput();
+    this.resetSecondInput();
+    this.liquidityInput.value = '';
     tokenStore.updateTokenMapData();
     if (connected) {
       await tokenStore.updateAllTokenBalances();
