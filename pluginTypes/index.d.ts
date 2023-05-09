@@ -10132,8 +10132,8 @@ declare module "@scom/scom-amm-pool/index.css.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool" />
 declare module "@scom/scom-amm-pool" {
-    import { Control, Module, Container, ControlElement, IDataSchema } from '@ijstech/components';
-    import { ITokenObject, INetworkConfig, IPoolConfig, IProviderUI, ModeType, PageBlock } from "@scom/scom-amm-pool/global/index.ts";
+    import { Module, Container, ControlElement } from '@ijstech/components';
+    import { ITokenObject, INetworkConfig, IProviderUI, ModeType } from "@scom/scom-amm-pool/global/index.ts";
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
     interface ScomAmmPoolElement extends ControlElement {
         providers: IProviderUI[];
@@ -10150,7 +10150,7 @@ declare module "@scom/scom-amm-pool" {
             }
         }
     }
-    export default class ScomAmmPool extends Module implements PageBlock {
+    export default class ScomAmmPool extends Module {
         private firstInput;
         private secondInput;
         private btnApproveFirstToken;
@@ -10213,7 +10213,6 @@ declare module "@scom/scom-amm-pool" {
         private oldTag;
         constructor(parent?: Container, options?: any);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
-        private get getInputLabel();
         get firstTokenDecimals(): number;
         get secondTokenDecimals(): number;
         get firstTokenSymbol(): string;
@@ -10232,48 +10231,30 @@ declare module "@scom/scom-amm-pool" {
         set mode(value: ModeType);
         private get isFixedPair();
         private get originalData();
-        getEmbedderActions(): {
-            name: string;
-            icon: string;
-            command: (builder: any, userInputData: any) => {
-                execute: () => Promise<void>;
-                undo: () => void;
-                redo: () => void;
-            };
-            userInputDataSchema: IDataSchema;
-        }[];
-        getActions(): {
-            name: string;
-            icon: string;
-            command: (builder: any, userInputData: any) => {
-                execute: () => Promise<void>;
-                undo: () => void;
-                redo: () => void;
-            };
-            userInputDataSchema: IDataSchema;
-        }[];
-        _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema): {
-            name: string;
-            icon: string;
-            command: (builder: any, userInputData: any) => {
-                execute: () => Promise<void>;
-                undo: () => void;
-                redo: () => void;
-            };
-            userInputDataSchema: IDataSchema;
-        }[];
-        registerEvent(): void;
-        onWalletConnect: (connected: boolean) => Promise<void>;
-        onWalletDisconnect: (connected: boolean) => Promise<void>;
-        onChainChange: () => Promise<void>;
-        getData(): IPoolConfig;
-        setData(data: IPoolConfig): Promise<void>;
+        private getEmbedderActions;
+        private getActions;
+        private _getActions;
+        private registerEvent;
+        private onWalletConnect;
+        private onWalletDisconnect;
+        private onChainChange;
+        private getData;
+        private setData;
         private refreshUI;
-        getTag(): Promise<any>;
+        private getTag;
         private updateTag;
-        setTag(value: any): Promise<void>;
+        private setTag;
         private updateStyle;
         private updateTheme;
+        getConfigurators(): {
+            name: string;
+            target: string;
+            getActions: any;
+            getData: any;
+            setData: any;
+            getTag: any;
+            setTag: any;
+        }[];
         private onSetupPage;
         private renderLiquidity;
         private setFixedPairData;
@@ -10283,29 +10264,29 @@ declare module "@scom/scom-amm-pool" {
         private resetData;
         private initData;
         private setProviders;
-        updateButtonText(): void;
+        private updateButtonText;
         private onCheckInput;
         private handleOutputChange;
         private handleInputChange;
-        handleEnterAmount(source: Control, event: Event): Promise<void>;
+        private handleEnterAmount;
         resetFirstInput(): Promise<void>;
         resetSecondInput(): void;
         private setMaxBalance;
         private setMaxLiquidityBalance;
         private onLiquidityChange;
-        updateButton(status: boolean): void;
-        onUpdateToken(token: ITokenObject, isFrom: boolean): Promise<void>;
-        onSelectToken(token: any, isFrom: boolean): Promise<void>;
-        handleApprove(source: Control, event: Event): void;
+        private updateButton;
+        private onUpdateToken;
+        private onSelectToken;
+        private handleApprove;
         private handleAction;
-        handleSupply(): void;
-        handleConfirmSupply(): void;
-        onSubmit(): void;
-        initApprovalModelAction(): Promise<void>;
-        checkPairExists(): Promise<void>;
-        callAPIBundle(isNewShare: boolean): Promise<void>;
+        private handleSupply;
+        private handleConfirmSupply;
+        private onSubmit;
+        private initApprovalModelAction;
+        private checkPairExists;
+        private callAPIBundle;
         init(): Promise<void>;
-        toggleCreateMessage(value: boolean): void;
+        private toggleCreateMessage;
         private showResultMessage;
         render(): any;
     }

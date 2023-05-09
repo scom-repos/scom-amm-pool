@@ -2,7 +2,7 @@ import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Mod
 import {} from '@ijstech/eth-contract';
 import { Result } from './result/index';
 import { TokenSelection } from './token-selection/index';
-import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, PageBlock, IProvider } from './global/index';
+import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, IProvider } from './global/index';
 import { BigNumber } from "@ijstech/eth-wallet";
 import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress} from './store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut } from './API';
@@ -33,7 +33,7 @@ declare global {
 
 @customModule
 @customElements('i-scom-amm-pool')
-export default class ScomAmmPool extends Module implements PageBlock {
+export default class ScomAmmPool extends Module {
   private firstInput: Input;
   private secondInput: Input;
   private btnApproveFirstToken: Button;
@@ -127,10 +127,6 @@ export default class ScomAmmPool extends Module implements PageBlock {
     let self = new this(parent, options);
     await self.ready();
     return self;
-  }
-
-  private get getInputLabel() {
-    return this.isFixedPair ? 'Output' : 'Input';
   }
 
   get firstTokenDecimals() {
@@ -233,7 +229,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return { mode, providers: _providers };
   }
 
-  getEmbedderActions() {
+  private getEmbedderActions() {
     const propertiesSchema: IDataSchema = {
       type: "object",
       properties: {}
@@ -294,11 +290,10 @@ export default class ScomAmmPool extends Module implements PageBlock {
         }
       }
     }
-
     return this._getActions(propertiesSchema, themeSchema);
   }
 
-  getActions() {
+  private getActions() {
     const propertiesSchema: IDataSchema = {
       type: "object",
       properties: {
@@ -393,7 +388,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return this._getActions(propertiesSchema, themeSchema);
   }
 
-  _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema) {
+  private _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema) {
     const actions = [
       {
         name: 'Settings',
@@ -422,15 +417,15 @@ export default class ScomAmmPool extends Module implements PageBlock {
           return {
             execute: async () => {
               if (!userInputData) return;
-              this.oldTag = { ...this.tag };
-              this.setTag(userInputData);
+              this.oldTag = JSON.parse(JSON.stringify(this.tag));
               if (builder) builder.setTag(userInputData);
+              else this.setTag(userInputData);
               if (this.dappContainer) this.dappContainer.setTag(userInputData);
             },
             undo: () => {
               if (!userInputData) return;
-              this.setTag(this.oldTag);
               if (builder) builder.setTag(this.oldTag);
+              else this.setTag(this.oldTag);
               if (this.dappContainer) this.dappContainer.setTag(this.oldTag);
             },
             redo: () => { }
@@ -442,13 +437,13 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return actions
   }
 
-  registerEvent() {
+  private registerEvent() {
     this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
     this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
     this.$eventBus.register(this, EventId.chainChanged, this.onChainChange)
   }
 
-  onWalletConnect = async (connected: boolean) => {
+  private onWalletConnect = async (connected: boolean) => {
     if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
       this.onChainChange();
     } else {
@@ -456,22 +451,22 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  onWalletDisconnect = async (connected: boolean) => {
+  private onWalletDisconnect = async (connected: boolean) => {
     if (!connected)
       await this.onSetupPage(connected);
   }
 
-  onChainChange = async () => {
+  private onChainChange = async () => {
     this.currentChainId = getChainId();
     if (this.originalData?.providers?.length) await this.onSetupPage(true);
     this.updateButtonText();
   }
 
-  getData() {
+  private getData() {
     return this._data;
   }
 
-  async setData(data: IPoolConfig) {
+  private async setData(data: IPoolConfig) {
     this._data = data;
     await this.refreshUI();
   }
@@ -484,7 +479,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     await this.onSetupPage(isWalletConnected());
   }
 
-  async getTag() {
+  private async getTag() {
     return this.tag;
   }
 
@@ -496,10 +491,16 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  async setTag(value: any) {
+  private async setTag(value: any) {
     const newValue = value || {};
-    if (newValue.light) this.updateTag('light', newValue.light);
-    if (newValue.dark) this.updateTag('dark', newValue.dark);
+    for (let prop in newValue) {
+      if (newValue.hasOwnProperty(prop)) {
+        if (prop === 'light' || prop === 'dark')
+          this.updateTag(prop, newValue[prop]);
+        else
+          this.tag[prop] = newValue[prop];
+      }
+    }
     if (this.dappContainer)
       this.dappContainer.setTag(this.tag);
     this.updateTheme();
@@ -517,6 +518,29 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.updateStyle('--background-main', this.tag[themeVar]?.backgroundColor);
     this.updateStyle('--input-font_color', this.tag[themeVar]?.inputFontColor);
     this.updateStyle('--input-background', this.tag[themeVar]?.inputBackgroundColor);
+  }
+
+  getConfigurators() {
+    return [
+      {
+        name: 'Builder Configurator',
+        target: 'Builders',
+        getActions: this.getActions.bind(this),
+        getData: this.getData.bind(this),
+        setData: this.setData.bind(this),
+        getTag: this.getTag.bind(this),
+        setTag: this.setTag.bind(this)
+      },
+      {
+        name: 'Emdedder Configurator',
+        target: 'Embedders',
+        getActions: this.getEmbedderActions.bind(this),
+        getData: this.getData.bind(this),
+        setData: this.setData.bind(this),
+        getTag: this.getTag.bind(this),
+        setTag: this.setTag.bind(this)
+      }
+    ]
   }
 
   private onSetupPage = async (connected: boolean, _chainId?: number) => {
@@ -550,8 +574,9 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.secondTokenSelection.disableSelect = this.isFixedPair;
     this.firstTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
     this.secondTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
-    this.lbLabel1.caption = this.getInputLabel;
-    this.lbLabel2.caption = this.getInputLabel;
+    const label = this.isFixedPair ? 'Output' : 'Input';
+    this.lbLabel1.caption = label;
+    this.lbLabel2.caption = label;
     this.isFixedPair && this.setFixedPairData();
     if (connected) {
       try {
@@ -729,7 +754,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  updateButtonText() {
+  private updateButtonText() {
     if (!this.btnSupply || !this.btnSupply.hasChildNodes()) return;
     this.btnSupply.enabled = false;
     if (!isWalletConnected()) {
@@ -772,7 +797,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     return inputValue.gt(0);
   }
 
-  private async handleOutputChange(source: Control, event: Event) {
+  private async handleOutputChange(source: Control) {
     if (!this.firstToken || !this.secondToken) return;
     if (source === this.firstInput) {
       limitInputNumber(this.firstInput, this.firstToken.decimals);
@@ -792,7 +817,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
   }
 
-  private async handleInputChange(source: Control, event: Event) {
+  private async handleInputChange(source: Control) {
     let amount = (source as Input).value;
     if (source == this.firstInput) {
       limitInputNumber(this.firstInput, this.firstTokenDecimals);
@@ -822,11 +847,11 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  async handleEnterAmount(source: Control, event: Event) {
+  private async handleEnterAmount(source: Control) {
     if (this.isFixedPair) {
-      await this.handleOutputChange(source, event);
+      await this.handleOutputChange(source);
     } else {
-      await this.handleInputChange(source, event);
+      await this.handleInputChange(source);
     }
   }
 
@@ -889,14 +914,14 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
   }
 
-  updateButton(status: boolean) {
+  private updateButton(status: boolean) {
     this.btnSupply.rightIcon.visible = status;
     this.updateButtonText();
     this.firstTokenSelection.enabled = !status;
     this.secondTokenSelection.enabled = !status;
   }
 
-  async onUpdateToken(token: ITokenObject, isFrom: boolean) {
+  private async onUpdateToken(token: ITokenObject, isFrom: boolean) {
     const symbol = token.symbol;
     const balance = this.getBalance(token);
     if (isFrom) {
@@ -936,7 +961,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  async onSelectToken(token: any, isFrom: boolean) {
+  private async onSelectToken(token: any, isFrom: boolean) {
     if (!token) return;
     const symbol = token.symbol;
     if ((isFrom && this.firstToken?.symbol === symbol) || (!isFrom && this.secondToken?.symbol === symbol)) return;
@@ -958,7 +983,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  handleApprove(source: Control, event: Event) {
+  private handleApprove(source: Control) {
     if (this.isFixedPair) {
       this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
     } else if (source === this.btnApproveFirstToken) {
@@ -985,7 +1010,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.handleSupply()
   }
 
-  handleSupply() {
+  private handleSupply() {
     if (!this.firstToken || !this.secondToken) return;
     const chainId = getChainId();
     this.firstTokenImage1.url = this.firstTokenImage2.url = tokenAssets.tokenPath(this.firstToken, chainId);
@@ -1003,11 +1028,11 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.confirmSupplyModal.visible = true;
   }
 
-  handleConfirmSupply() {
+  private handleConfirmSupply() {
     this.approvalModelAction.doPayAction();
   }
 
-  onSubmit() {
+  private onSubmit() {
     if (this.isFixedPair)
       removeLiquidity(
         this.firstToken,
@@ -1037,7 +1062,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  async initApprovalModelAction() {
+  private async initApprovalModelAction() {
     if (!isWalletConnected()) return;
     this.approvalModelAction = await getApprovalModelAction({
       sender: this,
@@ -1135,7 +1160,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     });
   }
 
-  async checkPairExists() {
+  private async checkPairExists() {
     if (this.isFixedPair || !this.firstToken || !this.secondToken)
       return;
     try {
@@ -1151,7 +1176,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     }
   }
 
-  async callAPIBundle(isNewShare: boolean) {
+  private async callAPIBundle(isNewShare: boolean) {
     if (!this.firstToken || !this.secondToken) return;
     if (!this.lbFirstPrice.isConnected) await this.lbFirstPrice.ready();
     if (!this.lbSecondPrice.isConnected) await this.lbSecondPrice.ready();
@@ -1268,7 +1293,7 @@ export default class ScomAmmPool extends Module implements PageBlock {
     this.executeReadyCallback();
   }
 
-  toggleCreateMessage(value: boolean){
+  private toggleCreateMessage(value: boolean){
     this.pnlCreatePairMsg.visible = value;
   }
 
