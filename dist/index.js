@@ -15572,8 +15572,9 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.secondTokenSelection.disableSelect = this.isFixedPair;
                 this.firstTokenSelection.tokenDataListProp = index_15.getSupportedTokens(this._data.tokens || [], this.currentChainId);
                 this.secondTokenSelection.tokenDataListProp = index_15.getSupportedTokens(this._data.tokens || [], this.currentChainId);
-                this.lbLabel1.caption = this.getInputLabel;
-                this.lbLabel2.caption = this.getInputLabel;
+                const label = this.isFixedPair ? 'Output' : 'Input';
+                this.lbLabel1.caption = label;
+                this.lbLabel2.caption = label;
                 this.isFixedPair && this.setFixedPairData();
                 if (connected) {
                     try {
@@ -15629,9 +15630,6 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             let self = new this(parent, options);
             await self.ready();
             return self;
-        }
-        get getInputLabel() {
-            return this.isFixedPair ? 'Output' : 'Input';
         }
         get firstTokenDecimals() {
             var _a;
@@ -15916,19 +15914,21 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                             execute: async () => {
                                 if (!userInputData)
                                     return;
-                                this.oldTag = Object.assign({}, this.tag);
-                                this.setTag(userInputData);
+                                this.oldTag = JSON.parse(JSON.stringify(this.tag));
                                 if (builder)
                                     builder.setTag(userInputData);
+                                else
+                                    this.setTag(userInputData);
                                 if (this.dappContainer)
                                     this.dappContainer.setTag(userInputData);
                             },
                             undo: () => {
                                 if (!userInputData)
                                     return;
-                                this.setTag(this.oldTag);
                                 if (builder)
                                     builder.setTag(this.oldTag);
+                                else
+                                    this.setTag(this.oldTag);
                                 if (this.dappContainer)
                                     this.dappContainer.setTag(this.oldTag);
                             },
@@ -15972,10 +15972,14 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         }
         async setTag(value) {
             const newValue = value || {};
-            if (newValue.light)
-                this.updateTag('light', newValue.light);
-            if (newValue.dark)
-                this.updateTag('dark', newValue.dark);
+            for (let prop in newValue) {
+                if (newValue.hasOwnProperty(prop)) {
+                    if (prop === 'light' || prop === 'dark')
+                        this.updateTag(prop, newValue[prop]);
+                    else
+                        this.tag[prop] = newValue[prop];
+                }
+            }
             if (this.dappContainer)
                 this.dappContainer.setTag(this.tag);
             this.updateTheme();
@@ -15992,6 +15996,28 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             this.updateStyle('--background-main', (_c = this.tag[themeVar]) === null || _c === void 0 ? void 0 : _c.backgroundColor);
             this.updateStyle('--input-font_color', (_d = this.tag[themeVar]) === null || _d === void 0 ? void 0 : _d.inputFontColor);
             this.updateStyle('--input-background', (_e = this.tag[themeVar]) === null || _e === void 0 ? void 0 : _e.inputBackgroundColor);
+        }
+        getConfigurators() {
+            return [
+                {
+                    name: 'Builder Configurator',
+                    target: 'Builders',
+                    getActions: this.getActions.bind(this),
+                    getData: this.getData.bind(this),
+                    setData: this.setData.bind(this),
+                    getTag: this.getTag.bind(this),
+                    setTag: this.setTag.bind(this)
+                },
+                {
+                    name: 'Emdedder Configurator',
+                    target: 'Embedders',
+                    getActions: this.getEmbedderActions.bind(this),
+                    getData: this.getData.bind(this),
+                    setData: this.setData.bind(this),
+                    getTag: this.getTag.bind(this),
+                    setTag: this.setTag.bind(this)
+                }
+            ];
         }
         renderLiquidity() {
             let firstTokenImagePath = scom_token_list_7.assets.tokenPath(this.firstToken, index_15.getChainId());
@@ -16169,7 +16195,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
             return inputValue.gt(0);
         }
-        async handleOutputChange(source, event) {
+        async handleOutputChange(source) {
             if (!this.firstToken || !this.secondToken)
                 return;
             if (source === this.firstInput) {
@@ -16190,7 +16216,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
             this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
         }
-        async handleInputChange(source, event) {
+        async handleInputChange(source) {
             let amount = source.value;
             if (source == this.firstInput) {
                 index_14.limitInputNumber(this.firstInput, this.firstTokenDecimals);
@@ -16224,12 +16250,12 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.updateButton(false);
             }
         }
-        async handleEnterAmount(source, event) {
+        async handleEnterAmount(source) {
             if (this.isFixedPair) {
-                await this.handleOutputChange(source, event);
+                await this.handleOutputChange(source);
             }
             else {
-                await this.handleInputChange(source, event);
+                await this.handleInputChange(source);
             }
         }
         async resetFirstInput() {
@@ -16370,7 +16396,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.updateButton(false);
             }
         }
-        handleApprove(source, event) {
+        handleApprove(source) {
             var _a, _b;
             if (this.isFixedPair) {
                 this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
