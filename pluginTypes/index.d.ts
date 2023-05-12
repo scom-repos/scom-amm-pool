@@ -9741,7 +9741,7 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
         wallets: IWalletPlugin[];
         networks: INetworkConfig[];
         showHeader?: boolean;
-        mode?: ModeType;
+        mode: ModeType;
     }
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/index.ts" />
@@ -10130,9 +10130,62 @@ declare module "@scom/scom-amm-pool/API.ts" {
 declare module "@scom/scom-amm-pool/index.css.ts" {
     export const poolAddStyle: string;
 }
+/// <amd-module name="@scom/scom-amm-pool/data.json.ts" />
+declare module "@scom/scom-amm-pool/data.json.ts" {
+    const _default_50: {
+        infuraId: string;
+        networks: ({
+            chainId: number;
+            isMainChain: boolean;
+            isCrossChainSupported: boolean;
+            explorerName: string;
+            explorerTxUrl: string;
+            explorerAddressUrl: string;
+            isTestnet: boolean;
+            shortName?: undefined;
+        } | {
+            chainId: number;
+            shortName: string;
+            isCrossChainSupported: boolean;
+            explorerName: string;
+            explorerTxUrl: string;
+            explorerAddressUrl: string;
+            isTestnet: boolean;
+            isMainChain?: undefined;
+        })[];
+        ipfsGatewayUrl: string;
+        defaultBuilderData: {
+            providers: {
+                caption: string;
+                image: string;
+                key: string;
+                dexId: number;
+                chainId: number;
+            }[];
+            mode: string;
+            tokens: {
+                name: string;
+                address: string;
+                symbol: string;
+                decimals: number;
+                chainId: number;
+            }[];
+            defaultChainId: number;
+            networks: {
+                chainId: number;
+            }[];
+            wallets: {
+                name: string;
+            }[];
+            showHeader: boolean;
+            showFooter: boolean;
+        };
+    };
+    export default _default_50;
+}
 /// <amd-module name="@scom/scom-amm-pool" />
 declare module "@scom/scom-amm-pool" {
-    import { Module, Container, ControlElement } from '@ijstech/components';
+    import { Module, Container, ControlElement, IDataSchema } from '@ijstech/components';
     import { ITokenObject, INetworkConfig, IProviderUI, ModeType } from "@scom/scom-amm-pool/global/index.ts";
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
     interface ScomAmmPoolElement extends ControlElement {
@@ -10141,7 +10194,7 @@ declare module "@scom/scom-amm-pool" {
         defaultChainId: number;
         networks: INetworkConfig[];
         wallets: IWalletPlugin[];
-        mode?: ModeType;
+        mode: ModeType;
     }
     global {
         namespace JSX {
@@ -10202,7 +10255,6 @@ declare module "@scom/scom-amm-pool" {
         private lbLabel2;
         private pnlInfo;
         private _data;
-        private _oldData;
         private currentChainId;
         private allTokenBalancesMap;
         private maxLiquidityBalance;
@@ -10210,7 +10262,6 @@ declare module "@scom/scom-amm-pool" {
         private isInited;
         private removeInfo;
         tag: any;
-        private oldTag;
         constructor(parent?: Container, options?: any);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
         get firstTokenDecimals(): number;
@@ -10231,8 +10282,8 @@ declare module "@scom/scom-amm-pool" {
         set mode(value: ModeType);
         private get isFixedPair();
         private get originalData();
-        private getEmbedderActions;
-        private getActions;
+        private getPropertiesSchema;
+        private getThemeSchema;
         private _getActions;
         private registerEvent;
         private onWalletConnect;
@@ -10249,7 +10300,38 @@ declare module "@scom/scom-amm-pool" {
         getConfigurators(): {
             name: string;
             target: string;
-            getActions: any;
+            getActions: () => ({
+                name: string;
+                icon: string;
+                command: (builder: any, userInputData: any) => {
+                    execute: () => Promise<void>;
+                    undo: () => void;
+                    redo: () => void;
+                };
+                userInputDataSchema: IDataSchema;
+                userInputUISchema: {
+                    type: string;
+                    elements: {
+                        type: string;
+                        scope: string;
+                        options: {
+                            detail: {
+                                type: string;
+                            };
+                        };
+                    }[];
+                };
+            } | {
+                name: string;
+                icon: string;
+                command: (builder: any, userInputData: any) => {
+                    execute: () => Promise<void>;
+                    undo: () => void;
+                    redo: () => void;
+                };
+                userInputDataSchema: IDataSchema;
+                userInputUISchema?: undefined;
+            })[];
             getData: any;
             setData: any;
             getTag: any;

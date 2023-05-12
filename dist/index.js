@@ -15473,7 +15473,102 @@ define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/comp
         }
     });
 });
-define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list"], function (require, exports, components_10, index_14, eth_wallet_9, index_15, API_1, index_css_1, scom_token_list_7, scom_dex_list_2) {
+define("@scom/scom-amm-pool/data.json.ts", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    ///<amd-module name='@scom/scom-amm-pool/data.json.ts'/> 
+    const InfuraId = "adc596bf88b648e2a8902bc9093930c5";
+    exports.default = {
+        "infuraId": InfuraId,
+        "networks": [
+            {
+                "chainId": 97,
+                "isMainChain": true,
+                "isCrossChainSupported": true,
+                "explorerName": "BSCScan",
+                "explorerTxUrl": "https://testnet.bscscan.com/tx/",
+                "explorerAddressUrl": "https://testnet.bscscan.com/address/",
+                "isTestnet": true
+            },
+            {
+                "chainId": 43113,
+                "shortName": "AVAX Testnet",
+                "isCrossChainSupported": true,
+                "explorerName": "SnowTrace",
+                "explorerTxUrl": "https://testnet.snowtrace.io/tx/",
+                "explorerAddressUrl": "https://testnet.snowtrace.io/address/",
+                "isTestnet": true
+            }
+        ],
+        "ipfsGatewayUrl": "https://ipfs.scom.dev/ipfs/",
+        "defaultBuilderData": {
+            "providers": [
+                {
+                    "caption": "OpenSwap",
+                    "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
+                    "key": "OpenSwap",
+                    "dexId": 1,
+                    "chainId": 97
+                },
+                {
+                    "caption": "OpenSwap",
+                    "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
+                    "key": "OpenSwap",
+                    "dexId": 1,
+                    "chainId": 43113
+                }
+            ],
+            "mode": "add-liquidity",
+            "tokens": [
+                {
+                    "name": "USDT",
+                    "address": "0x29386B60e0A9A1a30e1488ADA47256577ca2C385",
+                    "symbol": "USDT",
+                    "decimals": 6,
+                    "chainId": 97
+                },
+                {
+                    "name": "OpenSwap",
+                    "address": "0x45eee762aaeA4e5ce317471BDa8782724972Ee19",
+                    "symbol": "OSWAP",
+                    "decimals": 18,
+                    "chainId": 97
+                },
+                {
+                    "name": "Tether USD",
+                    "address": "0xb9C31Ea1D475c25E58a1bE1a46221db55E5A7C6e",
+                    "symbol": "USDT.e",
+                    "decimals": 6,
+                    "chainId": 43113
+                },
+                {
+                    "name": "OpenSwap",
+                    "address": "0x78d9D80E67bC80A11efbf84B7c8A65Da51a8EF3C",
+                    "symbol": "OSWAP",
+                    "decimals": 18,
+                    "chainId": 43113
+                }
+            ],
+            "defaultChainId": 43113,
+            "networks": [
+                {
+                    "chainId": 43113
+                },
+                {
+                    "chainId": 97
+                }
+            ],
+            "wallets": [
+                {
+                    "name": "metamask"
+                }
+            ],
+            "showHeader": true,
+            "showFooter": true
+        }
+    };
+});
+define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/data.json.ts"], function (require, exports, components_10, index_14, eth_wallet_9, index_15, API_1, index_css_1, scom_token_list_7, scom_dex_list_2, data_json_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_10.Styles.Theme.ThemeVars;
@@ -15489,14 +15584,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 tokens: [],
                 defaultChainId: 0,
                 wallets: [],
-                networks: []
-            };
-            this._oldData = {
-                providers: [],
-                tokens: [],
-                defaultChainId: 0,
-                wallets: [],
-                networks: []
+                networks: [],
+                mode: 'add-liquidity'
             };
             this.maxLiquidityBalance = '0';
             this.isInited = false;
@@ -15508,7 +15597,6 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 tokenBShare: ''
             };
             this.tag = {};
-            this.oldTag = {};
             this.onWalletConnect = async (connected) => {
                 var _a, _b;
                 if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
@@ -15695,7 +15783,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             if (!this._data)
                 return undefined;
             const { mode, providers } = this._data;
-            if (!providers.length)
+            if (!(providers === null || providers === void 0 ? void 0 : providers.length))
                 return undefined;
             let _providers = [];
             if (this.isFixedPair) {
@@ -15730,69 +15818,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
             return { mode, providers: _providers };
         }
-        getEmbedderActions() {
-            const propertiesSchema = {
-                type: "object",
-                properties: {}
-            };
-            const themeSchema = {
-                type: 'object',
-                properties: {
-                    "dark": {
-                        type: 'object',
-                        properties: {
-                            backgroundColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            fontColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            inputBackgroundColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            inputFontColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            }
-                        }
-                    },
-                    "light": {
-                        type: 'object',
-                        properties: {
-                            backgroundColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            fontColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            inputBackgroundColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            },
-                            inputFontColor: {
-                                type: 'string',
-                                format: 'color',
-                                readOnly: true
-                            }
-                        }
-                    }
-                }
-            };
-            return this._getActions(propertiesSchema, themeSchema);
-        }
-        getActions() {
+        getPropertiesSchema() {
             const propertiesSchema = {
                 type: "object",
                 properties: {
@@ -15803,6 +15829,24 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                             "add-liquidity",
                             "remove-liquidity"
                         ]
+                    },
+                    tokens: {
+                        type: "array",
+                        required: true,
+                        items: {
+                            type: "object",
+                            properties: {
+                                chainId: {
+                                    type: "number",
+                                    enum: [1, 56, 137, 250, 97, 80001, 43113, 43114],
+                                    required: true
+                                },
+                                address: {
+                                    type: "string",
+                                    required: true
+                                }
+                            }
+                        }
                     },
                     providers: {
                         type: "array",
@@ -15835,6 +15879,9 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     }
                 }
             };
+            return propertiesSchema;
+        }
+        getThemeSchema(readOnly) {
             const themeSchema = {
                 type: 'object',
                 properties: {
@@ -15843,19 +15890,23 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                         properties: {
                             backgroundColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             fontColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             inputBackgroundColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             inputFontColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             }
                         }
                     },
@@ -15864,25 +15915,29 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                         properties: {
                             backgroundColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             fontColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             inputBackgroundColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             },
                             inputFontColor: {
                                 type: 'string',
-                                format: 'color'
+                                format: 'color',
+                                readOnly
                             }
                         }
                     }
                 }
             };
-            return this._getActions(propertiesSchema, themeSchema);
+            return themeSchema;
         }
         _getActions(propertiesSchema, themeSchema) {
             const actions = [
@@ -15890,31 +15945,83 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     name: 'Settings',
                     icon: 'cog',
                     command: (builder, userInputData) => {
+                        let _oldData = {
+                            providers: [],
+                            tokens: [],
+                            defaultChainId: 0,
+                            wallets: [],
+                            networks: [],
+                            mode: 'add-liquidity'
+                        };
                         return {
                             execute: async () => {
-                                this._oldData = Object.assign({}, this._data);
-                                // this.configDApp.data = this._data;
-                                this.setData(userInputData);
+                                _oldData = Object.assign({}, this._data);
+                                this._data.mode = userInputData.mode;
+                                this._data.providers = userInputData.providers;
+                                this._data.tokens = [];
+                                if (userInputData.tokens) {
+                                    for (let inputToken of userInputData.tokens) {
+                                        const token = this.tokens.find(v => v.chainId === inputToken.chainId && v.address === inputToken.address);
+                                        this._data.tokens.push(token);
+                                    }
+                                }
+                                this.refreshUI();
+                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
+                                    builder.setData(this._data);
                             },
                             undo: () => {
-                                this._data = Object.assign({}, this._oldData);
-                                // this.configDApp.data = this._data;
-                                this.setData(this._data);
+                                this._data = Object.assign({}, _oldData);
+                                this.refreshUI();
+                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
+                                    builder.setData(this._data);
                             },
                             redo: () => { }
                         };
                     },
-                    userInputDataSchema: propertiesSchema
+                    userInputDataSchema: propertiesSchema,
+                    userInputUISchema: {
+                        type: "Group",
+                        elements: [
+                            {
+                                type: "Control",
+                                scope: "#/properties/mode",
+                                options: {
+                                    detail: {
+                                        type: "HorizontalLayout"
+                                    }
+                                }
+                            },
+                            {
+                                type: "Control",
+                                scope: "#/properties/providers",
+                                options: {
+                                    detail: {
+                                        type: "VerticalLayout"
+                                    }
+                                }
+                            },
+                            {
+                                type: "Control",
+                                scope: "#/properties/tokens",
+                                options: {
+                                    detail: {
+                                        type: "VerticalLayout"
+                                    }
+                                }
+                            }
+                        ]
+                    }
                 },
                 {
                     name: 'Theme Settings',
                     icon: 'palette',
                     command: (builder, userInputData) => {
+                        let oldTag = {};
                         return {
                             execute: async () => {
                                 if (!userInputData)
                                     return;
-                                this.oldTag = JSON.parse(JSON.stringify(this.tag));
+                                oldTag = JSON.parse(JSON.stringify(this.tag));
                                 if (builder)
                                     builder.setTag(userInputData);
                                 else
@@ -15925,12 +16032,13 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                             undo: () => {
                                 if (!userInputData)
                                     return;
+                                this.tag = JSON.parse(JSON.stringify(oldTag));
                                 if (builder)
-                                    builder.setTag(this.oldTag);
+                                    builder.setTag(this.tag);
                                 else
-                                    this.setTag(this.oldTag);
+                                    this.setTag(this.tag);
                                 if (this.dappContainer)
-                                    this.dappContainer.setTag(this.oldTag);
+                                    this.dappContainer.setTag(userInputData);
                             },
                             redo: () => { }
                         };
@@ -16002,16 +16110,27 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 {
                     name: 'Builder Configurator',
                     target: 'Builders',
-                    getActions: this.getActions.bind(this),
+                    getActions: () => {
+                        const propertiesSchema = this.getPropertiesSchema();
+                        const themeSchema = this.getThemeSchema();
+                        return this._getActions(propertiesSchema, themeSchema);
+                    },
                     getData: this.getData.bind(this),
-                    setData: this.setData.bind(this),
+                    setData: async (data) => {
+                        const defaultData = data_json_1.default.defaultBuilderData;
+                        await this.setData(Object.assign(Object.assign({}, defaultData), data));
+                    },
                     getTag: this.getTag.bind(this),
                     setTag: this.setTag.bind(this)
                 },
                 {
                     name: 'Emdedder Configurator',
                     target: 'Embedders',
-                    getActions: this.getEmbedderActions.bind(this),
+                    getActions: () => {
+                        const propertiesSchema = { type: "object", properties: {} };
+                        const themeSchema = this.getThemeSchema(true);
+                        return this._getActions(propertiesSchema, themeSchema);
+                    },
                     getData: this.getData.bind(this),
                     setData: this.setData.bind(this),
                     getTag: this.getTag.bind(this),

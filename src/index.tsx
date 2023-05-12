@@ -11,6 +11,7 @@ import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
 import { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
+import configData from './data.json';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -20,7 +21,7 @@ interface ScomAmmPoolElement extends ControlElement {
   defaultChainId: number;
   networks: INetworkConfig[];
   wallets: IWalletPlugin[];
-  mode?: ModeType;
+  mode: ModeType;
 }
 
 declare global {
@@ -91,14 +92,8 @@ export default class ScomAmmPool extends Module {
     tokens: [],
     defaultChainId: 0,
     wallets: [],
-    networks: []
-  }
-  private _oldData: IPoolConfig = {
-    providers: [],
-    tokens: [],
-    defaultChainId: 0,
-    wallets: [],
-    networks: []
+    networks: [],
+    mode: 'add-liquidity'
   }
   private currentChainId: number;
   private allTokenBalancesMap: any;
@@ -115,7 +110,6 @@ export default class ScomAmmPool extends Module {
   };
 
   tag: any = {};
-  private oldTag: any = {};
 
   constructor(parent?: Container, options?: any) {
     super(parent, options);
@@ -195,7 +189,7 @@ export default class ScomAmmPool extends Module {
   private get originalData() {
     if (!this._data) return undefined;
     const { mode, providers } = this._data;
-    if (!providers.length) return undefined;
+    if (!providers?.length) return undefined;
     let _providers: IProvider[] = [];
     if (this.isFixedPair) {
       const { key, caption, image, dexId } = providers[0];
@@ -229,74 +223,10 @@ export default class ScomAmmPool extends Module {
     return { mode, providers: _providers };
   }
 
-  private getEmbedderActions() {
+  private getPropertiesSchema() {
     const propertiesSchema: IDataSchema = {
       type: "object",
-      properties: {}
-    }
-
-    const themeSchema: IDataSchema = {
-      type: 'object',
-      properties: {
-        "dark": {
-          type: 'object',
-          properties: {
-            backgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            fontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            inputBackgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            inputFontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            }
-          }
-        },
-        "light": {
-          type: 'object',
-          properties: {
-            backgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            fontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            inputBackgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            },
-            inputFontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly: true
-            }
-          }
-        }
-      }
-    }
-    return this._getActions(propertiesSchema, themeSchema);
-  }
-
-  private getActions() {
-    const propertiesSchema: IDataSchema = {
-      type: "object",
-      properties: {
+      properties: {      
         mode: {
           type: "string",
           required: true,
@@ -305,6 +235,24 @@ export default class ScomAmmPool extends Module {
             "remove-liquidity"
           ]
         },
+        tokens: {
+          type: "array",
+          required: true,
+          items: {
+            type: "object",
+            properties: {
+              chainId: {
+                type: "number",
+                enum: [1, 56, 137, 250, 97, 80001, 43113, 43114],
+                required: true
+              },
+              address: {
+                type: "string",
+                required: true
+              }
+            }
+          }
+        }, 
         providers: {
           type: "array",
           required: true,
@@ -337,6 +285,10 @@ export default class ScomAmmPool extends Module {
       }
     }
 
+    return propertiesSchema;
+  }
+
+  private getThemeSchema(readOnly?: boolean) {
     const themeSchema: IDataSchema = {
       type: 'object',
       properties: {
@@ -345,19 +297,23 @@ export default class ScomAmmPool extends Module {
           properties: {
             backgroundColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             fontColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             inputBackgroundColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             inputFontColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             }
           }
         },
@@ -366,26 +322,29 @@ export default class ScomAmmPool extends Module {
           properties: {
             backgroundColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             fontColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             inputBackgroundColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             },
             inputFontColor: {
               type: 'string',
-              format: 'color'
+              format: 'color',
+              readOnly
             }
           }
         }
       }
     }
-
-    return this._getActions(propertiesSchema, themeSchema);
+    return themeSchema;
   }
 
   private _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema) {
@@ -394,39 +353,90 @@ export default class ScomAmmPool extends Module {
         name: 'Settings',
         icon: 'cog',
         command: (builder: any, userInputData: any) => {
+          let _oldData: IPoolConfig = {
+            providers: [],
+            tokens: [],
+            defaultChainId: 0,
+            wallets: [],
+            networks: [],
+            mode: 'add-liquidity'
+          }
           return {
             execute: async () => {
-              this._oldData = {...this._data};
-              // this.configDApp.data = this._data;
-              this.setData(userInputData);
+              _oldData = {...this._data};
+              this._data.mode = userInputData.mode;
+              this._data.providers = userInputData.providers;
+              this._data.tokens = [];
+              if (userInputData.tokens) {
+                for (let inputToken of userInputData.tokens) {
+                  const token = this.tokens.find(v => v.chainId === inputToken.chainId && v.address === inputToken.address);
+                  this._data.tokens.push(token);
+                }
+              }
+              this.refreshUI();
+              if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
-              this._data = {...this._oldData};
-              // this.configDApp.data = this._data;
-              this.setData(this._data);
+              this._data = {..._oldData};
+              this.refreshUI();
+              if (builder?.setData) builder.setData(this._data);
             },
             redo: () => { }
           }
         },
-        userInputDataSchema: propertiesSchema
+        userInputDataSchema: propertiesSchema,
+        userInputUISchema: {
+          type: "Group",
+          elements: [
+            {
+              type: "Control",
+              scope: "#/properties/mode",
+              options: {
+                detail: {
+                  type: "HorizontalLayout"
+                }
+              }
+            },
+            {
+              type: "Control",
+              scope: "#/properties/providers",
+              options: {
+                detail: {
+                  type: "VerticalLayout"
+                }
+              }
+            },
+            {
+              type: "Control",
+              scope: "#/properties/tokens",
+              options: {
+                detail: {
+                  type: "VerticalLayout"
+                }
+              }
+            }
+          ]
+        }
       },
       {
         name: 'Theme Settings',
         icon: 'palette',
         command: (builder: any, userInputData: any) => {
+          let oldTag = {};
           return {
             execute: async () => {
               if (!userInputData) return;
-              this.oldTag = JSON.parse(JSON.stringify(this.tag));
+              oldTag = JSON.parse(JSON.stringify(this.tag));
               if (builder) builder.setTag(userInputData);
               else this.setTag(userInputData);
-              if (this.dappContainer) this.dappContainer.setTag(userInputData);
+							if (this.dappContainer) this.dappContainer.setTag(userInputData);
             },
             undo: () => {
               if (!userInputData) return;
-              if (builder) builder.setTag(this.oldTag);
-              else this.setTag(this.oldTag);
-              if (this.dappContainer) this.dappContainer.setTag(this.oldTag);
+              this.tag = JSON.parse(JSON.stringify(oldTag));
+              if (builder) builder.setTag(this.tag);
+              else this.setTag(this.tag);
+							if (this.dappContainer) this.dappContainer.setTag(userInputData);
             },
             redo: () => { }
           }
@@ -525,16 +535,27 @@ export default class ScomAmmPool extends Module {
       {
         name: 'Builder Configurator',
         target: 'Builders',
-        getActions: this.getActions.bind(this),
+        getActions: () => {
+          const propertiesSchema = this.getPropertiesSchema();
+          const themeSchema = this.getThemeSchema();
+          return this._getActions(propertiesSchema, themeSchema);
+        },
         getData: this.getData.bind(this),
-        setData: this.setData.bind(this),
+        setData: async (data: IPoolConfig) => {
+          const defaultData = configData.defaultBuilderData as any;
+          await this.setData({...defaultData, ...data});
+        },
         getTag: this.getTag.bind(this),
         setTag: this.setTag.bind(this)
       },
       {
         name: 'Emdedder Configurator',
         target: 'Embedders',
-        getActions: this.getEmbedderActions.bind(this),
+        getActions: () => {
+          const propertiesSchema: IDataSchema = { type: "object", properties: {} };
+          const themeSchema = this.getThemeSchema(true);
+          return this._getActions(propertiesSchema, themeSchema);
+        },
         getData: this.getData.bind(this),
         setData: this.setData.bind(this),
         getTag: this.getTag.bind(this),

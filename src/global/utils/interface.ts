@@ -56,5 +56,5 @@ export interface IPoolConfig {
   wallets: IWalletPlugin[];
   networks: INetworkConfig[];
   showHeader?: boolean;
-  mode?: ModeType;
+  mode: ModeType;
 }
