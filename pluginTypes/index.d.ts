@@ -9641,6 +9641,7 @@ declare module "@scom/scom-amm-pool/global/utils/pageBlock.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/approvalModel.ts" />
 declare module "@scom/scom-amm-pool/global/utils/approvalModel.ts" {
+    import { BigNumber } from "@ijstech/eth-wallet";
     interface ITokenObject {
         address?: string;
         name: string;
@@ -9675,14 +9676,15 @@ declare module "@scom/scom-amm-pool/global/utils/approvalModel.ts" {
         spenderAddress: string;
     }
     export interface IERC20ApprovalAction {
+        setSpenderAddress: (value: string) => void;
         doApproveAction: (token: ITokenObject, inputAmount: string, data?: any) => Promise<void>;
         doPayAction: (data?: any) => Promise<void>;
-        checkAllowance: (token: ITokenObject, inputAmount: string) => Promise<void>;
+        checkAllowance: (token: ITokenObject, inputAmount: string | BigNumber) => Promise<void>;
     }
     export class ERC20ApprovalModel {
         private options;
         constructor(options: IERC20ApprovalOptions);
-        set spenderAddress(value: string);
+        private setSpenderAddress;
         private checkAllowance;
         private doApproveAction;
         private doPayAction;
@@ -9729,12 +9731,16 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
         walletAddress: string;
         share: string;
     }
+    export interface IEmbedData {
+        commissions?: ICommissionInfo[];
+    }
     export interface INetworkConfig {
         chainName?: string;
         chainId: number;
     }
     export type ModeType = 'add-liquidity' | 'remove-liquidity';
     export interface IPoolConfig {
+        commissions?: ICommissionInfo[];
         providers: IProviderUI[];
         tokens?: ITokenObject[];
         defaultChainId: number;
@@ -9751,7 +9757,7 @@ declare module "@scom/scom-amm-pool/global/utils/index.ts" {
     export { PageBlock } from "@scom/scom-amm-pool/global/utils/pageBlock.ts";
     export { isTransactionConfirmed, registerSendTxEvents, approveERC20Max, getERC20Allowance, getERC20Amount, ITokenObject, TokenMapType } from "@scom/scom-amm-pool/global/utils/common.ts";
     export { ApprovalStatus, IERC20ApprovalEventOptions, IERC20ApprovalOptions, IERC20ApprovalAction, ERC20ApprovalModel } from "@scom/scom-amm-pool/global/utils/approvalModel.ts";
-    export { IContractInfo, IProvider, IPoolConfig, IProviderUI, ICommissionInfo, ModeType, INetworkConfig } from "@scom/scom-amm-pool/global/utils/interface.ts";
+    export { IContractInfo, IProvider, IPoolConfig, IProviderUI, ICommissionInfo, IEmbedData, ModeType, INetworkConfig } from "@scom/scom-amm-pool/global/utils/interface.ts";
 }
 /// <amd-module name="@scom/scom-amm-pool/global/index.ts" />
 declare module "@scom/scom-amm-pool/global/index.ts" {
@@ -9815,9 +9821,14 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
         providerList: IProvider[];
         ipfsGatewayUrl: string;
         apiGatewayUrls: Record<string, string>;
+        proxyAddresses: ProxyAddresses;
+        embedderCommissionFee: string;
         tokens: any[];
     };
     export const setDataFromConfig: (options: any) => void;
+    export const setProxyAddresses: (data: ProxyAddresses) => void;
+    export const getProxyAddress: (chainId?: number) => string;
+    export const getEmbedderCommissionFee: () => string;
     export const setIPFSGatewayUrl: (url: string) => void;
     export const getIPFSGatewayUrl: () => string;
     export const setAPIGatewayUrls: (urls: Record<string, string>) => void;
@@ -10054,11 +10065,544 @@ declare module "@scom/scom-amm-pool/token-selection/index.tsx" {
     export { TokenSelection } from "@scom/scom-amm-pool/token-selection/tokenSelection.tsx";
     export { ImportToken } from "@scom/scom-amm-pool/token-selection/importToken.tsx";
 }
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.json.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.json.ts" {
+    const _default_50: {
+        abi: ({
+            anonymous: boolean;
+            inputs: {
+                indexed: boolean;
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            type: string;
+            outputs?: undefined;
+            stateMutability?: undefined;
+        } | {
+            inputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            outputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            inputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            outputs: {
+                components: {
+                    internalType: string;
+                    name: string;
+                    type: string;
+                }[];
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            inputs: ({
+                internalType: string;
+                name: string;
+                type: string;
+                components?: undefined;
+            } | {
+                components: ({
+                    internalType: string;
+                    name: string;
+                    type: string;
+                    components?: undefined;
+                } | {
+                    components: {
+                        internalType: string;
+                        name: string;
+                        type: string;
+                    }[];
+                    internalType: string;
+                    name: string;
+                    type: string;
+                })[];
+                internalType: string;
+                name: string;
+                type: string;
+            })[];
+            name: string;
+            outputs: any[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+            inputs?: undefined;
+            name?: undefined;
+            outputs?: undefined;
+        })[];
+        bytecode: string;
+    };
+    export default _default_50;
+}
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.ts" {
+    import { IWallet, Contract as _Contract, TransactionReceipt, BigNumber, Event, TransactionOptions } from "@ijstech/eth-contract";
+    export interface IClaimantIdsParams {
+        param1: string;
+        param2: string;
+    }
+    export interface IEthInParams {
+        target: string;
+        commissions: {
+            to: string;
+            amount: number | BigNumber;
+        }[];
+        data: string;
+    }
+    export interface IGetClaimantBalanceParams {
+        claimant: string;
+        token: string;
+    }
+    export interface IGetClaimantsInfoParams {
+        fromId: number | BigNumber;
+        count: number | BigNumber;
+    }
+    export interface IProxyCallParams {
+        target: string;
+        tokensIn: {
+            token: string;
+            amount: number | BigNumber;
+            directTransfer: boolean;
+            commissions: {
+                to: string;
+                amount: number | BigNumber;
+            }[];
+        }[];
+        to: string;
+        tokensOut: string[];
+        data: string;
+    }
+    export interface ITokenInParams {
+        target: string;
+        tokensIn: {
+            token: string;
+            amount: number | BigNumber;
+            directTransfer: boolean;
+            commissions: {
+                to: string;
+                amount: number | BigNumber;
+            }[];
+        };
+        data: string;
+    }
+    export class Proxy extends _Contract {
+        static _abi: any;
+        constructor(wallet: IWallet, address?: string);
+        deploy(options?: TransactionOptions): Promise<string>;
+        parseAddCommissionEvent(receipt: TransactionReceipt): Proxy.AddCommissionEvent[];
+        decodeAddCommissionEvent(event: Event): Proxy.AddCommissionEvent;
+        parseClaimEvent(receipt: TransactionReceipt): Proxy.ClaimEvent[];
+        decodeClaimEvent(event: Event): Proxy.ClaimEvent;
+        parseSkimEvent(receipt: TransactionReceipt): Proxy.SkimEvent[];
+        decodeSkimEvent(event: Event): Proxy.SkimEvent;
+        parseTransferBackEvent(receipt: TransactionReceipt): Proxy.TransferBackEvent[];
+        decodeTransferBackEvent(event: Event): Proxy.TransferBackEvent;
+        parseTransferForwardEvent(receipt: TransactionReceipt): Proxy.TransferForwardEvent[];
+        decodeTransferForwardEvent(event: Event): Proxy.TransferForwardEvent;
+        claim: {
+            (token: string, options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (token: string, options?: TransactionOptions) => Promise<void>;
+            txData: (token: string, options?: TransactionOptions) => Promise<string>;
+        };
+        claimMultiple: {
+            (tokens: string[], options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (tokens: string[], options?: TransactionOptions) => Promise<void>;
+            txData: (tokens: string[], options?: TransactionOptions) => Promise<string>;
+        };
+        claimantIdCount: {
+            (options?: TransactionOptions): Promise<BigNumber>;
+        };
+        claimantIds: {
+            (params: IClaimantIdsParams, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        claimantsInfo: {
+            (param1: number | BigNumber, options?: TransactionOptions): Promise<{
+                claimant: string;
+                token: string;
+                balance: BigNumber;
+            }>;
+        };
+        ethIn: {
+            (params: IEthInParams, options?: number | BigNumber | TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: IEthInParams, options?: number | BigNumber | TransactionOptions) => Promise<void>;
+            txData: (params: IEthInParams, options?: number | BigNumber | TransactionOptions) => Promise<string>;
+        };
+        getClaimantBalance: {
+            (params: IGetClaimantBalanceParams, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        getClaimantsInfo: {
+            (params: IGetClaimantsInfoParams, options?: TransactionOptions): Promise<{
+                claimant: string;
+                token: string;
+                balance: BigNumber;
+            }[]>;
+        };
+        lastBalance: {
+            (param1: string, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        proxyCall: {
+            (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions) => Promise<void>;
+            txData: (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions) => Promise<string>;
+        };
+        skim: {
+            (tokens: string[], options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (tokens: string[], options?: TransactionOptions) => Promise<void>;
+            txData: (tokens: string[], options?: TransactionOptions) => Promise<string>;
+        };
+        tokenIn: {
+            (params: ITokenInParams, options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: ITokenInParams, options?: TransactionOptions) => Promise<void>;
+            txData: (params: ITokenInParams, options?: TransactionOptions) => Promise<string>;
+        };
+        private assign;
+    }
+    export module Proxy {
+        interface AddCommissionEvent {
+            to: string;
+            token: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface ClaimEvent {
+            from: string;
+            token: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface SkimEvent {
+            token: string;
+            to: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface TransferBackEvent {
+            target: string;
+            token: string;
+            sender: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface TransferForwardEvent {
+            target: string;
+            token: string;
+            sender: string;
+            amount: BigNumber;
+            commissions: BigNumber;
+            _event: Event;
+        }
+    }
+}
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.json.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.json.ts" {
+    const _default_51: {
+        abi: ({
+            anonymous: boolean;
+            inputs: {
+                indexed: boolean;
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            type: string;
+            outputs?: undefined;
+            stateMutability?: undefined;
+        } | {
+            inputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            outputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            inputs: {
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            name: string;
+            outputs: {
+                components: {
+                    internalType: string;
+                    name: string;
+                    type: string;
+                }[];
+                internalType: string;
+                name: string;
+                type: string;
+            }[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            inputs: ({
+                internalType: string;
+                name: string;
+                type: string;
+                components?: undefined;
+            } | {
+                components: ({
+                    internalType: string;
+                    name: string;
+                    type: string;
+                    components?: undefined;
+                } | {
+                    components: {
+                        internalType: string;
+                        name: string;
+                        type: string;
+                    }[];
+                    internalType: string;
+                    name: string;
+                    type: string;
+                })[];
+                internalType: string;
+                name: string;
+                type: string;
+            })[];
+            name: string;
+            outputs: any[];
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+        } | {
+            stateMutability: string;
+            type: string;
+            anonymous?: undefined;
+            inputs?: undefined;
+            name?: undefined;
+            outputs?: undefined;
+        })[];
+        bytecode: string;
+    };
+    export default _default_51;
+}
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.ts" {
+    import { IWallet, Contract as _Contract, TransactionReceipt, BigNumber, Event, TransactionOptions } from "@ijstech/eth-contract";
+    export interface IClaimantIdsParams {
+        param1: string;
+        param2: string;
+    }
+    export interface IEthInParams {
+        target: string;
+        commissions: {
+            to: string;
+            amount: number | BigNumber;
+        }[];
+        data: string;
+    }
+    export interface IGetClaimantBalanceParams {
+        claimant: string;
+        token: string;
+    }
+    export interface IGetClaimantsInfoParams {
+        fromId: number | BigNumber;
+        count: number | BigNumber;
+    }
+    export interface IProxyCallParams {
+        target: string;
+        tokensIn: {
+            token: string;
+            amount: number | BigNumber;
+            directTransfer: boolean;
+            commissions: {
+                to: string;
+                amount: number | BigNumber;
+            }[];
+            totalCommissions: number | BigNumber;
+        }[];
+        to: string;
+        tokensOut: string[];
+        data: string;
+    }
+    export interface ITokenInParams {
+        target: string;
+        tokensIn: {
+            token: string;
+            amount: number | BigNumber;
+            directTransfer: boolean;
+            commissions: {
+                to: string;
+                amount: number | BigNumber;
+            }[];
+            totalCommissions: number | BigNumber;
+        };
+        data: string;
+    }
+    export class ProxyV2 extends _Contract {
+        static _abi: any;
+        constructor(wallet: IWallet, address?: string);
+        deploy(options?: TransactionOptions): Promise<string>;
+        parseAddCommissionEvent(receipt: TransactionReceipt): ProxyV2.AddCommissionEvent[];
+        decodeAddCommissionEvent(event: Event): ProxyV2.AddCommissionEvent;
+        parseClaimEvent(receipt: TransactionReceipt): ProxyV2.ClaimEvent[];
+        decodeClaimEvent(event: Event): ProxyV2.ClaimEvent;
+        parseSkimEvent(receipt: TransactionReceipt): ProxyV2.SkimEvent[];
+        decodeSkimEvent(event: Event): ProxyV2.SkimEvent;
+        parseTransferBackEvent(receipt: TransactionReceipt): ProxyV2.TransferBackEvent[];
+        decodeTransferBackEvent(event: Event): ProxyV2.TransferBackEvent;
+        parseTransferForwardEvent(receipt: TransactionReceipt): ProxyV2.TransferForwardEvent[];
+        decodeTransferForwardEvent(event: Event): ProxyV2.TransferForwardEvent;
+        claim: {
+            (token: string, options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (token: string, options?: TransactionOptions) => Promise<void>;
+            txData: (token: string, options?: TransactionOptions) => Promise<string>;
+        };
+        claimMultiple: {
+            (tokens: string[], options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (tokens: string[], options?: TransactionOptions) => Promise<void>;
+            txData: (tokens: string[], options?: TransactionOptions) => Promise<string>;
+        };
+        claimantIdCount: {
+            (options?: TransactionOptions): Promise<BigNumber>;
+        };
+        claimantIds: {
+            (params: IClaimantIdsParams, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        claimantsInfo: {
+            (param1: number | BigNumber, options?: TransactionOptions): Promise<{
+                claimant: string;
+                token: string;
+                balance: BigNumber;
+            }>;
+        };
+        ethIn: {
+            (params: IEthInParams, options?: number | BigNumber | TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: IEthInParams, options?: number | BigNumber | TransactionOptions) => Promise<void>;
+            txData: (params: IEthInParams, options?: number | BigNumber | TransactionOptions) => Promise<string>;
+        };
+        getClaimantBalance: {
+            (params: IGetClaimantBalanceParams, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        getClaimantsInfo: {
+            (params: IGetClaimantsInfoParams, options?: TransactionOptions): Promise<{
+                claimant: string;
+                token: string;
+                balance: BigNumber;
+            }[]>;
+        };
+        lastBalance: {
+            (param1: string, options?: TransactionOptions): Promise<BigNumber>;
+        };
+        proxyCall: {
+            (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions) => Promise<void>;
+            txData: (params: IProxyCallParams, options?: number | BigNumber | TransactionOptions) => Promise<string>;
+        };
+        skim: {
+            (tokens: string[], options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (tokens: string[], options?: TransactionOptions) => Promise<void>;
+            txData: (tokens: string[], options?: TransactionOptions) => Promise<string>;
+        };
+        tokenIn: {
+            (params: ITokenInParams, options?: TransactionOptions): Promise<TransactionReceipt>;
+            call: (params: ITokenInParams, options?: TransactionOptions) => Promise<void>;
+            txData: (params: ITokenInParams, options?: TransactionOptions) => Promise<string>;
+        };
+        private assign;
+    }
+    export module ProxyV2 {
+        interface AddCommissionEvent {
+            to: string;
+            token: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface ClaimEvent {
+            from: string;
+            token: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface SkimEvent {
+            token: string;
+            to: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface TransferBackEvent {
+            target: string;
+            token: string;
+            sender: string;
+            amount: BigNumber;
+            _event: Event;
+        }
+        interface TransferForwardEvent {
+            target: string;
+            token: string;
+            sender: string;
+            amount: BigNumber;
+            commissions: BigNumber;
+            _event: Event;
+        }
+    }
+}
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/index.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/index.ts" {
+    export { Proxy } from "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.ts";
+    export { ProxyV2 } from "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.ts";
+}
+/// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/index.ts" />
+declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/index.ts" {
+    import * as Contracts from "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/index.ts";
+    export { Contracts };
+    import { IWallet } from '@ijstech/eth-wallet';
+    export interface IDeployOptions {
+        version?: string;
+    }
+    export interface IDeployResult {
+        proxy: string;
+    }
+    export var DefaultDeployOptions: IDeployOptions;
+    export function deploy(wallet: IWallet, options?: IDeployOptions): Promise<IDeployResult>;
+    export function onProgress(handler: any): void;
+    const _default_52: {
+        Contracts: typeof Contracts;
+        deploy: typeof deploy;
+        DefaultDeployOptions: IDeployOptions;
+        onProgress: typeof onProgress;
+    };
+    export default _default_52;
+}
 /// <amd-module name="@scom/scom-amm-pool/API.ts" />
 declare module "@scom/scom-amm-pool/API.ts" {
     import { BigNumber, TransactionReceipt } from "@ijstech/eth-wallet";
     import { Contracts } from "@scom/scom-amm-pool/contracts/oswap-openswap-contract/index.ts";
-    import { ITokenObject, IERC20ApprovalEventOptions } from "@scom/scom-amm-pool/global/index.ts";
+    import { ITokenObject, IERC20ApprovalEventOptions, ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
     interface IAmmPairToken {
         pair?: Contracts.OSWAP_Pair;
         index?: number;
@@ -10090,6 +10634,9 @@ declare module "@scom/scom-amm-pool/API.ts" {
         newshare: string;
     }
     export const ERC20MaxAmount: BigNumber;
+    export const getCurrentCommissions: (commissions: ICommissionInfo[]) => ICommissionInfo[];
+    export const getCommissionAmount: (commissions: ICommissionInfo[], amount: BigNumber) => BigNumber;
+    export function getRouterAddress(chainId: number): string;
     const getRemoveLiquidityInfo: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
         lpToken: ITokenObject;
         price0: string;
@@ -10119,9 +10666,9 @@ declare module "@scom/scom-amm-pool/API.ts" {
         newShare: string;
         minted: string;
     }>;
-    const addLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
-    const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
-    const getApprovalModelAction: (options: IERC20ApprovalEventOptions) => Promise<import("@scom/scom-amm-pool/global/index.ts").IERC20ApprovalAction>;
+    const addLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
+    const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
+    const getApprovalModelAction: (options: IERC20ApprovalEventOptions, spenderAddress?: string) => Promise<import("@scom/scom-amm-pool/global/index.ts").IERC20ApprovalAction>;
     const getTokensBack: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
     const getTokensBackByAmountOut: (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
     export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
@@ -10132,7 +10679,7 @@ declare module "@scom/scom-amm-pool/index.css.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool/data.json.ts" />
 declare module "@scom/scom-amm-pool/data.json.ts" {
-    const _default_50: {
+    const _default_53: {
         infuraId: string;
         networks: ({
             chainId: number;
@@ -10153,6 +10700,11 @@ declare module "@scom/scom-amm-pool/data.json.ts" {
             isTestnet: boolean;
             isMainChain?: undefined;
         })[];
+        proxyAddresses: {
+            "97": string;
+            "43113": string;
+        };
+        embedderCommissionFee: string;
         ipfsGatewayUrl: string;
         defaultBuilderData: {
             providers: {
@@ -10181,13 +10733,67 @@ declare module "@scom/scom-amm-pool/data.json.ts" {
             showFooter: boolean;
         };
     };
-    export default _default_50;
+    export default _default_53;
+}
+/// <amd-module name="@scom/scom-amm-pool/config/index.css.ts" />
+declare module "@scom/scom-amm-pool/config/index.css.ts" {
+    export const customStyle: string;
+    export const tableStyle: string;
+}
+/// <amd-module name="@scom/scom-amm-pool/config/index.tsx" />
+declare module "@scom/scom-amm-pool/config/index.tsx" {
+    import { Module, ControlElement } from '@ijstech/components';
+    import { IExtendedNetwork, ICommissionInfo, IEmbedData } from "@scom/scom-amm-pool/global/index.ts";
+    export interface ISupportedNetworks {
+        chainId: number;
+    }
+    interface ScomAmmPoolConfigElement extends ControlElement {
+        commissions?: ICommissionInfo;
+    }
+    global {
+        namespace JSX {
+            interface IntrinsicElements {
+                ['i-scom-amm-pool-config']: ScomAmmPoolConfigElement;
+            }
+        }
+    }
+    export default class Config extends Module {
+        private tableCommissions;
+        private modalAddCommission;
+        private networkPicker;
+        private inputWalletAddress;
+        private lbCommissionShare;
+        private btnAddWallet;
+        private pnlEmptyWallet;
+        private commissionInfoList;
+        private commissionsTableColumns;
+        private btnConfirm;
+        private lbErrMsg;
+        private _onCustomCommissionsChanged;
+        init(): Promise<void>;
+        get data(): IEmbedData;
+        set data(config: IEmbedData);
+        get onCustomCommissionsChanged(): (data: any) => Promise<void>;
+        set onCustomCommissionsChanged(value: (data: any) => Promise<void>);
+        getSupportedChainIds(): {
+            chainId: number;
+        }[];
+        onModalAddCommissionClosed(): void;
+        onAddCommissionClicked(): void;
+        onConfirmCommissionClicked(): Promise<void>;
+        validateModalFields(): boolean;
+        onNetworkSelected(network: IExtendedNetwork): void;
+        onInputWalletAddressChanged(): void;
+        private toggleVisible;
+        render(): any;
+    }
 }
 /// <amd-module name="@scom/scom-amm-pool" />
 declare module "@scom/scom-amm-pool" {
-    import { Module, Container, ControlElement, IDataSchema } from '@ijstech/components';
-    import { ITokenObject, INetworkConfig, IProviderUI, ModeType } from "@scom/scom-amm-pool/global/index.ts";
+    import { Module, Container, ControlElement, IDataSchema, VStack } from '@ijstech/components';
+    import { ITokenObject, INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
+    import Config from "@scom/scom-amm-pool/config/index.tsx";
     interface ScomAmmPoolElement extends ControlElement {
         providers: IProviderUI[];
         tokens?: ITokenObject[];
@@ -10195,6 +10801,7 @@ declare module "@scom/scom-amm-pool" {
         networks: INetworkConfig[];
         wallets: IWalletPlugin[];
         mode: ModeType;
+        commissions?: ICommissionInfo[];
     }
     global {
         namespace JSX {
@@ -10247,6 +10854,13 @@ declare module "@scom/scom-amm-pool" {
         private pnlCreatePairMsg;
         private pricePanel;
         private dappContainer;
+        private configDApp;
+        private vStackCommissionInfo;
+        private iconCommissionFee;
+        private vStackCommissionTokens;
+        private lbFirstCommission;
+        private lbSecondCommission;
+        private lbCommissionLq;
         private pnlLiquidityImage;
         private lbLiquidityBalance;
         private liquidityInput;
@@ -10262,6 +10876,7 @@ declare module "@scom/scom-amm-pool" {
         private isInited;
         private removeInfo;
         tag: any;
+        private contractAddress;
         constructor(parent?: Container, options?: any);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
         get firstTokenDecimals(): number;
@@ -10278,6 +10893,10 @@ declare module "@scom/scom-amm-pool" {
         set wallets(value: IWalletPlugin[]);
         get networks(): INetworkConfig[];
         set networks(value: INetworkConfig[]);
+        get showHeader(): boolean;
+        set showHeader(value: boolean);
+        get commissions(): ICommissionInfo[];
+        set commissions(value: ICommissionInfo[]);
         get mode(): ModeType;
         set mode(value: ModeType);
         private get isFixedPair();
@@ -10297,10 +10916,23 @@ declare module "@scom/scom-amm-pool" {
         private setTag;
         private updateStyle;
         private updateTheme;
-        getConfigurators(): {
+        getConfigurators(): ({
             name: string;
             target: string;
             getActions: () => ({
+                name: string;
+                icon: string;
+                command: (builder: any, userInputData: any) => {
+                    execute: () => Promise<void>;
+                    undo: () => void;
+                    redo: () => void;
+                };
+                customUI: {
+                    render: (data?: any, onConfirm?: (result: boolean, data: any) => void) => VStack;
+                };
+                userInputDataSchema?: undefined;
+                userInputUISchema?: undefined;
+            } | {
                 name: string;
                 icon: string;
                 command: (builder: any, userInputData: any) => {
@@ -10321,6 +10953,7 @@ declare module "@scom/scom-amm-pool" {
                         };
                     }[];
                 };
+                customUI?: undefined;
             } | {
                 name: string;
                 icon: string;
@@ -10330,13 +10963,34 @@ declare module "@scom/scom-amm-pool" {
                     redo: () => void;
                 };
                 userInputDataSchema: IDataSchema;
+                customUI?: undefined;
                 userInputUISchema?: undefined;
             })[];
+            getData: any;
+            setData: (data: IPoolConfig) => Promise<void>;
+            getTag: any;
+            setTag: any;
+            elementName?: undefined;
+            getLinkParams?: undefined;
+            setLinkParams?: undefined;
+            bindOnChanged?: undefined;
+        } | {
+            name: string;
+            target: string;
+            elementName: string;
+            getLinkParams: () => {
+                data: string;
+            };
+            setLinkParams: (params: any) => Promise<void>;
+            bindOnChanged: (element: Config, callback: (data: any) => Promise<void>) => void;
             getData: any;
             setData: any;
             getTag: any;
             setTag: any;
-        }[];
+            getActions?: undefined;
+        })[];
+        private updateContractAddress;
+        private updateCommissionInfo;
         private onSetupPage;
         private renderLiquidity;
         private setFixedPairData;
@@ -10360,6 +11014,7 @@ declare module "@scom/scom-amm-pool" {
         private onUpdateToken;
         private onSelectToken;
         private handleApprove;
+        private updateBtnRemove;
         private handleAction;
         private handleSupply;
         private handleConfirmSupply;

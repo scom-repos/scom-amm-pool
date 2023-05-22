@@ -45,4 +45,4 @@ export {
   ERC20ApprovalModel
 } from './approvalModel';
 
-export { IContractInfo, IProvider, IPoolConfig, IProviderUI, ICommissionInfo, ModeType, INetworkConfig } from './interface';
+export { IContractInfo, IProvider, IPoolConfig, IProviderUI, ICommissionInfo, IEmbedData, ModeType, INetworkConfig } from './interface';

@@ -42,6 +42,10 @@ export interface ICommissionInfo {
   share: string;
 }
 
+export interface IEmbedData {
+  commissions?: ICommissionInfo[];
+}
+
 export interface INetworkConfig {
   chainName?: string;
   chainId: number;
@@ -50,6 +54,7 @@ export interface INetworkConfig {
 export type ModeType = 'add-liquidity' | 'remove-liquidity';
 
 export interface IPoolConfig {
+  commissions?: ICommissionInfo[];
   providers: IProviderUI[];
   tokens?: ITokenObject[];
   defaultChainId: number;

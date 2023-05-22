@@ -1,17 +1,18 @@
-import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema, observable } from '@ijstech/components';
+import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema, observable, VStack, Icon } from '@ijstech/components';
 import {} from '@ijstech/eth-contract';
 import { Result } from './result/index';
 import { TokenSelection } from './token-selection/index';
-import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, IProvider } from './global/index';
-import { BigNumber } from "@ijstech/eth-wallet";
-import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress} from './store/index';
-import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut } from './API';
+import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, IProvider, ICommissionInfo } from './global/index';
+import { BigNumber, Wallet } from "@ijstech/eth-wallet";
+import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, setDataFromConfig} from './store/index';
+import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getRouterAddress, getCurrentCommissions, getCommissionAmount } from './API';
 import { poolAddStyle } from './index.css';
 import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
 import { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
 import configData from './data.json';
+import Config from './config/index';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -22,6 +23,7 @@ interface ScomAmmPoolElement extends ControlElement {
   networks: INetworkConfig[];
   wallets: IWalletPlugin[];
   mode: ModeType;
+  commissions?: ICommissionInfo[]
 }
 
 declare global {
@@ -78,6 +80,13 @@ export default class ScomAmmPool extends Module {
   private pnlCreatePairMsg: Panel;
   private pricePanel: Panel;
   private dappContainer: ScomDappContainer;
+  private configDApp: Config;
+  private vStackCommissionInfo: VStack;
+  private iconCommissionFee: Icon;
+  private vStackCommissionTokens: VStack;
+  private lbFirstCommission: Label;
+  private lbSecondCommission: Label;
+  private lbCommissionLq: Label;
 
   private pnlLiquidityImage: Panel;
   private lbLiquidityBalance: Label;
@@ -110,9 +119,11 @@ export default class ScomAmmPool extends Module {
   };
 
   tag: any = {};
+  private contractAddress: string;
 
   constructor(parent?: Container, options?: any) {
     super(parent, options);
+    setDataFromConfig(configData);
     this.$eventBus = application.EventBus;
     this.registerEvent();
   }
@@ -175,6 +186,22 @@ export default class ScomAmmPool extends Module {
     this._data.networks = value;
   }
 
+  get showHeader() {
+    return this._data.showHeader ?? true;
+  }
+
+  set showHeader(value: boolean) {
+    this._data.showHeader = value;
+  }
+
+  get commissions() {
+    return this._data.commissions ?? [];
+  }
+
+  set commissions(value: ICommissionInfo[]) {
+    this._data.commissions = value;
+  }
+
   get mode() {
     return this._data.mode ?? 'add-liquidity';
   }
@@ -224,7 +251,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private getPropertiesSchema() {
-    const propertiesSchema: IDataSchema = {
+    const propertiesSchema: any = {
       type: "object",
       properties: {      
         mode: {
@@ -348,7 +375,56 @@ export default class ScomAmmPool extends Module {
   }
 
   private _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema) {
+    const self = this;
     const actions = [
+      {
+        name: 'Commissions',
+        icon: 'dollar-sign',
+        command: (builder: any, userInputData: any) => {
+          let _oldData: IPoolConfig = {
+            providers: [],
+            tokens: [],
+            defaultChainId: 0,
+            wallets: [],
+            networks: [],
+            mode: 'add-liquidity'
+          }
+          return {
+            execute: async () => {
+              _oldData = { ...this._data };
+              if (userInputData.commissions) this._data.commissions = userInputData.commissions;
+              this.configDApp.data = this._data;
+              this.refreshUI();
+              if (builder?.setData) builder.setData(this._data);
+            },
+            undo: () => {
+              this._data = { ..._oldData };
+              this.configDApp.data = this._data;
+              this.refreshUI();
+              if (builder?.setData) builder.setData(this._data);
+            },
+            redo: () => { }
+          }
+        },
+        customUI: {
+          render: (data?: any, onConfirm?: (result: boolean, data: any) => void) => {
+            const vstack = new VStack();
+            const config = new Config(null, {
+              commissions: self._data.commissions
+            });
+            const button = new Button(null, {
+              caption: 'Confirm',
+            });
+            vstack.append(config);
+            vstack.append(button);
+            button.onClick = async () => {
+              const commissions = config.data.commissions;
+              if (onConfirm) onConfirm(true, { commissions });
+            }
+            return vstack;
+          }
+        }
+      },
       {
         name: 'Settings',
         icon: 'cog',
@@ -373,11 +449,13 @@ export default class ScomAmmPool extends Module {
                   this._data.tokens.push(token);
                 }
               }
+              this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
               this._data = {..._oldData};
+              this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
@@ -457,6 +535,7 @@ export default class ScomAmmPool extends Module {
     if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
       this.onChainChange();
     } else {
+      this.updateContractAddress();
       if (this.originalData?.providers?.length) await this.onSetupPage(connected);
     }
   }
@@ -468,6 +547,7 @@ export default class ScomAmmPool extends Module {
 
   private onChainChange = async () => {
     this.currentChainId = getChainId();
+    this.updateContractAddress();
     if (this.originalData?.providers?.length) await this.onSetupPage(true);
     this.updateButtonText();
   }
@@ -477,7 +557,9 @@ export default class ScomAmmPool extends Module {
   }
 
   private async setData(data: IPoolConfig) {
+    this.configDApp.data = data;
     this._data = data;
+    this.updateContractAddress();
     await this.refreshUI();
   }
 
@@ -531,6 +613,7 @@ export default class ScomAmmPool extends Module {
   }
 
   getConfigurators() {
+    const self = this;
     return [
       {
         name: 'Builder Configurator',
@@ -551,10 +634,33 @@ export default class ScomAmmPool extends Module {
       {
         name: 'Emdedder Configurator',
         target: 'Embedders',
-        getActions: () => {
-          const propertiesSchema: IDataSchema = { type: "object", properties: {} };
-          const themeSchema = this.getThemeSchema(true);
-          return this._getActions(propertiesSchema, themeSchema);
+        elementName: 'i-scom-amm-pool-config',
+        getLinkParams: () => {
+          const commissions = this._data.commissions || [];
+          return {
+            data: window.btoa(JSON.stringify(commissions))
+          }
+        },
+        setLinkParams: async (params: any) => {
+          if (params.data) {
+            const decodedString = window.atob(params.data);
+            const commissions = JSON.parse(decodedString);
+            let resultingData = {
+              ...self._data,
+              commissions
+            };
+            await this.setData(resultingData);
+          }
+        },
+        bindOnChanged: (element: Config, callback: (data: any) => Promise<void>) => {
+          element.onCustomCommissionsChanged = async (data: any) => {
+            let resultingData = {
+              ...self._data,
+              ...data
+            };
+            await this.setData(resultingData);
+            await callback(data);
+          }
         },
         getData: this.getData.bind(this),
         setData: this.setData.bind(this),
@@ -562,6 +668,51 @@ export default class ScomAmmPool extends Module {
         setTag: this.setTag.bind(this)
       }
     ]
+  }
+
+  private updateContractAddress = () => {
+    if (getCurrentCommissions(this.commissions).length) {
+      this.contractAddress = getProxyAddress();
+    } else {
+      this.contractAddress = getRouterAddress(getChainId());
+    }
+    if (this.approvalModelAction) {
+      this.approvalModelAction.setSpenderAddress(this.contractAddress);
+      this.updateCommissionInfo();
+    }
+  }
+
+  private updateCommissionInfo = () => {
+    if (getCurrentCommissions(this.commissions).length) {
+      this.vStackCommissionInfo.visible = true;
+      const commissionFee = getEmbedderCommissionFee();
+      this.iconCommissionFee.tooltip.content = `A commission fee of ${new BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
+      if (this.isFixedPair) {
+        this.vStackCommissionTokens.visible = false;
+        if (this.firstToken && this.secondToken) {
+          const lqAmount = new BigNumber(this.liquidityInput.value || 0);
+          const lqCommission = getCommissionAmount(this.commissions, lqAmount);
+          this.lbCommissionLq.caption = `${formatNumber(lqAmount.plus(lqCommission))} ${this.firstToken.symbol || ''} - ${this.secondToken.symbol}`;
+          this.vStackCommissionInfo.visible = true;
+        } else {
+          this.vStackCommissionInfo.visible = false;
+        }
+        return;
+      }
+      if (this.firstToken && this.secondToken) {
+        const firstAmount = new BigNumber(this.firstInputAmount || 0);
+        const secondAmount = new BigNumber(this.secondInputAmount || 0);
+        const firstCommission = getCommissionAmount(this.commissions, firstAmount);
+        const secondCommission = getCommissionAmount(this.commissions, secondAmount);
+        this.lbFirstCommission.caption = `${formatNumber(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
+        this.lbSecondCommission.caption = `${formatNumber(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
+        this.vStackCommissionTokens.visible = true;
+      } else {
+        this.vStackCommissionTokens.visible = false;
+      }
+    } else {
+      this.vStackCommissionInfo.visible = false;
+    }
   }
 
   private onSetupPage = async (connected: boolean, _chainId?: number) => {
@@ -583,6 +734,7 @@ export default class ScomAmmPool extends Module {
     this.resetFirstInput();
     this.resetSecondInput();
     this.liquidityInput.value = '';
+    this.updateCommissionInfo();
     tokenStore.updateTokenMapData();
     if (connected) {
       await tokenStore.updateAllTokenBalances();
@@ -615,8 +767,11 @@ export default class ScomAmmPool extends Module {
         await this.callAPIBundle(false);
         if (this.isFixedPair) {
           this.renderLiquidity();
-          if (new BigNumber(this.liquidityInput.value).gt(0))
-            this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
+          const lqInput = new BigNumber(this.liquidityInput.value || 0);
+          if (lqInput.gt(0)) {
+            const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
+            this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
+          }
         } else {
           this.pnlInfo.clearInnerHTML();
           this.pnlInfo.append(
@@ -629,6 +784,7 @@ export default class ScomAmmPool extends Module {
     } else {
       this.resetData();
     }
+    this.updateCommissionInfo();
   }
 
   private renderLiquidity() {
@@ -782,10 +938,12 @@ export default class ScomAmmPool extends Module {
       this.btnSupply.caption = 'Connect Wallet';
       return;
     }
+    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstInput.value || 0));
+    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondInput.value || 0));
     if (this.btnSupply.rightIcon.visible) {
       this.btnSupply.caption = 'Loading';
     } else if (this.isFixedPair) {
-      this.btnSupply.caption = 'Remove';
+      this.updateBtnRemove();
     } else if (
       !this.firstToken?.symbol ||
       !this.secondToken?.symbol ||
@@ -794,9 +952,9 @@ export default class ScomAmmPool extends Module {
       this.btnSupply.caption = 'Invalid Pair';
     } else if (new BigNumber(this.firstInput.value).isZero() || new BigNumber(this.secondInput.value).isZero()) {
       this.btnSupply.caption = 'Enter Amount';
-    } else if (new BigNumber(this.firstInput.value).gt(this.firstBalance)) {
+    } else if (new BigNumber(this.firstInput.value).plus(firstCommissionAmount).gt(this.firstBalance)) {
       this.btnSupply.caption = `Insufficient ${this.firstToken?.symbol} balance`;
-    } else if (new BigNumber(this.secondInput.value).gt(this.secondBalance)) {
+    } else if (new BigNumber(this.secondInput.value).plus(secondCommissionAmount).gt(this.secondBalance)) {
       this.btnSupply.caption = `Insufficient ${this.secondToken?.symbol} balance`;
     } else if (new BigNumber(this.firstInput.value).gt(0) && new BigNumber(this.secondInput.value).gt(0)) {
       this.btnSupply.caption = 'Supply';
@@ -835,7 +993,9 @@ export default class ScomAmmPool extends Module {
         this.firstInput.value = tokensBack.amountA;
       }
     }
-    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
+    const lqInput = new BigNumber(this.liquidityInput.value || 0);
+    const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
+    this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
   }
 
   private async handleInputChange(source: Control) {
@@ -874,6 +1034,7 @@ export default class ScomAmmPool extends Module {
     } else {
       await this.handleInputChange(source);
     }
+    this.updateCommissionInfo();
   }
 
   async resetFirstInput() {
@@ -897,17 +1058,25 @@ export default class ScomAmmPool extends Module {
   private async setMaxBalance(isFrom: boolean) {
     if (!isWalletConnected()) return;
     this.isFromEstimated = !isFrom;
+    const balance = new BigNumber(isFrom ? this.firstBalance : this.secondBalance);
+    let inputVal = balance;
+    const commissionAmount = getCommissionAmount(this.commissions, balance);
+    if (commissionAmount.gt(0)) {
+      const totalFee = balance.plus(commissionAmount).dividedBy(balance);
+      inputVal = inputVal.dividedBy(totalFee);
+    }
     if (isFrom) {
-      const maxVal = limitDecimals(this.firstBalance, this.firstTokenDecimals);
+      const maxVal = limitDecimals(inputVal, this.firstTokenDecimals);
       this.firstInputAmount = maxVal;
       this.firstInput.value = maxVal;
     } else {
-      const maxVal = limitDecimals(this.secondBalance, this.secondTokenDecimals);
+      const maxVal = limitDecimals(inputVal, this.secondTokenDecimals);
       this.secondInputAmount = maxVal;
       this.secondInput.value = maxVal;
     }
-    if (!this.onCheckInput(isFrom ? this.firstBalance : this.secondBalance)) {
+    if (!this.onCheckInput(balance.toFixed())) {
       this.updateButtonText();
+      this.updateCommissionInfo();
       return;
     };
     this.updateButton(true);
@@ -915,12 +1084,20 @@ export default class ScomAmmPool extends Module {
       await this.checkPairExists();
       await this.callAPIBundle(true);
     } catch {}
+    this.updateCommissionInfo();
     this.updateButton(false);
   }
 
   private setMaxLiquidityBalance() {
     if (!this.firstToken || !this.secondToken) return;
-    this.liquidityInput.value = this.maxLiquidityBalance;
+    const balance = new BigNumber(this.maxLiquidityBalance);
+    let inputVal = balance;
+    const commissionAmount = getCommissionAmount(this.commissions, balance);
+    if (commissionAmount.gt(0)) {
+      const totalFee = balance.plus(commissionAmount).dividedBy(balance);
+      inputVal = limitDecimals(inputVal.dividedBy(totalFee), 18);
+    }
+    this.liquidityInput.value = inputVal;
     this.onLiquidityChange();
   }
 
@@ -929,10 +1106,13 @@ export default class ScomAmmPool extends Module {
     limitInputNumber(this.liquidityInput, 18);
     let tokensBack = await getTokensBack(this.firstToken, this.secondToken, this.liquidityInput.value);
     if (tokensBack) {
-      this.firstInput.value = tokensBack.amountA;
-      this.secondInput.value = tokensBack.amountB;
+      this.firstInput.value = isNaN(Number(tokensBack.amountA)) ? '0' : tokensBack.amountA;
+      this.secondInput.value = isNaN(Number(tokensBack.amountB)) ? '0' : tokensBack.amountB;
     }
-    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
+    this.updateCommissionInfo();
+    const lqInput = new BigNumber(this.liquidityInput.value || 0);
+    const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
+    this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
   }
 
   private updateButton(status: boolean) {
@@ -980,6 +1160,7 @@ export default class ScomAmmPool extends Module {
       if (this.lbSecondBalance.isConnected)
         this.lbSecondBalance.caption = `Balance: ${formatNumber(balance)}`;
     }
+    this.updateCommissionInfo();
   }
 
   private async onSelectToken(token: any, isFrom: boolean) {
@@ -1002,13 +1183,14 @@ export default class ScomAmmPool extends Module {
     } catch {
       this.updateButton(false);
     }
+    this.updateCommissionInfo();
   }
 
   private handleApprove(source: Control) {
     if (this.isFixedPair) {
       this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
     } else if (source === this.btnApproveFirstToken) {
-      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.secondToken?.symbol} allowance`);
+      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.firstToken?.symbol} allowance`);
       this.btnApproveFirstToken.rightIcon.visible = true;
       if (this.firstToken) {
         this.approvalModelAction.doApproveAction(this.firstToken, this.firstInputAmount);
@@ -1025,6 +1207,20 @@ export default class ScomAmmPool extends Module {
     }
   }
 
+  private updateBtnRemove = () => {
+    if (!isWalletConnected()) {
+      this.btnSupply.caption = 'Connect Wallet';
+      this.btnSupply.enabled = false;
+      return;
+    }
+    const lqAmount = new BigNumber(this.liquidityInput.value || 0);
+    const lqCommission = getCommissionAmount(this.commissions, lqAmount);
+    const total = lqAmount.plus(lqCommission);
+    const canRemove = total.gt(0) && total.lte(this.maxLiquidityBalance);
+    this.btnSupply.caption = canRemove || lqAmount.isZero() ? 'Remove' : 'Insufficient balance';
+    this.btnSupply.enabled = canRemove;
+  }
+
   private handleAction() {
     this.isFixedPair ?
     this.approvalModelAction.doPayAction() :
@@ -1036,8 +1232,12 @@ export default class ScomAmmPool extends Module {
     const chainId = getChainId();
     this.firstTokenImage1.url = this.firstTokenImage2.url = tokenAssets.tokenPath(this.firstToken, chainId);
     this.secondTokenImage1.url = this.secondTokenImage2.url = tokenAssets.tokenPath(this.secondToken, chainId);
-    this.lbFirstInput.caption = formatNumber(this.firstInputAmount, 4);
-    this.lbSecondInput.caption = formatNumber(this.secondInputAmount, 4);
+    const firstAmount = new BigNumber(this.firstInputAmount);
+    const secondAmount = new BigNumber(this.secondInputAmount);
+    const firstCommissionAmount = getCommissionAmount(this.commissions, firstAmount);
+    const secondCommissionAmount = getCommissionAmount(this.commissions, secondAmount);
+    this.lbFirstInput.caption = formatNumber(firstAmount.plus(firstCommissionAmount), 4);
+    this.lbSecondInput.caption = formatNumber(secondAmount.plus(secondCommissionAmount), 4);
     this.lbPoolTokensTitle.caption = `${this.firstToken.symbol}/${this.secondToken.symbol} Pool Tokens`;
     this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${getSlippageTolerance()}% your transaction will revert.`
     this.lbFirstDeposited.caption = `${this.firstToken.symbol} Deposited`;
@@ -1060,7 +1260,8 @@ export default class ScomAmmPool extends Module {
         this.secondToken,
         this.liquidityInput.value,
         this.firstInput.value,
-        this.secondInput.value
+        this.secondInput.value,
+        this.commissions
       );
     else {
       this.showResultMessage(this.resultEl, 'warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
@@ -1069,7 +1270,8 @@ export default class ScomAmmPool extends Module {
           this.secondToken,
           this.firstToken,
           this.secondInputAmount,
-          this.firstInputAmount
+          this.firstInputAmount,
+          this.commissions
         );
       }
       else {
@@ -1077,7 +1279,8 @@ export default class ScomAmmPool extends Module {
           this.firstToken,
           this.secondToken,
           this.firstInputAmount,
-          this.secondInputAmount
+          this.secondInputAmount,
+          this.commissions
         );
       }
     }
@@ -1109,7 +1312,7 @@ export default class ScomAmmPool extends Module {
         if (this.isFixedPair) {
           this.btnApproveFirstToken.enabled = false;
           this.btnApproveFirstToken.visible = true;
-          this.btnSupply.enabled = new BigNumber(this.liquidityInput.value).gt(0);
+          this.updateBtnRemove();
         } else {
           if (token === this.firstToken)
             this.btnApproveFirstToken.visible = false;
@@ -1143,7 +1346,7 @@ export default class ScomAmmPool extends Module {
         }
         if (this.isFixedPair) {
           this.btnApproveFirstToken.caption = 'Approved';
-          this.btnSupply.enabled = new BigNumber(this.liquidityInput.value).gt(0);
+          this.updateBtnRemove();
         } else this.updateButtonText();
       },
       onApprovingError: async (token: ITokenObject, err: Error) => {
@@ -1178,7 +1381,7 @@ export default class ScomAmmPool extends Module {
         this.showResultMessage(this.resultEl, 'error', err);
         this.btnSupply.rightIcon.visible = false;
       }
-    });
+    }, this.contractAddress);
   }
 
   private async checkPairExists() {
@@ -1217,8 +1420,12 @@ export default class ScomAmmPool extends Module {
       this.firstInput.value = this.removeInfo.tokenAShare;
       this.secondInput.value = this.removeInfo.tokenBShare;
       this.lbLiquidityBalance.caption = `Balance: ${this.removeInfo.totalPoolTokens}`;
-      this.liquidityInput.value = this.removeInfo.totalPoolTokens;
       this.maxLiquidityBalance = info.totalPoolTokens;
+      if (getCurrentCommissions(this.commissions).length) {
+        this.setMaxLiquidityBalance();
+      } else {
+        this.liquidityInput.value = this.maxLiquidityBalance;
+      }
       this.lpToken = info.lpToken;
       return;
     }
@@ -1296,8 +1503,10 @@ export default class ScomAmmPool extends Module {
       }
     }
     this.btnSupply.enabled = true;
-    this.approvalModelAction.checkAllowance(this.firstToken, this.firstInputAmount);
-    this.approvalModelAction.checkAllowance(this.secondToken, this.secondInputAmount);
+    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstInputAmount));
+    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondInputAmount));
+    this.approvalModelAction.checkAllowance(this.firstToken, firstCommissionAmount.plus(this.firstInputAmount));
+    this.approvalModelAction.checkAllowance(this.secondToken, secondCommissionAmount.plus(this.secondInputAmount));
   }
 
   async init() {
@@ -1309,7 +1518,8 @@ export default class ScomAmmPool extends Module {
     const networks = this.getAttribute('networks', true);
     const wallets = this.getAttribute('wallets', true);
     const providers = this.getAttribute('providers', true, []);
-    await this.setData({mode, providers, tokens, defaultChainId, networks, wallets});
+    const commissions = this.getAttribute('commissions', true, []);
+    await this.setData({commissions, mode, providers, tokens, defaultChainId, networks, wallets});
     this.isReadyCallbackQueued = false;
     this.executeReadyCallback();
   }
@@ -1409,6 +1619,17 @@ export default class ScomAmmPool extends Module {
                     <i-input id="secondInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount} />
                     <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
                   </i-hstack>
+                </i-vstack>
+                <i-vstack id="vStackCommissionInfo" gap={10}>
+                  <i-hstack gap={4} verticalAlignment="center">
+                    <i-label caption="Total" />
+                    <i-icon id="iconCommissionFee" name="question-circle" width={16} height={16} />
+                  </i-hstack>
+                  <i-vstack id="vStackCommissionTokens" gap={10} verticalAlignment="center" horizontalAlignment="end">
+                    <i-label id="lbFirstCommission" font={{ size: '14px' }} />
+                    <i-label id="lbSecondCommission" font={{ size: '14px' }} />
+                  </i-vstack>
+                  <i-label id="lbCommissionLq" font={{ size: '14px' }} margin={{ left: 'auto' }} />
                 </i-vstack>
                 <i-vstack
                   id="pricePanel"
@@ -1511,6 +1732,7 @@ export default class ScomAmmPool extends Module {
               <i-button class="btn-swap" height="auto" caption="Confirm Supply" onClick={this.handleConfirmSupply} />
             </i-modal>
           </i-panel>
+          <i-scom-amm-pool-config id="configDApp" visible={false} />
           <i-scom-amm-pool-result id="resultEl"></i-scom-amm-pool-result>
         </i-panel>
       </i-scom-dapp-container>
