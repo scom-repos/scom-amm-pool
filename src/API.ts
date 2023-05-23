@@ -1,16 +1,19 @@
 import { Wallet, BigNumber, Utils, TransactionReceipt } from "@ijstech/eth-wallet";
 import {} from '@ijstech/eth-contract';
 import { Contracts } from "./contracts/oswap-openswap-contract/index";
+import { Contracts as ProxyContracts } from './contracts/scom-commission-proxy-contract/index';
 import {
   ITokenObject,
   IERC20ApprovalEventOptions,
-  ERC20ApprovalModel
+  ERC20ApprovalModel,
+  ICommissionInfo
 } from "./global/index";
 import {
   getWETH, 
   getSlippageTolerance, 
   getTransactionDeadline,
-  getChainId
+  getChainId,
+  getProxyAddress
 } from "./store/index";
 import getDexList from '@scom/scom-dex-list';
 
@@ -51,7 +54,22 @@ interface ITokensBack {
 
 export const ERC20MaxAmount = new BigNumber(2).pow(256).minus(1);
 
-function getRouterAddress(chainId: number): string {
+export const getCurrentCommissions = (commissions: ICommissionInfo[]) => {
+  return (commissions || []).filter(v => v.chainId == getChainId());
+}
+
+export const getCommissionAmount = (commissions: ICommissionInfo[], amount: BigNumber) => {
+  const _commissions = (commissions || []).filter(v => v.chainId == getChainId()).map(v => {
+    return {
+      to: v.walletAddress,
+      amount: amount.times(v.share)
+    }
+  });
+  const commissionsAmount = _commissions.length ? _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)) : new BigNumber(0);
+  return commissionsAmount;
+}
+
+export function getRouterAddress(chainId: number): string {
   const dexItem = getDexList().find(item => item.chainId === chainId)
   return dexItem?.routerAddress || '';
 }
@@ -301,7 +319,7 @@ const getNewShareInfo = async (tokenA: ITokenObject, tokenB: ITokenObject, amoun
   };
 }
 
-const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string) => {
+const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => {
   let receipt:TransactionReceipt;
   try {
     const wallet = Wallet.getClientInstance();
@@ -313,6 +331,11 @@ const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountAD
     const deadline = Math.floor(Date.now() / 1000 + getTransactionDeadline() * 60);
     const routerAddress = getRouterAddress(chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
+
+    const proxyAddress = getProxyAddress();
+    const proxy = new ProxyContracts.Proxy(wallet, proxyAddress);
+    const _commissions = (commissions || []).filter(v => v.chainId == getChainId());
+
     if (!tokenA.address || !tokenB.address) {
       let erc20Token:ITokenObject, amountTokenDesired:string, amountETHDesired:string, amountTokenMin:string, amountETHMin:string;
       if (tokenA.address) {
@@ -328,27 +351,124 @@ const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountAD
         amountTokenMin = amountBMin;
         amountETHMin = amountAMin;
       }
-
-      receipt = await router.addLiquidityETH({
-        token: erc20Token.address!,
-        amountTokenDesired: Utils.toDecimals(amountTokenDesired, erc20Token.decimals).dp(0),
-        amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-        amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
-        to: toAddress,
-        deadline
-      }, Utils.toDecimals(amountETHDesired).dp(0));
+      const amountToken = Utils.toDecimals(amountTokenDesired, erc20Token.decimals).dp(0);
+      const amountETH = Utils.toDecimals(amountETHDesired).dp(0);
+      if (_commissions.length) {
+        const commissionsToken = _commissions.map(v => {
+          return {
+            to: v.walletAddress,
+            amount: amountToken.times(v.share).dp(0)
+          }
+        });
+        const commissionsETH = _commissions.map(v => {
+          return {
+            to: v.walletAddress,
+            amount: amountETH.times(v.share).dp(0)
+          }
+        });
+        const commissionsAmountToken = commissionsToken.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
+        const commissionsAmountETH = commissionsETH.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
+        const tokensIn = [
+          {
+            token: erc20Token.address,
+            amount: amountToken.plus(commissionsAmountToken),
+            directTransfer: false,
+            commissions: commissionsToken
+          },
+          {
+            token: Utils.nullAddress,
+            amount: amountETH.plus(commissionsAmountETH),
+            directTransfer: false,
+            commissions: commissionsETH
+          }
+        ];
+        const txData = await router.addLiquidityETH.txData({
+          token: erc20Token.address!,
+          amountTokenDesired: amountToken,
+          amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+          amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
+          to: toAddress,
+          deadline
+        }, amountETH);
+        receipt = await proxy.proxyCall({
+          target: routerAddress,
+          tokensIn,
+          data: txData,
+          to: wallet.address,
+          tokensOut: []
+        }, amountETH.plus(commissionsAmountETH));
+      } else {
+        receipt = await router.addLiquidityETH({
+          token: erc20Token.address!,
+          amountTokenDesired: amountToken,
+          amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+          amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
+          to: toAddress,
+          deadline
+        }, amountETH);
+      }
     }
     else {
-      receipt = await router.addLiquidity({
-        tokenA: tokenA.address,
-        tokenB: tokenB.address,
-        amountADesired: Utils.toDecimals(amountADesired, tokenA.decimals).dp(0),
-        amountBDesired: Utils.toDecimals(amountBDesired, tokenB.decimals).dp(0),
-        amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-        amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
-        to: toAddress,
-        deadline
-      });
+      const amountTokenA = Utils.toDecimals(amountADesired, tokenA.decimals).dp(0);
+      const amountTokenB = Utils.toDecimals(amountBDesired, tokenB.decimals).dp(0);
+      if (_commissions.length) {
+        const commissionsTokenA = _commissions.map(v => {
+          return {
+            to: v.walletAddress,
+            amount: amountTokenA.times(v.share).dp(0)
+          }
+        });
+        const commissionsTokenB = _commissions.map(v => {
+          return {
+            to: v.walletAddress,
+            amount: amountTokenB.times(v.share).dp(0)
+          }
+        });
+        const commissionsAmountTokenA = commissionsTokenA.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
+        const commissionsAmountTokenB = commissionsTokenB.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
+        const tokensIn = [
+          {
+            token: tokenA.address,
+            amount: amountTokenA.plus(commissionsAmountTokenA),
+            directTransfer: false,
+            commissions: commissionsTokenA
+          },
+          {
+            token: tokenB.address,
+            amount: amountTokenB.plus(commissionsAmountTokenB),
+            directTransfer: false,
+            commissions: commissionsTokenB
+          }
+        ];
+        const txData = await router.addLiquidity.txData({
+          tokenA: tokenA.address,
+          tokenB: tokenB.address,
+          amountADesired: amountTokenA,
+          amountBDesired: amountTokenB,
+          amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+          amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+          to: toAddress,
+          deadline
+        });
+        receipt = await proxy.proxyCall({
+          target: routerAddress,
+          tokensIn,
+          data: txData,
+          to: wallet.address,
+          tokensOut: []
+        })
+      } else {
+        receipt = await router.addLiquidity({
+          tokenA: tokenA.address,
+          tokenB: tokenB.address,
+          amountADesired: amountTokenA,
+          amountBDesired: amountTokenB,
+          amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+          amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+          to: toAddress,
+          deadline
+        });
+      }
     }
   }
   catch (err) {
@@ -381,7 +501,6 @@ const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liqui
         amountTokenMin = amountBMin;
         amountETHMin = amountAMin;
       }
-
       receipt = await router.removeLiquidityETH({
         token: erc20Token.address!,
         liquidity: Utils.toDecimals(liquidity).dp(0),
@@ -427,9 +546,9 @@ const getPairAddressFromTokens = async (factory: Contracts.OSWAP_Factory, tokenA
   return pairAddress;
 }
 
-const getApprovalModelAction = async (options: IERC20ApprovalEventOptions) => {
+const getApprovalModelAction = async (options: IERC20ApprovalEventOptions, spenderAddress?: string) => {
   let chainId = getChainId();
-  const routerAddress = getRouterAddress(chainId);
+  const routerAddress = spenderAddress || getRouterAddress(chainId);
   const approvalOptions = {
     ...options,
     spenderAddress: routerAddress

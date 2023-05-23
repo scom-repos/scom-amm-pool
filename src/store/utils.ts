@@ -1,6 +1,6 @@
 import { application } from '@ijstech/components';
 import { Wallet } from '@ijstech/eth-wallet';
-import { EventId, IProvider, ITokenObject, IExtendedNetwork } from '../global/index';
+import { EventId, IProvider, ITokenObject, IExtendedNetwork, ICommissionInfo } from '../global/index';
 import { ChainNativeTokenByChainId } from '@scom/scom-token-list';
 import getNetworkList from '@scom/scom-network-list'
 import { IDexInfo } from '@scom/scom-dex-list';
@@ -9,8 +9,6 @@ export enum WalletPlugin {
   MetaMask = 'metamask',
   WalletConnect = 'walletconnect',
 }
-
-const TOKENS = "oswap_user_tokens_";
 
 export type ProxyAddresses = { [key: number]: string };
 
@@ -25,6 +23,8 @@ export const state = {
   providerList: [] as IProvider[],
   ipfsGatewayUrl: "",
   apiGatewayUrls: {} as Record<string, string>,
+  proxyAddresses: {} as ProxyAddresses,
+  embedderCommissionFee: "0",
   tokens: []
 }
 
@@ -41,6 +41,33 @@ export const setDataFromConfig = (options: any) => {
   if (options.apiGatewayUrls) {
     setAPIGatewayUrls(options.apiGatewayUrls);
   }
+  if (options.proxyAddresses) {
+    setProxyAddresses(options.proxyAddresses)
+  }
+  if (options.embedderCommissionFee) {
+    setEmbedderCommissionFee(options.embedderCommissionFee);
+  }
+}
+
+export const setProxyAddresses = (data: ProxyAddresses) => {
+  state.proxyAddresses = data;
+}
+
+export const getProxyAddress = (chainId?: number) => {
+  const _chainId = chainId || Wallet.getInstance().chainId;
+  const proxyAddresses = state.proxyAddresses;
+  if (proxyAddresses) {
+    return proxyAddresses[_chainId];
+  }
+  return null;
+}
+
+const setEmbedderCommissionFee = (fee: string) => {
+  state.embedderCommissionFee = fee;
+}
+
+export const getEmbedderCommissionFee = () => {
+  return state.embedderCommissionFee;
 }
 
 export const setIPFSGatewayUrl = (url: string) => {

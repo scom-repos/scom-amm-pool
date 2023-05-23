@@ -97,6 +97,14 @@ export default class Module1 extends Module {
                 name: 'metamask',
               },
             ]}
+            commissions={[
+              {
+                chainId: 97,
+                walletAddress: '0xA81961100920df22CF98703155029822f2F7f033',
+                share: '0.01'
+              }
+            ]}
+            mode='add-liquidity'
           ></i-scom-amm-pool>
         </i-vstack>
       </i-panel>

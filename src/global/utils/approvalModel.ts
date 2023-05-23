@@ -37,9 +37,10 @@ export interface IERC20ApprovalOptions extends IERC20ApprovalEventOptions {
   spenderAddress: string;
 }
 export interface IERC20ApprovalAction {
+  setSpenderAddress: (value: string) => void;
   doApproveAction: (token: ITokenObject, inputAmount: string, data?: any) => Promise<void>;
   doPayAction: (data?: any) => Promise<void>;
-  checkAllowance: (token: ITokenObject, inputAmount: string) => Promise<void>;
+  checkAllowance: (token: ITokenObject, inputAmount: string | BigNumber) => Promise<void>;
 }
 
 export class ERC20ApprovalModel {
@@ -61,11 +62,11 @@ export class ERC20ApprovalModel {
     this.options = options;
   }
   
-  set spenderAddress(value: string) {
+  private setSpenderAddress = (value: string) => {
     this.options.spenderAddress = value
   }
 
-  private checkAllowance = async (token: ITokenObject, inputAmount: string) => {
+  private checkAllowance = async (token: ITokenObject, inputAmount: string | BigNumber) => {
     let allowance = await getERC20Allowance(token, this.options.spenderAddress);
     if (!allowance) {
       await this.options.onToBePaid.bind(this.options.sender)(token);
@@ -115,6 +116,7 @@ export class ERC20ApprovalModel {
 
   public getAction = (): IERC20ApprovalAction => {
     return {
+      setSpenderAddress: this.setSpenderAddress,
       doApproveAction: this.doApproveAction,
       doPayAction: this.doPayAction,
       checkAllowance: this.checkAllowance

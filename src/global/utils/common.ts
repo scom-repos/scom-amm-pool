@@ -1,4 +1,4 @@
-import { Wallet, Erc20, BigNumber, ISendTxEventsOptions } from "@ijstech/eth-wallet";
+import { Wallet, Erc20, BigNumber, ISendTxEventsOptions, Utils } from "@ijstech/eth-wallet";
 import { Contracts } from "../../contracts/oswap-openswap-contract/index";
 
 export interface ITokenObject {
@@ -61,11 +61,11 @@ export const approveERC20Max = async (token: ITokenObject, spenderAddress: strin
 
 export const getERC20Allowance = async (token: ITokenObject, spenderAddress: string) => {
   if (!token?.address) return null;
-  let wallet = Wallet.getClientInstance() as any;
+  let wallet = Wallet.getClientInstance();
   let erc20 = new Contracts.ERC20(wallet, token.address);
   let allowance = await erc20.allowance({
     owner: wallet.account.address,
     spender: spenderAddress
   });
-  return allowance;
+  return Utils.fromDecimals(allowance, token.decimals || 18);
 }
