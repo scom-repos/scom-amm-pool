@@ -477,7 +477,7 @@ const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountAD
   return receipt;
 }
 
-const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => {
+const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => {
   let receipt:TransactionReceipt;
   try {
     const wallet = Wallet.getClientInstance();
@@ -489,17 +489,6 @@ const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liqui
     const deadline = Math.floor(Date.now() / 1000 + getTransactionDeadline() * 60);
     const routerAddress = getRouterAddress(chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
-
-    const proxyAddress = getProxyAddress();
-    const proxy = new ProxyContracts.Proxy(wallet, proxyAddress);
-    const amount = Utils.toDecimals(liquidity, 18).dp(0);
-    const _commissions = (commissions || []).filter(v => v.chainId == getChainId()).map(v => {
-      return {
-        to: v.walletAddress,
-        amount: amount.times(v.share).dp(0)
-      }
-    });
-
     if (!tokenA.address || !tokenB.address) {
       let erc20Token:ITokenObject, amountTokenMin:string, amountETHMin:string;
       if (tokenA.address) {
@@ -512,92 +501,25 @@ const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liqui
         amountTokenMin = amountBMin;
         amountETHMin = amountAMin;
       }
-      if (_commissions.length) {
-        const commissionsAmount = _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
-        const tokensIn = [
-          {
-            token: erc20Token.address,
-            amount: amount.plus(commissionsAmount),
-            directTransfer: false,
-            commissions: _commissions
-          },
-          {
-            token: Utils.nullAddress,
-            amount: amount.plus(commissionsAmount),
-            directTransfer: false,
-            commissions: _commissions
-          }
-        ]
-        const txData = await router.removeLiquidityETH.txData({
-          token: erc20Token.address!,
-          liquidity: amount,
-          amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-          amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
-          to: toAddress,
-          deadline
-        });
-        receipt = await proxy.proxyCall({
-          target: routerAddress,
-          tokensIn: tokensIn,
-          data: txData,
-          to: wallet.address,
-          tokensOut: []
-        })
-      } else {
-        receipt = await router.removeLiquidityETH({
-          token: erc20Token.address!,
-          liquidity: amount,
-          amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-          amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
-          to: toAddress,
-          deadline
-        })
-      }
+      receipt = await router.removeLiquidityETH({
+        token: erc20Token.address!,
+        liquidity: Utils.toDecimals(liquidity).dp(0),
+        amountTokenMin: Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+        amountETHMin: Utils.toDecimals(amountETHMin).dp(0),
+        to: toAddress,
+        deadline
+      })
     }
     else {
-      if (_commissions.length) {
-        const commissionsAmount = _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
-        const tokensIn = [
-          {
-            token: tokenA.address,
-            amount: amount.plus(commissionsAmount),
-            directTransfer: false,
-            commissions: _commissions
-          },
-          {
-            token: tokenB.address,
-            amount: amount.plus(commissionsAmount),
-            directTransfer: false,
-            commissions: _commissions
-          },
-        ]
-        const txData = await router.removeLiquidity.txData({
-          tokenA: tokenA.address,
-          tokenB: tokenB.address,
-          liquidity: amount,
-          amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-          amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
-          to: toAddress,
-          deadline
-        });
-        receipt = await proxy.proxyCall({
-          target: routerAddress,
-          tokensIn: tokensIn,
-          data: txData,
-          to: wallet.address,
-          tokensOut: []
-        })
-      } else {
-        receipt = await router.removeLiquidity({
-          tokenA: tokenA.address,
-          tokenB: tokenB.address,
-          liquidity: amount,
-          amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-          amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
-          to: toAddress,
-          deadline
-        })
-      }
+      receipt = await router.removeLiquidity({
+        tokenA: tokenA.address,
+        tokenB: tokenB.address,
+        liquidity: Utils.toDecimals(liquidity).dp(0),
+        amountAMin: Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+        amountBMin: Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+        to: toAddress,
+        deadline
+      })
     }
   }
   catch (err) {

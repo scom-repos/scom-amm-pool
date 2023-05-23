@@ -10667,7 +10667,7 @@ declare module "@scom/scom-amm-pool/API.ts" {
         minted: string;
     }>;
     const addLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
-    const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
+    const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
     const getApprovalModelAction: (options: IERC20ApprovalEventOptions, spenderAddress?: string) => Promise<import("@scom/scom-amm-pool/global/index.ts").IERC20ApprovalAction>;
     const getTokensBack: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
     const getTokensBackByAmountOut: (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
@@ -10855,12 +10855,10 @@ declare module "@scom/scom-amm-pool" {
         private pricePanel;
         private dappContainer;
         private configDApp;
-        private vStackCommissionInfo;
+        private hStackCommissionInfo;
         private iconCommissionFee;
-        private vStackCommissionTokens;
         private lbFirstCommission;
         private lbSecondCommission;
-        private lbCommissionLq;
         private pnlLiquidityImage;
         private lbLiquidityBalance;
         private liquidityInput;

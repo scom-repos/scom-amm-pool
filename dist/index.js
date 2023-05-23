@@ -15898,7 +15898,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return receipt;
     };
     exports.addLiquidity = addLiquidity;
-    const removeLiquidity = async (tokenA, tokenB, liquidity, amountADesired, amountBDesired, commissions) => {
+    const removeLiquidity = async (tokenA, tokenB, liquidity, amountADesired, amountBDesired) => {
         let receipt;
         try {
             const wallet = eth_wallet_8.Wallet.getClientInstance();
@@ -15910,15 +15910,6 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             const deadline = Math.floor(Date.now() / 1000 + index_14.getTransactionDeadline() * 60);
             const routerAddress = getRouterAddress(chainId);
             let router = new index_11.Contracts.OSWAP_Router(wallet, routerAddress);
-            const proxyAddress = index_14.getProxyAddress();
-            const proxy = new index_12.Contracts.Proxy(wallet, proxyAddress);
-            const amount = eth_wallet_8.Utils.toDecimals(liquidity, 18).dp(0);
-            const _commissions = (commissions || []).filter(v => v.chainId == index_14.getChainId()).map(v => {
-                return {
-                    to: v.walletAddress,
-                    amount: amount.times(v.share).dp(0)
-                };
-            });
             if (!tokenA.address || !tokenB.address) {
                 let erc20Token, amountTokenMin, amountETHMin;
                 if (tokenA.address) {
@@ -15931,94 +15922,25 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                     amountTokenMin = amountBMin;
                     amountETHMin = amountAMin;
                 }
-                if (_commissions.length) {
-                    const commissionsAmount = _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
-                    const tokensIn = [
-                        {
-                            token: erc20Token.address,
-                            amount: amount.plus(commissionsAmount),
-                            directTransfer: false,
-                            commissions: _commissions
-                        },
-                        {
-                            token: eth_wallet_8.Utils.nullAddress,
-                            amount: amount.plus(commissionsAmount),
-                            directTransfer: false,
-                            commissions: _commissions
-                        }
-                    ];
-                    const txData = await router.removeLiquidityETH.txData({
-                        token: erc20Token.address,
-                        liquidity: amount,
-                        amountTokenMin: eth_wallet_8.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-                        amountETHMin: eth_wallet_8.Utils.toDecimals(amountETHMin).dp(0),
-                        to: toAddress,
-                        deadline
-                    });
-                    receipt = await proxy.proxyCall({
-                        target: routerAddress,
-                        tokensIn: tokensIn,
-                        data: txData,
-                        to: wallet.address,
-                        tokensOut: []
-                    });
-                }
-                else {
-                    receipt = await router.removeLiquidityETH({
-                        token: erc20Token.address,
-                        liquidity: amount,
-                        amountTokenMin: eth_wallet_8.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-                        amountETHMin: eth_wallet_8.Utils.toDecimals(amountETHMin).dp(0),
-                        to: toAddress,
-                        deadline
-                    });
-                }
+                receipt = await router.removeLiquidityETH({
+                    token: erc20Token.address,
+                    liquidity: eth_wallet_8.Utils.toDecimals(liquidity).dp(0),
+                    amountTokenMin: eth_wallet_8.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+                    amountETHMin: eth_wallet_8.Utils.toDecimals(amountETHMin).dp(0),
+                    to: toAddress,
+                    deadline
+                });
             }
             else {
-                if (_commissions.length) {
-                    const commissionsAmount = _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)).dp(0);
-                    const tokensIn = [
-                        {
-                            token: tokenA.address,
-                            amount: amount.plus(commissionsAmount),
-                            directTransfer: false,
-                            commissions: _commissions
-                        },
-                        {
-                            token: tokenB.address,
-                            amount: amount.plus(commissionsAmount),
-                            directTransfer: false,
-                            commissions: _commissions
-                        },
-                    ];
-                    const txData = await router.removeLiquidity.txData({
-                        tokenA: tokenA.address,
-                        tokenB: tokenB.address,
-                        liquidity: amount,
-                        amountAMin: eth_wallet_8.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-                        amountBMin: eth_wallet_8.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
-                        to: toAddress,
-                        deadline
-                    });
-                    receipt = await proxy.proxyCall({
-                        target: routerAddress,
-                        tokensIn: tokensIn,
-                        data: txData,
-                        to: wallet.address,
-                        tokensOut: []
-                    });
-                }
-                else {
-                    receipt = await router.removeLiquidity({
-                        tokenA: tokenA.address,
-                        tokenB: tokenB.address,
-                        liquidity: amount,
-                        amountAMin: eth_wallet_8.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-                        amountBMin: eth_wallet_8.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
-                        to: toAddress,
-                        deadline
-                    });
-                }
+                receipt = await router.removeLiquidity({
+                    tokenA: tokenA.address,
+                    tokenB: tokenB.address,
+                    liquidity: eth_wallet_8.Utils.toDecimals(liquidity).dp(0),
+                    amountAMin: eth_wallet_8.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+                    amountBMin: eth_wallet_8.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+                    to: toAddress,
+                    deadline
+                });
             }
         }
         catch (err) {
@@ -16678,7 +16600,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.updateButtonText();
             };
             this.updateContractAddress = () => {
-                if (API_1.getCurrentCommissions(this.commissions).length) {
+                if (API_1.getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
                     this.contractAddress = index_18.getProxyAddress();
                 }
                 else {
@@ -16690,23 +16612,10 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 }
             };
             this.updateCommissionInfo = () => {
-                if (API_1.getCurrentCommissions(this.commissions).length) {
-                    this.vStackCommissionInfo.visible = true;
+                if (API_1.getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+                    this.hStackCommissionInfo.visible = true;
                     const commissionFee = index_18.getEmbedderCommissionFee();
                     this.iconCommissionFee.tooltip.content = `A commission fee of ${new eth_wallet_10.BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
-                    if (this.isFixedPair) {
-                        this.vStackCommissionTokens.visible = false;
-                        if (this.firstToken && this.secondToken) {
-                            const lqAmount = new eth_wallet_10.BigNumber(this.liquidityInput.value || 0);
-                            const lqCommission = API_1.getCommissionAmount(this.commissions, lqAmount);
-                            this.lbCommissionLq.caption = `${index_17.formatNumber(lqAmount.plus(lqCommission))} ${this.firstToken.symbol || ''} - ${this.secondToken.symbol}`;
-                            this.vStackCommissionInfo.visible = true;
-                        }
-                        else {
-                            this.vStackCommissionInfo.visible = false;
-                        }
-                        return;
-                    }
                     if (this.firstToken && this.secondToken) {
                         const firstAmount = new eth_wallet_10.BigNumber(this.firstInputAmount || 0);
                         const secondAmount = new eth_wallet_10.BigNumber(this.secondInputAmount || 0);
@@ -16714,14 +16623,14 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                         const secondCommission = API_1.getCommissionAmount(this.commissions, secondAmount);
                         this.lbFirstCommission.caption = `${index_17.formatNumber(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
                         this.lbSecondCommission.caption = `${index_17.formatNumber(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
-                        this.vStackCommissionTokens.visible = true;
+                        this.hStackCommissionInfo.visible = true;
                     }
                     else {
-                        this.vStackCommissionTokens.visible = false;
+                        this.hStackCommissionInfo.visible = false;
                     }
                 }
                 else {
-                    this.vStackCommissionInfo.visible = false;
+                    this.hStackCommissionInfo.visible = false;
                 }
             };
             this.onSetupPage = async (connected, _chainId) => {
@@ -16789,11 +16698,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                         await this.callAPIBundle(false);
                         if (this.isFixedPair) {
                             this.renderLiquidity();
-                            const lqInput = new eth_wallet_10.BigNumber(this.liquidityInput.value || 0);
-                            if (lqInput.gt(0)) {
-                                const lpCommissionAmount = API_1.getCommissionAmount(this.commissions, lqInput);
-                                this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
-                            }
+                            if (new eth_wallet_10.BigNumber(this.liquidityInput.value).gt(0))
+                                this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
                         }
                         else {
                             this.pnlInfo.clearInnerHTML();
@@ -16816,9 +16722,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     return;
                 }
                 const lqAmount = new eth_wallet_10.BigNumber(this.liquidityInput.value || 0);
-                const lqCommission = API_1.getCommissionAmount(this.commissions, lqAmount);
-                const total = lqAmount.plus(lqCommission);
-                const canRemove = total.gt(0) && total.lte(this.maxLiquidityBalance);
+                const canRemove = lqAmount.gt(0) && lqAmount.lte(this.maxLiquidityBalance);
                 this.btnSupply.caption = canRemove || lqAmount.isZero() ? 'Remove' : 'Insufficient balance';
                 this.btnSupply.enabled = canRemove;
             };
@@ -17549,9 +17453,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     this.firstInput.value = tokensBack.amountA;
                 }
             }
-            const lqInput = new eth_wallet_10.BigNumber(this.liquidityInput.value || 0);
-            const lpCommissionAmount = API_1.getCommissionAmount(this.commissions, lqInput);
-            this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
+            this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
         }
         async handleInputChange(source) {
             let amount = source.value;
@@ -17593,8 +17495,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
             else {
                 await this.handleInputChange(source);
+                this.updateCommissionInfo();
             }
-            this.updateCommissionInfo();
         }
         async resetFirstInput() {
             this.firstToken = undefined;
@@ -17651,14 +17553,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         setMaxLiquidityBalance() {
             if (!this.firstToken || !this.secondToken)
                 return;
-            const balance = new eth_wallet_10.BigNumber(this.maxLiquidityBalance);
-            let inputVal = balance;
-            const commissionAmount = API_1.getCommissionAmount(this.commissions, balance);
-            if (commissionAmount.gt(0)) {
-                const totalFee = balance.plus(commissionAmount).dividedBy(balance);
-                inputVal = index_17.limitDecimals(inputVal.dividedBy(totalFee), 18);
-            }
-            this.liquidityInput.value = inputVal;
+            this.liquidityInput.value = this.maxLiquidityBalance;
             this.onLiquidityChange();
         }
         async onLiquidityChange() {
@@ -17670,10 +17565,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.firstInput.value = isNaN(Number(tokensBack.amountA)) ? '0' : tokensBack.amountA;
                 this.secondInput.value = isNaN(Number(tokensBack.amountB)) ? '0' : tokensBack.amountB;
             }
-            this.updateCommissionInfo();
-            const lqInput = new eth_wallet_10.BigNumber(this.liquidityInput.value || 0);
-            const lpCommissionAmount = API_1.getCommissionAmount(this.commissions, lqInput);
-            this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
+            this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
         }
         updateButton(status) {
             this.btnSupply.rightIcon.visible = status;
@@ -17809,7 +17701,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         }
         onSubmit() {
             if (this.isFixedPair)
-                API_1.removeLiquidity(this.firstToken, this.secondToken, this.liquidityInput.value, this.firstInput.value, this.secondInput.value, this.commissions);
+                API_1.removeLiquidity(this.firstToken, this.secondToken, this.liquidityInput.value, this.firstInput.value, this.secondInput.value);
             else {
                 this.showResultMessage(this.resultEl, 'warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
                 if (this.isFromEstimated) {
@@ -17966,12 +17858,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.secondInput.value = this.removeInfo.tokenBShare;
                 this.lbLiquidityBalance.caption = `Balance: ${this.removeInfo.totalPoolTokens}`;
                 this.maxLiquidityBalance = info.totalPoolTokens;
-                if (API_1.getCurrentCommissions(this.commissions).length) {
-                    this.setMaxLiquidityBalance();
-                }
-                else {
-                    this.liquidityInput.value = this.maxLiquidityBalance;
-                }
+                this.liquidityInput.value = this.maxLiquidityBalance;
                 this.lpToken = info.lpToken;
                 return;
             }
@@ -18107,14 +17994,13 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                                     this.$render("i-hstack", { horizontalAlignment: "space-between" },
                                         this.$render("i-input", { id: "secondInput", class: "bg-transparent", placeholder: '0.0', onChanged: this.handleEnterAmount }),
                                         this.$render("i-scom-amm-pool-token-selection", { width: "auto", id: "secondTokenSelection" }))),
-                                this.$render("i-vstack", { id: "vStackCommissionInfo", gap: 10 },
+                                this.$render("i-hstack", { id: "hStackCommissionInfo", verticalAlignment: "start", gap: 10, wrap: "wrap" },
                                     this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
                                         this.$render("i-label", { caption: "Total" }),
                                         this.$render("i-icon", { id: "iconCommissionFee", name: "question-circle", width: 16, height: 16 })),
-                                    this.$render("i-vstack", { id: "vStackCommissionTokens", gap: 10, verticalAlignment: "center", horizontalAlignment: "end" },
+                                    this.$render("i-vstack", { gap: 10, margin: { left: 'auto' }, verticalAlignment: "center", horizontalAlignment: "end" },
                                         this.$render("i-label", { id: "lbFirstCommission", font: { size: '14px' } }),
-                                        this.$render("i-label", { id: "lbSecondCommission", font: { size: '14px' } })),
-                                    this.$render("i-label", { id: "lbCommissionLq", font: { size: '14px' }, margin: { left: 'auto' } })),
+                                        this.$render("i-label", { id: "lbSecondCommission", font: { size: '14px' } }))),
                                 this.$render("i-vstack", { id: "pricePanel", padding: { top: '1rem', bottom: '1rem', right: '1rem', left: '1rem' }, border: { color: '#E53780', width: '1px', style: 'solid', radius: 12 }, margin: { top: 10, bottom: 10 }, gap: "0.5rem", visible: false },
                                     this.$render("i-label", { margin: { bottom: 12 }, caption: "Prices and pool share" }),
                                     this.$render("i-hstack", { horizontalAlignment: "space-between", verticalAlignment: "center" },

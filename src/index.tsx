@@ -1,9 +1,9 @@
-import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema, observable, VStack, Icon } from '@ijstech/components';
+import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, IDataSchema, observable, VStack, Icon, HStack } from '@ijstech/components';
 import {} from '@ijstech/eth-contract';
 import { Result } from './result/index';
 import { TokenSelection } from './token-selection/index';
 import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, INetworkConfig, IPoolConfig, IProviderUI, ModeType, IProvider, ICommissionInfo } from './global/index';
-import { BigNumber, Wallet } from "@ijstech/eth-wallet";
+import { BigNumber } from "@ijstech/eth-wallet";
 import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, setDataFromConfig} from './store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getRouterAddress, getCurrentCommissions, getCommissionAmount } from './API';
 import { poolAddStyle } from './index.css';
@@ -81,12 +81,10 @@ export default class ScomAmmPool extends Module {
   private pricePanel: Panel;
   private dappContainer: ScomDappContainer;
   private configDApp: Config;
-  private vStackCommissionInfo: VStack;
+  private hStackCommissionInfo: HStack;
   private iconCommissionFee: Icon;
-  private vStackCommissionTokens: VStack;
   private lbFirstCommission: Label;
   private lbSecondCommission: Label;
-  private lbCommissionLq: Label;
 
   private pnlLiquidityImage: Panel;
   private lbLiquidityBalance: Label;
@@ -671,7 +669,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private updateContractAddress = () => {
-    if (getCurrentCommissions(this.commissions).length) {
+    if (getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
       this.contractAddress = getProxyAddress();
     } else {
       this.contractAddress = getRouterAddress(getChainId());
@@ -683,22 +681,10 @@ export default class ScomAmmPool extends Module {
   }
 
   private updateCommissionInfo = () => {
-    if (getCurrentCommissions(this.commissions).length) {
-      this.vStackCommissionInfo.visible = true;
+    if (getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+      this.hStackCommissionInfo.visible = true;
       const commissionFee = getEmbedderCommissionFee();
       this.iconCommissionFee.tooltip.content = `A commission fee of ${new BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
-      if (this.isFixedPair) {
-        this.vStackCommissionTokens.visible = false;
-        if (this.firstToken && this.secondToken) {
-          const lqAmount = new BigNumber(this.liquidityInput.value || 0);
-          const lqCommission = getCommissionAmount(this.commissions, lqAmount);
-          this.lbCommissionLq.caption = `${formatNumber(lqAmount.plus(lqCommission))} ${this.firstToken.symbol || ''} - ${this.secondToken.symbol}`;
-          this.vStackCommissionInfo.visible = true;
-        } else {
-          this.vStackCommissionInfo.visible = false;
-        }
-        return;
-      }
       if (this.firstToken && this.secondToken) {
         const firstAmount = new BigNumber(this.firstInputAmount || 0);
         const secondAmount = new BigNumber(this.secondInputAmount || 0);
@@ -706,12 +692,12 @@ export default class ScomAmmPool extends Module {
         const secondCommission = getCommissionAmount(this.commissions, secondAmount);
         this.lbFirstCommission.caption = `${formatNumber(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
         this.lbSecondCommission.caption = `${formatNumber(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
-        this.vStackCommissionTokens.visible = true;
+        this.hStackCommissionInfo.visible = true;
       } else {
-        this.vStackCommissionTokens.visible = false;
+        this.hStackCommissionInfo.visible = false;
       }
     } else {
-      this.vStackCommissionInfo.visible = false;
+      this.hStackCommissionInfo.visible = false;
     }
   }
 
@@ -767,11 +753,8 @@ export default class ScomAmmPool extends Module {
         await this.callAPIBundle(false);
         if (this.isFixedPair) {
           this.renderLiquidity();
-          const lqInput = new BigNumber(this.liquidityInput.value || 0);
-          if (lqInput.gt(0)) {
-            const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
-            this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
-          }
+          if (new BigNumber(this.liquidityInput.value).gt(0))
+            this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
         } else {
           this.pnlInfo.clearInnerHTML();
           this.pnlInfo.append(
@@ -993,9 +976,7 @@ export default class ScomAmmPool extends Module {
         this.firstInput.value = tokensBack.amountA;
       }
     }
-    const lqInput = new BigNumber(this.liquidityInput.value || 0);
-    const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
-    this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
+    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
   }
 
   private async handleInputChange(source: Control) {
@@ -1033,8 +1014,8 @@ export default class ScomAmmPool extends Module {
       await this.handleOutputChange(source);
     } else {
       await this.handleInputChange(source);
+      this.updateCommissionInfo();
     }
-    this.updateCommissionInfo();
   }
 
   async resetFirstInput() {
@@ -1090,14 +1071,7 @@ export default class ScomAmmPool extends Module {
 
   private setMaxLiquidityBalance() {
     if (!this.firstToken || !this.secondToken) return;
-    const balance = new BigNumber(this.maxLiquidityBalance);
-    let inputVal = balance;
-    const commissionAmount = getCommissionAmount(this.commissions, balance);
-    if (commissionAmount.gt(0)) {
-      const totalFee = balance.plus(commissionAmount).dividedBy(balance);
-      inputVal = limitDecimals(inputVal.dividedBy(totalFee), 18);
-    }
-    this.liquidityInput.value = inputVal;
+    this.liquidityInput.value = this.maxLiquidityBalance;
     this.onLiquidityChange();
   }
 
@@ -1109,10 +1083,7 @@ export default class ScomAmmPool extends Module {
       this.firstInput.value = isNaN(Number(tokensBack.amountA)) ? '0' : tokensBack.amountA;
       this.secondInput.value = isNaN(Number(tokensBack.amountB)) ? '0' : tokensBack.amountB;
     }
-    this.updateCommissionInfo();
-    const lqInput = new BigNumber(this.liquidityInput.value || 0);
-    const lpCommissionAmount = getCommissionAmount(this.commissions, lqInput);
-    this.approvalModelAction.checkAllowance(this.lpToken, lpCommissionAmount.plus(lqInput));
+    this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
   }
 
   private updateButton(status: boolean) {
@@ -1214,9 +1185,7 @@ export default class ScomAmmPool extends Module {
       return;
     }
     const lqAmount = new BigNumber(this.liquidityInput.value || 0);
-    const lqCommission = getCommissionAmount(this.commissions, lqAmount);
-    const total = lqAmount.plus(lqCommission);
-    const canRemove = total.gt(0) && total.lte(this.maxLiquidityBalance);
+    const canRemove = lqAmount.gt(0) && lqAmount.lte(this.maxLiquidityBalance);
     this.btnSupply.caption = canRemove || lqAmount.isZero() ? 'Remove' : 'Insufficient balance';
     this.btnSupply.enabled = canRemove;
   }
@@ -1260,8 +1229,7 @@ export default class ScomAmmPool extends Module {
         this.secondToken,
         this.liquidityInput.value,
         this.firstInput.value,
-        this.secondInput.value,
-        this.commissions
+        this.secondInput.value
       );
     else {
       this.showResultMessage(this.resultEl, 'warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
@@ -1421,11 +1389,7 @@ export default class ScomAmmPool extends Module {
       this.secondInput.value = this.removeInfo.tokenBShare;
       this.lbLiquidityBalance.caption = `Balance: ${this.removeInfo.totalPoolTokens}`;
       this.maxLiquidityBalance = info.totalPoolTokens;
-      if (getCurrentCommissions(this.commissions).length) {
-        this.setMaxLiquidityBalance();
-      } else {
-        this.liquidityInput.value = this.maxLiquidityBalance;
-      }
+      this.liquidityInput.value = this.maxLiquidityBalance;
       this.lpToken = info.lpToken;
       return;
     }
@@ -1620,17 +1584,16 @@ export default class ScomAmmPool extends Module {
                     <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
                   </i-hstack>
                 </i-vstack>
-                <i-vstack id="vStackCommissionInfo" gap={10}>
+                <i-hstack id="hStackCommissionInfo" verticalAlignment="start" gap={10} wrap="wrap">
                   <i-hstack gap={4} verticalAlignment="center">
                     <i-label caption="Total" />
                     <i-icon id="iconCommissionFee" name="question-circle" width={16} height={16} />
                   </i-hstack>
-                  <i-vstack id="vStackCommissionTokens" gap={10} verticalAlignment="center" horizontalAlignment="end">
+                  <i-vstack gap={10} margin={{ left: 'auto'}} verticalAlignment="center" horizontalAlignment="end">
                     <i-label id="lbFirstCommission" font={{ size: '14px' }} />
                     <i-label id="lbSecondCommission" font={{ size: '14px' }} />
                   </i-vstack>
-                  <i-label id="lbCommissionLq" font={{ size: '14px' }} margin={{ left: 'auto' }} />
-                </i-vstack>
+                </i-hstack>
                 <i-vstack
                   id="pricePanel"
                   padding={{top: '1rem', bottom: '1rem', right: '1rem', left: '1rem'}}
