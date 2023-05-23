@@ -396,7 +396,7 @@ const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountAD
           data: txData,
           to: wallet.address,
           tokensOut: []
-        });
+        }, amountETH.plus(commissionsAmountETH));
       } else {
         receipt = await router.addLiquidityETH({
           token: erc20Token.address!,

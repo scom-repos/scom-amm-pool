@@ -15815,7 +15815,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                         data: txData,
                         to: wallet.address,
                         tokensOut: []
-                    });
+                    }, amountETH.plus(commissionsAmountETH));
                 }
                 else {
                     receipt = await router.addLiquidityETH({
