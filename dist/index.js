@@ -16701,10 +16701,6 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                             if (new eth_wallet_10.BigNumber(this.liquidityInput.value).gt(0))
                                 this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
                         }
-                        else {
-                            this.pnlInfo.clearInnerHTML();
-                            this.pnlInfo.append(this.$render("i-label", { font: { color: Theme.colors.warning.main }, caption: "*OpenSwap is in Beta, please use it at your own discretion" }));
-                        }
                     }
                     catch (_b) {
                         this.btnSupply.caption = this.isFixedPair ? 'Remove' : 'Supply';
@@ -16769,13 +16765,6 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         }
         set providers(value) {
             this._data.providers = value;
-        }
-        get tokens() {
-            var _a;
-            return (_a = this._data.tokens) !== null && _a !== void 0 ? _a : [];
-        }
-        set tokens(value) {
-            this._data.tokens = value;
         }
         get defaultChainId() {
             return this._data.defaultChainId;
@@ -17057,8 +17046,17 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                                 this._data.tokens = [];
                                 if (userInputData.tokens) {
                                     for (let inputToken of userInputData.tokens) {
-                                        const token = this.tokens.find(v => v.chainId === inputToken.chainId && v.address === inputToken.address);
-                                        this._data.tokens.push(token);
+                                        if (!inputToken.address) {
+                                            const nativeToken = scom_token_list_7.ChainNativeTokenByChainId[inputToken.chainId];
+                                            if (nativeToken)
+                                                this._data.tokens.push(Object.assign(Object.assign({}, nativeToken), { chainId: inputToken.chainId }));
+                                        }
+                                        else {
+                                            const tokens = scom_token_list_7.DefaultERC20Tokens[inputToken.chainId];
+                                            const token = tokens.find(v => v.address === inputToken.address);
+                                            if (token)
+                                                this._data.tokens.push(Object.assign(Object.assign({}, token), { chainId: inputToken.chainId }));
+                                        }
                                     }
                                 }
                                 this.configDApp.data = this._data;
@@ -17288,7 +17286,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         }
         setFixedPairData() {
             var _a;
-            let currentChainTokens = this.tokens.filter((token) => token.chainId === this.currentChainId);
+            let currentChainTokens = this._data.tokens.filter((token) => token.chainId === this.currentChainId);
             if (currentChainTokens.length < 2)
                 return;
             const providers = (_a = this.originalData) === null || _a === void 0 ? void 0 : _a.providers;

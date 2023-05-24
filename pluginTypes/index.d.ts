@@ -10883,8 +10883,6 @@ declare module "@scom/scom-amm-pool" {
         get secondTokenSymbol(): string;
         get providers(): IProviderUI[];
         set providers(value: IProviderUI[]);
-        get tokens(): ITokenObject[];
-        set tokens(value: ITokenObject[]);
         get defaultChainId(): number;
         set defaultChainId(value: number);
         get wallets(): IWalletPlugin[];

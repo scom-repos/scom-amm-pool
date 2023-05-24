@@ -7,7 +7,7 @@ import { BigNumber } from "@ijstech/eth-wallet";
 import { getSlippageTolerance, isWalletConnected, setDexInfoList, setProviderList, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, setDataFromConfig} from './store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getRouterAddress, getCurrentCommissions, getCommissionAmount } from './API';
 import { poolAddStyle } from './index.css';
-import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
+import { assets as tokenAssets, ChainNativeTokenByChainId, DefaultERC20Tokens, tokenStore } from '@scom/scom-token-list';
 import { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
@@ -153,13 +153,6 @@ export default class ScomAmmPool extends Module {
   }
   set providers(value: IProviderUI[]) {
     this._data.providers = value;
-  }
-
-  get tokens() {
-    return this._data.tokens ?? [];
-  }
-  set tokens(value: ITokenObject[]) {
-    this._data.tokens = value;
   }
 
   get defaultChainId() {
@@ -443,8 +436,15 @@ export default class ScomAmmPool extends Module {
               this._data.tokens = [];
               if (userInputData.tokens) {
                 for (let inputToken of userInputData.tokens) {
-                  const token = this.tokens.find(v => v.chainId === inputToken.chainId && v.address === inputToken.address);
-                  this._data.tokens.push(token);
+                  if (!inputToken.address) {
+                    const nativeToken = ChainNativeTokenByChainId[inputToken.chainId];
+                    if (nativeToken) this._data.tokens.push({...nativeToken, chainId: inputToken.chainId});
+                  }
+                  else {
+                    const tokens = DefaultERC20Tokens[inputToken.chainId]
+                    const token = tokens.find(v => v.address === inputToken.address);
+                    if (token) this._data.tokens.push({...token, chainId: inputToken.chainId});
+                  }
                 }
               }
               this.configDApp.data = this._data;
@@ -755,11 +755,6 @@ export default class ScomAmmPool extends Module {
           this.renderLiquidity();
           if (new BigNumber(this.liquidityInput.value).gt(0))
             this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
-        } else {
-          this.pnlInfo.clearInnerHTML();
-          this.pnlInfo.append(
-            <i-label font={{color: Theme.colors.warning.main}} caption="*OpenSwap is in Beta, please use it at your own discretion"></i-label>
-          )
         }
       } catch {
         this.btnSupply.caption = this.isFixedPair ? 'Remove' : 'Supply';
@@ -819,7 +814,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private setFixedPairData() {
-    let currentChainTokens = this.tokens.filter((token) => token.chainId === this.currentChainId);
+    let currentChainTokens = this._data.tokens.filter((token) => token.chainId === this.currentChainId);
     if (currentChainTokens.length < 2) return;
     const providers = this.originalData?.providers;
     if (providers && providers.length) {
