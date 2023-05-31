@@ -16600,7 +16600,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 this.updateButtonText();
             };
             this.updateContractAddress = () => {
-                if (API_1.getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+                if (API_1.getCurrentCommissions(this.commissions).length && !this.isRemoveLiquidity) {
                     this.contractAddress = index_18.getProxyAddress();
                 }
                 else {
@@ -16612,7 +16612,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 }
             };
             this.updateCommissionInfo = () => {
-                if (API_1.getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+                if (API_1.getCurrentCommissions(this.commissions).length && !this.isRemoveLiquidity) {
                     this.hStackCommissionInfo.visible = true;
                     const commissionFee = index_18.getEmbedderCommissionFee();
                     this.iconCommissionFee.tooltip.content = `A commission fee of ${new eth_wallet_10.BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
@@ -16669,17 +16669,17 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     if (!this.approvalModelAction)
                         await this.initApprovalModelAction();
                 }
-                this.pnlLiquidity.visible = this.isFixedPair;
-                this.firstTokenSelection.isBtnMaxShown = !this.isFixedPair;
-                this.secondTokenSelection.isBtnMaxShown = !this.isFixedPair;
-                this.firstTokenSelection.disableSelect = this.isFixedPair;
-                this.secondTokenSelection.disableSelect = this.isFixedPair;
+                this.pnlLiquidity.visible = this.isRemoveLiquidity;
+                this.firstTokenSelection.isBtnMaxShown = !this.isRemoveLiquidity;
+                this.secondTokenSelection.isBtnMaxShown = !this.isRemoveLiquidity;
+                this.firstTokenSelection.disableSelect = this.isRemoveLiquidity;
+                this.secondTokenSelection.disableSelect = this.isRemoveLiquidity;
                 this.firstTokenSelection.tokenDataListProp = index_18.getSupportedTokens(this._data.tokens || [], this.currentChainId);
                 this.secondTokenSelection.tokenDataListProp = index_18.getSupportedTokens(this._data.tokens || [], this.currentChainId);
-                const label = this.isFixedPair ? 'Output' : 'Input';
+                const label = this.isRemoveLiquidity ? 'Output' : 'Input';
                 this.lbLabel1.caption = label;
                 this.lbLabel2.caption = label;
-                this.isFixedPair && this.setFixedPairData();
+                this.isRemoveLiquidity && this.setFixedPairData();
                 if (connected) {
                     try {
                         this.updateButtonText();
@@ -16693,17 +16693,17 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                             this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`;
                         }
                         const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
-                        this.pricePanel.visible = isShown || this.isFixedPair;
+                        this.pricePanel.visible = isShown || this.isRemoveLiquidity;
                         await this.checkPairExists();
                         await this.callAPIBundle(false);
-                        if (this.isFixedPair) {
+                        if (this.isRemoveLiquidity) {
                             this.renderLiquidity();
                             if (new eth_wallet_10.BigNumber(this.liquidityInput.value).gt(0))
                                 this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
                         }
                     }
                     catch (_b) {
-                        this.btnSupply.caption = this.isFixedPair ? 'Remove' : 'Supply';
+                        this.btnSupply.caption = this.isRemoveLiquidity ? 'Remove' : 'Supply';
                     }
                 }
                 else {
@@ -16807,7 +16807,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         set mode(value) {
             this._data.mode = value;
         }
-        get isFixedPair() {
+        get isRemoveLiquidity() {
             var _a;
             return ((_a = this._data) === null || _a === void 0 ? void 0 : _a.mode) === 'remove-liquidity';
         }
@@ -16818,7 +16818,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             if (!(providers === null || providers === void 0 ? void 0 : providers.length))
                 return undefined;
             let _providers = [];
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 const { key, caption, image, dexId } = providers[0];
                 let defaultProvider = {
                     caption,
@@ -17330,7 +17330,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         async updateBalance() {
             if (index_18.isWalletConnected())
                 await scom_token_list_7.tokenStore.updateAllTokenBalances();
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 this.lbFirstBalance.visible = false;
                 this.lbSecondBalance.visible = false;
                 return;
@@ -17375,7 +17375,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         setProviders() {
             var _a;
             const providers = ((_a = this.originalData) === null || _a === void 0 ? void 0 : _a.providers) || [];
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 index_18.setProviderList([providers[0]]);
             }
             else {
@@ -17396,7 +17396,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             if (this.btnSupply.rightIcon.visible) {
                 this.btnSupply.caption = 'Loading';
             }
-            else if (this.isFixedPair) {
+            else if (this.isRemoveLiquidity) {
                 this.updateBtnRemove();
             }
             else if (!((_a = this.firstToken) === null || _a === void 0 ? void 0 : _a.symbol) ||
@@ -17488,7 +17488,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
         }
         async handleEnterAmount(source) {
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 await this.handleOutputChange(source);
             }
             else {
@@ -17630,7 +17630,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             try {
                 this.onUpdateToken(token, isFrom);
                 const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
-                this.pricePanel.visible = isShown || this.isFixedPair;
+                this.pricePanel.visible = isShown || this.isRemoveLiquidity;
                 if (this.firstToken && this.secondToken) {
                     this.lbFirstPriceTitle.caption = `${this.secondToken.symbol} per ${this.firstToken.symbol}`;
                     this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`;
@@ -17647,7 +17647,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
         }
         handleApprove(source) {
             var _a, _b;
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
             }
             else if (source === this.btnApproveFirstToken) {
@@ -17668,7 +17668,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }
         }
         handleAction() {
-            this.isFixedPair ?
+            this.isRemoveLiquidity ?
                 this.approvalModelAction.doPayAction() :
                 this.handleSupply();
         }
@@ -17698,7 +17698,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             this.approvalModelAction.doPayAction();
         }
         onSubmit() {
-            if (this.isFixedPair)
+            if (this.isRemoveLiquidity)
                 API_1.removeLiquidity(this.firstToken, this.secondToken, this.liquidityInput.value, this.firstInput.value, this.secondInput.value);
             else {
                 this.showResultMessage(this.resultEl, 'warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
@@ -17721,8 +17721,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     this.onSubmit();
                 },
                 onToBeApproved: async (token) => {
-                    if (token == this.firstToken || this.isFixedPair) {
-                        this.btnApproveFirstToken.caption = `Approve ${this.isFixedPair ? '' : token.symbol}`;
+                    if (token == this.firstToken || this.isRemoveLiquidity) {
+                        this.btnApproveFirstToken.caption = `Approve ${this.isRemoveLiquidity ? '' : token.symbol}`;
                         this.btnApproveFirstToken.visible = true;
                         this.btnApproveFirstToken.enabled = true;
                         this.btnSupply.enabled = false;
@@ -17735,7 +17735,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     }
                 },
                 onToBePaid: async (token) => {
-                    if (this.isFixedPair) {
+                    if (this.isRemoveLiquidity) {
                         this.btnApproveFirstToken.enabled = false;
                         this.btnApproveFirstToken.visible = true;
                         this.updateBtnRemove();
@@ -17748,10 +17748,10 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     }
                 },
                 onApproving: async (token, receipt) => {
-                    if (token == this.firstToken || this.isFixedPair) {
+                    if (token == this.firstToken || this.isRemoveLiquidity) {
                         this.btnApproveFirstToken.rightIcon.visible = true;
                         this.btnApproveFirstToken.enabled = false;
-                        this.btnApproveFirstToken.caption = `Approving ${this.isFixedPair ? '' : token.symbol}`;
+                        this.btnApproveFirstToken.caption = `Approving ${this.isRemoveLiquidity ? '' : token.symbol}`;
                     }
                     else if (token == this.secondToken) {
                         this.btnApproveSecondToken.rightIcon.visible = true;
@@ -17764,7 +17764,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 },
                 onApproved: async (token) => {
                     var _a, _b;
-                    if (token == this.firstToken || token.symbol == ((_a = this.firstToken) === null || _a === void 0 ? void 0 : _a.symbol) || this.isFixedPair) {
+                    if (token == this.firstToken || token.symbol == ((_a = this.firstToken) === null || _a === void 0 ? void 0 : _a.symbol) || this.isRemoveLiquidity) {
                         this.btnApproveFirstToken.rightIcon.visible = false;
                         this.btnApproveFirstToken.visible = false;
                     }
@@ -17772,7 +17772,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                         this.btnApproveSecondToken.rightIcon.visible = false;
                         this.btnApproveSecondToken.visible = false;
                     }
-                    if (this.isFixedPair) {
+                    if (this.isRemoveLiquidity) {
                         this.btnApproveFirstToken.caption = 'Approved';
                         this.updateBtnRemove();
                     }
@@ -17781,7 +17781,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 },
                 onApprovingError: async (token, err) => {
                     this.showResultMessage(this.resultEl, 'error', err);
-                    if (this.isFixedPair) {
+                    if (this.isRemoveLiquidity) {
                         this.btnApproveFirstToken.rightIcon.visible = false;
                         this.btnApproveFirstToken.enabled = true;
                         this.btnApproveFirstToken.caption = 'Approve';
@@ -17795,7 +17795,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                     this.btnSupply.rightIcon.visible = true;
                 },
                 onPaid: async () => {
-                    if (this.isFixedPair)
+                    if (this.isRemoveLiquidity)
                         return;
                     await scom_token_list_7.tokenStore.updateAllTokenBalances();
                     if (this.firstToken) {
@@ -17815,7 +17815,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             }, this.contractAddress);
         }
         async checkPairExists() {
-            if (this.isFixedPair || !this.firstToken || !this.secondToken)
+            if (this.isRemoveLiquidity || !this.firstToken || !this.secondToken)
                 return;
             try {
                 let pair = await API_1.getPairFromTokens(this.firstToken, this.secondToken);
@@ -17840,7 +17840,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
                 await this.lbSecondPrice.ready();
             if (!this.lbShareOfPool.isConnected)
                 await this.lbShareOfPool.ready();
-            if (this.isFixedPair) {
+            if (this.isRemoveLiquidity) {
                 const info = await API_1.getRemoveLiquidityInfo(this.firstToken, this.secondToken);
                 this.removeInfo = {
                     maxBalance: (info === null || info === void 0 ? void 0 : info.totalPoolTokens) || '',

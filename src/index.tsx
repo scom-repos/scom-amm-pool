@@ -200,7 +200,7 @@ export default class ScomAmmPool extends Module {
     this._data.mode = value;
   }
 
-  private get isFixedPair() {
+  private get isRemoveLiquidity() {
     return this._data?.mode === 'remove-liquidity';
   }
 
@@ -209,7 +209,7 @@ export default class ScomAmmPool extends Module {
     const { mode, providers } = this._data;
     if (!providers?.length) return undefined;
     let _providers: IProvider[] = [];
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       const { key, caption, image, dexId } = providers[0];
       let defaultProvider: IProvider = {
         caption,
@@ -669,7 +669,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private updateContractAddress = () => {
-    if (getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+    if (getCurrentCommissions(this.commissions).length && !this.isRemoveLiquidity) {
       this.contractAddress = getProxyAddress();
     } else {
       this.contractAddress = getRouterAddress(getChainId());
@@ -681,7 +681,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private updateCommissionInfo = () => {
-    if (getCurrentCommissions(this.commissions).length && !this.isFixedPair) {
+    if (getCurrentCommissions(this.commissions).length && !this.isRemoveLiquidity) {
       this.hStackCommissionInfo.visible = true;
       const commissionFee = getEmbedderCommissionFee();
       this.iconCommissionFee.tooltip.content = `A commission fee of ${new BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
@@ -726,17 +726,17 @@ export default class ScomAmmPool extends Module {
       await tokenStore.updateAllTokenBalances();
       if (!this.approvalModelAction) await this.initApprovalModelAction();
     }
-    this.pnlLiquidity.visible = this.isFixedPair;
-    this.firstTokenSelection.isBtnMaxShown = !this.isFixedPair;
-    this.secondTokenSelection.isBtnMaxShown = !this.isFixedPair;
-    this.firstTokenSelection.disableSelect = this.isFixedPair;
-    this.secondTokenSelection.disableSelect = this.isFixedPair;
+    this.pnlLiquidity.visible = this.isRemoveLiquidity;
+    this.firstTokenSelection.isBtnMaxShown = !this.isRemoveLiquidity;
+    this.secondTokenSelection.isBtnMaxShown = !this.isRemoveLiquidity;
+    this.firstTokenSelection.disableSelect = this.isRemoveLiquidity;
+    this.secondTokenSelection.disableSelect = this.isRemoveLiquidity;
     this.firstTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
     this.secondTokenSelection.tokenDataListProp = getSupportedTokens(this._data.tokens || [], this.currentChainId);
-    const label = this.isFixedPair ? 'Output' : 'Input';
+    const label = this.isRemoveLiquidity ? 'Output' : 'Input';
     this.lbLabel1.caption = label;
     this.lbLabel2.caption = label;
-    this.isFixedPair && this.setFixedPairData();
+    this.isRemoveLiquidity && this.setFixedPairData();
     if (connected) {
       try {
         this.updateButtonText();
@@ -748,16 +748,16 @@ export default class ScomAmmPool extends Module {
           this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`;
         }
         const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
-        this.pricePanel.visible = isShown || this.isFixedPair;
+        this.pricePanel.visible = isShown || this.isRemoveLiquidity;
         await this.checkPairExists();
         await this.callAPIBundle(false);
-        if (this.isFixedPair) {
+        if (this.isRemoveLiquidity) {
           this.renderLiquidity();
           if (new BigNumber(this.liquidityInput.value).gt(0))
             this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
         }
       } catch {
-        this.btnSupply.caption = this.isFixedPair ? 'Remove' : 'Supply';
+        this.btnSupply.caption = this.isRemoveLiquidity ? 'Remove' : 'Supply';
       }
     } else {
       this.resetData();
@@ -857,7 +857,7 @@ export default class ScomAmmPool extends Module {
 
   private async updateBalance() {
     if (isWalletConnected()) await tokenStore.updateAllTokenBalances();
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       this.lbFirstBalance.visible = false;
       this.lbSecondBalance.visible = false;
       return;
@@ -902,7 +902,7 @@ export default class ScomAmmPool extends Module {
 
   private setProviders() {
     const providers = this.originalData?.providers || [];
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       setProviderList([providers[0]]);
     } else {
       setProviderList(providers);
@@ -920,7 +920,7 @@ export default class ScomAmmPool extends Module {
     const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondInput.value || 0));
     if (this.btnSupply.rightIcon.visible) {
       this.btnSupply.caption = 'Loading';
-    } else if (this.isFixedPair) {
+    } else if (this.isRemoveLiquidity) {
       this.updateBtnRemove();
     } else if (
       !this.firstToken?.symbol ||
@@ -1005,7 +1005,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private async handleEnterAmount(source: Control) {
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       await this.handleOutputChange(source);
     } else {
       await this.handleInputChange(source);
@@ -1137,7 +1137,7 @@ export default class ScomAmmPool extends Module {
     try {
       this.onUpdateToken(token, isFrom);
       const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
-      this.pricePanel.visible = isShown || this.isFixedPair;
+      this.pricePanel.visible = isShown || this.isRemoveLiquidity;
       if (this.firstToken && this.secondToken) {
         this.lbFirstPriceTitle.caption = `${this.secondToken.symbol} per ${this.firstToken.symbol}`;
         this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`
@@ -1153,7 +1153,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private handleApprove(source: Control) {
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       this.approvalModelAction.doApproveAction(this.lpToken, this.liquidityInput.value);
     } else if (source === this.btnApproveFirstToken) {
       this.showResultMessage(this.resultEl, 'warning', `Approving ${this.firstToken?.symbol} allowance`);
@@ -1186,7 +1186,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private handleAction() {
-    this.isFixedPair ?
+    this.isRemoveLiquidity ?
     this.approvalModelAction.doPayAction() :
     this.handleSupply()
   }
@@ -1218,7 +1218,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private onSubmit() {
-    if (this.isFixedPair)
+    if (this.isRemoveLiquidity)
       removeLiquidity(
         this.firstToken,
         this.secondToken,
@@ -1258,8 +1258,8 @@ export default class ScomAmmPool extends Module {
         this.onSubmit();
       },
       onToBeApproved: async (token: ITokenObject) => {
-        if (token == this.firstToken || this.isFixedPair) {
-          this.btnApproveFirstToken.caption = `Approve ${this.isFixedPair ? '' : token.symbol}`;
+        if (token == this.firstToken || this.isRemoveLiquidity) {
+          this.btnApproveFirstToken.caption = `Approve ${this.isRemoveLiquidity ? '' : token.symbol}`;
           this.btnApproveFirstToken.visible = true
           this.btnApproveFirstToken.enabled = true;
           this.btnSupply.enabled = false;
@@ -1272,7 +1272,7 @@ export default class ScomAmmPool extends Module {
         }
       },
       onToBePaid: async (token: ITokenObject) => {
-        if (this.isFixedPair) {
+        if (this.isRemoveLiquidity) {
           this.btnApproveFirstToken.enabled = false;
           this.btnApproveFirstToken.visible = true;
           this.updateBtnRemove();
@@ -1284,10 +1284,10 @@ export default class ScomAmmPool extends Module {
         }
       },
       onApproving: async (token: ITokenObject, receipt?: string) => {
-        if (token == this.firstToken || this.isFixedPair) {
+        if (token == this.firstToken || this.isRemoveLiquidity) {
           this.btnApproveFirstToken.rightIcon.visible = true;
           this.btnApproveFirstToken.enabled = false;
-          this.btnApproveFirstToken.caption = `Approving ${this.isFixedPair ? '' : token.symbol}`;
+          this.btnApproveFirstToken.caption = `Approving ${this.isRemoveLiquidity ? '' : token.symbol}`;
         }
         else if (token == this.secondToken) {
           this.btnApproveSecondToken.rightIcon.visible = true;
@@ -1299,7 +1299,7 @@ export default class ScomAmmPool extends Module {
         }
       },
       onApproved: async (token: ITokenObject) => {
-        if (token == this.firstToken || token.symbol == this.firstToken?.symbol || this.isFixedPair) {
+        if (token == this.firstToken || token.symbol == this.firstToken?.symbol || this.isRemoveLiquidity) {
           this.btnApproveFirstToken.rightIcon.visible = false;
           this.btnApproveFirstToken.visible = false;
         }
@@ -1307,14 +1307,14 @@ export default class ScomAmmPool extends Module {
           this.btnApproveSecondToken.rightIcon.visible = false;
           this.btnApproveSecondToken.visible = false;
         }
-        if (this.isFixedPair) {
+        if (this.isRemoveLiquidity) {
           this.btnApproveFirstToken.caption = 'Approved';
           this.updateBtnRemove();
         } else this.updateButtonText();
       },
       onApprovingError: async (token: ITokenObject, err: Error) => {
         this.showResultMessage(this.resultEl, 'error', err);
-        if (this.isFixedPair) {
+        if (this.isRemoveLiquidity) {
           this.btnApproveFirstToken.rightIcon.visible = false;
           this.btnApproveFirstToken.enabled = true;
           this.btnApproveFirstToken.caption = 'Approve';
@@ -1328,7 +1328,7 @@ export default class ScomAmmPool extends Module {
         this.btnSupply.rightIcon.visible = true;
       },
       onPaid: async () => {
-        if (this.isFixedPair) return;
+        if (this.isRemoveLiquidity) return;
         await tokenStore.updateAllTokenBalances();
         if (this.firstToken) {
           this.firstBalance = tokenStore.getTokenBalance(this.firstToken);
@@ -1348,7 +1348,7 @@ export default class ScomAmmPool extends Module {
   }
 
   private async checkPairExists() {
-    if (this.isFixedPair || !this.firstToken || !this.secondToken)
+    if (this.isRemoveLiquidity || !this.firstToken || !this.secondToken)
       return;
     try {
       let pair = await getPairFromTokens(this.firstToken, this.secondToken);
@@ -1368,7 +1368,7 @@ export default class ScomAmmPool extends Module {
     if (!this.lbFirstPrice.isConnected) await this.lbFirstPrice.ready();
     if (!this.lbSecondPrice.isConnected) await this.lbSecondPrice.ready();
     if (!this.lbShareOfPool.isConnected) await this.lbShareOfPool.ready();
-    if (this.isFixedPair) {
+    if (this.isRemoveLiquidity) {
       const info = await getRemoveLiquidityInfo(this.firstToken, this.secondToken);
       this.removeInfo = {
         maxBalance: info?.totalPoolTokens || '',

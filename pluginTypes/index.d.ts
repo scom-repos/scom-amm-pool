@@ -10895,7 +10895,7 @@ declare module "@scom/scom-amm-pool" {
         set commissions(value: ICommissionInfo[]);
         get mode(): ModeType;
         set mode(value: ModeType);
-        private get isFixedPair();
+        private get isRemoveLiquidity();
         private get originalData();
         private getPropertiesSchema;
         private getThemeSchema;
