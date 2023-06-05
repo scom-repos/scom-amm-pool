@@ -33,24 +33,19 @@ export default class Module1 extends Module {
       "providers": this._providers,
       "tokens": [
         {
-          "name": "OpenSwap",
           "address": "0x45eee762aaeA4e5ce317471BDa8782724972Ee19",
-          "symbol": "OSWAP",
-          "decimals": 18,
           "chainId": 97
         },
         {
-          "name": "BUSD",
           "address": "0xDe9334C157968320f26e449331D6544b89bbD00F",
-          "symbol": "BUSD",
-          "decimals": 6,
           "chainId": 97
         },
         {
-          "name": "OpenSwap",
+          "address": "0xb9C31Ea1D475c25E58a1bE1a46221db55E5A7C6e",
+          "chainId": 43113
+        },
+        {
           "address": "0x78d9D80E67bC80A11efbf84B7c8A65Da51a8EF3C",
-          "symbol": "OSWAP",
-          "decimals": 18,
           "chainId": 43113
         }
       ],
@@ -68,7 +63,7 @@ export default class Module1 extends Module {
           "name": "metamask"
         }
       ],
-      mode: 'remove-liquidity'
+      mode: 'remove'
     });
     this.mainStack.appendChild(this.el);
   }
@@ -104,8 +99,33 @@ export default class Module1 extends Module {
                 share: '0.01'
               }
             ]}
-            mode='add-liquidity'
-          ></i-scom-amm-pool>
+            mode='add'
+          />
+          <i-scom-amm-pool
+            defaultChainId={43113}
+            providers={this._providers}
+            networks={[
+              {
+                chainId: 43113,
+              },
+              {
+                chainId: 97,
+              },
+            ]}
+            wallets={[
+              {
+                name: 'metamask',
+              },
+            ]}
+            commissions={[
+              {
+                chainId: 97,
+                walletAddress: '0xA81961100920df22CF98703155029822f2F7f033',
+                share: '0.01'
+              }
+            ]}
+            mode='both'
+          />
         </i-vstack>
       </i-panel>
     )

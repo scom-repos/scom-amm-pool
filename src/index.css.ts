@@ -1,7 +1,7 @@
 import { Styles } from '@ijstech/components';
 const Theme = Styles.Theme.ThemeVars;
 
-export const poolAddStyle = Styles.style({
+export const poolStyle = Styles.style({
   $nest: {
     '.disabled': {
       opacity: '0.5',
@@ -60,6 +60,35 @@ export const poolAddStyle = Styles.style({
     },
     'i-icon, i-image': {
       display: 'inline-block'
+    },
+    'i-tabs .tabs-nav-wrap .tabs-nav': {
+      width: '100%',
+      flexWrap: 'wrap',
+      borderBottom: 'none',
+      $nest: {
+        'i-tab': {
+          justifyContent: 'center',
+          width: '50%',
+          minWidth: 150,
+          minHeight: 40,
+          color: Theme.text.primary,
+          backgroundColor: 'transparent',
+          border: 'none',
+          borderBottom: '4px solid transparent',
+          fontWeight: 'bold',
+          fontFamily: Theme.typography.fontFamily
+        },
+        'i-tab:not(.disabled).active': {
+          backgroundColor: 'transparent',
+          borderColor: '#f15e61',
+          color:  '#f15e61',
+          $nest: {
+            'svg': {
+              fill: '#f15e61 !important'
+            }
+          }
+        }
+      }
     },
     '#confirmSupplyModal': {
       $nest: {

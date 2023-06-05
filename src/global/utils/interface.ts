@@ -1,5 +1,4 @@
 import { IWalletPlugin } from "@scom/scom-wallet-modal";
-import { ITokenObject } from "./common";
 
 export interface IContractInfo {
   factoryAddress: string;
@@ -51,15 +50,26 @@ export interface INetworkConfig {
   chainId: number;
 }
 
-export type ModeType = 'add-liquidity' | 'remove-liquidity';
+export type ModeType = 'add' | 'remove' | 'both';
+
+export interface ICustomTokenObject {
+  address: string;
+  chainId: number;
+}
 
 export interface IPoolConfig {
   commissions?: ICommissionInfo[];
   providers: IProviderUI[];
-  tokens?: ITokenObject[];
+  tokens?: ICustomTokenObject[];
   defaultChainId: number;
   wallets: IWalletPlugin[];
   networks: INetworkConfig[];
   showHeader?: boolean;
   mode: ModeType;
+}
+
+export interface IPoolDetailConfig {
+  commissions?: ICommissionInfo[];
+  providers: IProviderUI[];
+  tokens?: ICustomTokenObject[];
 }
