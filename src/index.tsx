@@ -15,6 +15,7 @@ import { ScomAmmPoolAdd, ScomAmmPoolRemove } from './liquidity/index';
 const Theme = Styles.Theme.ThemeVars;
 
 interface ScomAmmPoolElement extends ControlElement {
+  lazyLoad?: boolean;
   providers: IProviderUI[];
   tokens?: ICustomTokenObject[];
   defaultChainId: number;
@@ -571,14 +572,17 @@ export default class ScomAmmPool extends Module {
   async init() {
     this.isReadyCallbackQueued = true;
     super.init();
-    const mode = this.getAttribute('mode', true);
-    const tokens = this.getAttribute('tokens', true, []);
-    const defaultChainId = this.getAttribute('defaultChainId', true);
-    const networks = this.getAttribute('networks', true);
-    const wallets = this.getAttribute('wallets', true);
-    const providers = this.getAttribute('providers', true, []);
-    const commissions = this.getAttribute('commissions', true, []);
-    await this.setData({ commissions, mode, providers, tokens, defaultChainId, networks, wallets });
+    const lazyLoad = this.getAttribute('lazyLoad', true, false);
+    if (!lazyLoad) {
+      const mode = this.getAttribute('mode', true);
+      const tokens = this.getAttribute('tokens', true, []);
+      const defaultChainId = this.getAttribute('defaultChainId', true);
+      const networks = this.getAttribute('networks', true);
+      const wallets = this.getAttribute('wallets', true);
+      const providers = this.getAttribute('providers', true, []);
+      const commissions = this.getAttribute('commissions', true, []);
+      await this.setData({ commissions, mode, providers, tokens, defaultChainId, networks, wallets });
+    }
     this.isReadyCallbackQueued = false;
     this.executeReadyCallback();
   }

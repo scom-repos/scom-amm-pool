@@ -11035,6 +11035,7 @@ declare module "@scom/scom-amm-pool" {
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
     import Config from "@scom/scom-amm-pool/config/index.tsx";
     interface ScomAmmPoolElement extends ControlElement {
+        lazyLoad?: boolean;
         providers: IProviderUI[];
         tokens?: ICustomTokenObject[];
         defaultChainId: number;
