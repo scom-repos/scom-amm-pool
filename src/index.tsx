@@ -601,7 +601,7 @@ export default class ScomAmmPool extends Module {
               padding={{ left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem' }}
               border={{ radius: '1rem' }}
               width="100%" maxWidth={520}
-              background={{ color: Theme.background.modal }}
+              // background={{ color: Theme.background.modal }}
             />
           </i-panel>
           <i-scom-amm-pool-config id="configDApp" visible={false} />

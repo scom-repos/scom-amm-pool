@@ -663,7 +663,7 @@ export class ScomAmmPoolRemove extends Module {
               <i-label id="lbLabel1" caption='' />
             </i-hstack>
             <i-hstack horizontalAlignment="space-between">
-              <i-input id="firstInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount} />
+              <i-input id="firstInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
             </i-hstack>
           </i-vstack>
@@ -680,7 +680,7 @@ export class ScomAmmPoolRemove extends Module {
               <i-label id="lbLabel2" caption='' />
             </i-hstack>
             <i-hstack horizontalAlignment="space-between">
-              <i-input id="secondInput" class="bg-transparent" placeholder='0.0' onChanged={this.handleEnterAmount} />
+              <i-input id="secondInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
             </i-hstack>
           </i-vstack>
