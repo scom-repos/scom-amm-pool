@@ -13929,11 +13929,9 @@ define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/comp
                 width: 'calc(100% - 150px) !important',
                 $nest: {
                     'input': {
-                        background: 'transparent',
                         border: 'none',
-                        color: Theme.text.primary,
                         fontSize: 20,
-                        width: '100% !important',
+                        padding: 10
                     },
                     'input::placeholder': {
                         color: '#8D8FA3',
@@ -17381,7 +17379,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                             this.$render("i-label", { id: "lbLabel1", caption: '' }),
                             this.$render("i-label", { id: "lbFirstBalance", font: { color: Theme.colors.warning.main }, caption: "-" })),
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
-                            this.$render("i-input", { id: "firstInput", class: "bg-transparent", placeholder: '0.0', onChanged: this.handleEnterAmount }),
+                            this.$render("i-input", { id: "firstInput", class: "bg-transparent", height: 30, placeholder: '0.0', onChanged: this.handleEnterAmount }),
                             this.$render("i-scom-amm-pool-token-selection", { width: "auto", id: "firstTokenSelection" }))),
                     this.$render("i-hstack", { horizontalAlignment: "center" },
                         this.$render("i-icon", { width: 20, height: 20, name: "plus", fill: "#fff" })),
@@ -17390,7 +17388,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                             this.$render("i-label", { id: "lbLabel2", caption: '' }),
                             this.$render("i-label", { id: "lbSecondBalance", font: { color: Theme.colors.warning.main }, caption: "-" })),
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
-                            this.$render("i-input", { id: "secondInput", class: "bg-transparent", placeholder: '0.0', onChanged: this.handleEnterAmount }),
+                            this.$render("i-input", { id: "secondInput", class: "bg-transparent", height: 30, placeholder: '0.0', onChanged: this.handleEnterAmount }),
                             this.$render("i-scom-amm-pool-token-selection", { width: "auto", id: "secondTokenSelection" }))),
                     this.$render("i-hstack", { id: "hStackCommissionInfo", verticalAlignment: "start", gap: 10, wrap: "wrap" },
                         this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
@@ -18038,7 +18036,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
                             this.$render("i-label", { id: "lbLabel1", caption: '' })),
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
-                            this.$render("i-input", { id: "firstInput", class: "bg-transparent", placeholder: '0.0', onChanged: this.handleEnterAmount }),
+                            this.$render("i-input", { id: "firstInput", class: "bg-transparent", height: 30, placeholder: '0.0', onChanged: this.handleEnterAmount }),
                             this.$render("i-scom-amm-pool-token-selection", { width: "auto", id: "firstTokenSelection" }))),
                     this.$render("i-hstack", { horizontalAlignment: "center" },
                         this.$render("i-icon", { width: 20, height: 20, name: "plus", fill: "#fff" })),
@@ -18046,7 +18044,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
                             this.$render("i-label", { id: "lbLabel2", caption: '' })),
                         this.$render("i-hstack", { horizontalAlignment: "space-between" },
-                            this.$render("i-input", { id: "secondInput", class: "bg-transparent", placeholder: '0.0', onChanged: this.handleEnterAmount }),
+                            this.$render("i-input", { id: "secondInput", class: "bg-transparent", height: 30, placeholder: '0.0', onChanged: this.handleEnterAmount }),
                             this.$render("i-scom-amm-pool-token-selection", { width: "auto", id: "secondTokenSelection" }))),
                     this.$render("i-vstack", { id: "pricePanel", padding: { top: '1rem', bottom: '1rem', right: '1rem', left: '1rem' }, border: { color: '#E53780', width: '1px', style: 'solid', radius: 12 }, margin: { top: 10, bottom: 10 }, gap: "0.5rem", visible: false },
                         this.$render("i-label", { margin: { bottom: 12 }, caption: "Prices and pool share" }),
@@ -18633,7 +18631,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@sc
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
                 this.$render("i-panel", { class: index_css_2.poolStyle, background: { color: Theme.background.main } },
                     this.$render("i-panel", { width: "100%", padding: { left: '1rem', right: '1rem', top: '1rem', bottom: '1rem' } },
-                        this.$render("i-vstack", { id: "vStackAmmPool", margin: { top: '0.5rem', left: 'auto', right: 'auto', bottom: '0.75rem' }, padding: { left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem' }, border: { radius: '1rem' }, width: "100%", maxWidth: 520, background: { color: Theme.background.modal } })),
+                        this.$render("i-vstack", { id: "vStackAmmPool", margin: { top: '0.5rem', left: 'auto', right: 'auto', bottom: '0.75rem' }, padding: { left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem' }, border: { radius: '1rem' }, width: "100%", maxWidth: 520 })),
                     this.$render("i-scom-amm-pool-config", { id: "configDApp", visible: false }))));
         }
     };

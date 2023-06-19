@@ -44,11 +44,9 @@ export const poolStyle = Styles.style({
       width: 'calc(100% - 150px) !important',
       $nest: {
         'input': {
-          background: 'transparent',
           border: 'none',
-          color: Theme.text.primary,
           fontSize: 20,
-          width: '100% !important',
+          padding: 10
         },
         'input::placeholder': {
           color: '#8D8FA3',
