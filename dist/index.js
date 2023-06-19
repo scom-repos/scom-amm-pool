@@ -17734,7 +17734,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         resetData() {
             this.btnRemove.caption = 'Connect Wallet';
             this.btnRemove.enabled = false;
-            this.btnApproveFirstToken.visible = false;
+            this.btnApprove.visible = false;
             this.initTokenSelection();
         }
         async initData() {
@@ -17784,12 +17784,12 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         resetFirstInput() {
             this.firstToken = undefined;
             this.firstInput.value = '';
-            this.btnApproveFirstToken.visible = false;
+            this.btnApprove.visible = false;
         }
         resetSecondInput() {
             this.secondToken = undefined;
             this.secondInput.value = '';
-            this.btnApproveFirstToken.visible = false;
+            this.btnApprove.visible = false;
         }
         setMaxLiquidityBalance() {
             if (!this.firstToken || !this.secondToken)
@@ -17913,35 +17913,34 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.onSubmit();
                 },
                 onToBeApproved: async (token) => {
-                    this.btnApproveFirstToken.caption = `Approve`;
-                    this.btnApproveFirstToken.visible = true;
-                    this.btnApproveFirstToken.enabled = true;
+                    this.btnApprove.caption = `Approve`;
+                    this.btnApprove.visible = true;
+                    this.btnApprove.enabled = true;
                     this.btnRemove.enabled = false;
                 },
                 onToBePaid: async (token) => {
-                    this.btnApproveFirstToken.enabled = false;
-                    this.btnApproveFirstToken.visible = true;
+                    this.btnApprove.visible = false;
                     this.updateBtnRemove();
                 },
                 onApproving: async (token, receipt) => {
-                    this.btnApproveFirstToken.rightIcon.visible = true;
-                    this.btnApproveFirstToken.enabled = false;
-                    this.btnApproveFirstToken.caption = `Approving`;
+                    this.btnApprove.rightIcon.visible = true;
+                    this.btnApprove.enabled = false;
+                    this.btnApprove.caption = `Approving`;
                     if (receipt) {
                         this.showResultMessage(this.resultEl, 'success', receipt);
                     }
                 },
                 onApproved: async (token) => {
-                    this.btnApproveFirstToken.rightIcon.visible = false;
-                    this.btnApproveFirstToken.visible = false;
-                    this.btnApproveFirstToken.caption = 'Approved';
+                    this.btnApprove.rightIcon.visible = false;
+                    this.btnApprove.visible = false;
+                    this.btnApprove.caption = 'Approved';
                     this.updateBtnRemove();
                 },
                 onApprovingError: async (token, err) => {
                     this.showResultMessage(this.resultEl, 'error', err);
-                    this.btnApproveFirstToken.rightIcon.visible = false;
-                    this.btnApproveFirstToken.enabled = true;
-                    this.btnApproveFirstToken.caption = 'Approve';
+                    this.btnApprove.rightIcon.visible = false;
+                    this.btnApprove.enabled = true;
+                    this.btnApprove.caption = 'Approve';
                 },
                 onPaying: async (receipt) => {
                     if (receipt) {
@@ -18064,7 +18063,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                                     this.$render("i-label", { id: "lbShareOfPool", caption: "0%" })),
                                 this.$render("i-panel", { class: "text-center" },
                                     this.$render("i-label", { opacity: 0.7, caption: "Share of pool" }))))),
-                    this.$render("i-button", { id: "btnApproveFirstToken", visible: false, class: "btn-swap", height: "65", caption: "Approve", rightIcon: { spin: true, visible: false }, onClick: this.handleApprove }),
+                    this.$render("i-button", { id: "btnApprove", visible: false, class: "btn-swap", height: "65", caption: "Approve", rightIcon: { spin: true, visible: false }, onClick: this.handleApprove }),
                     this.$render("i-button", { id: "btnRemove", class: "btn-swap", enabled: false, height: "65", caption: '', rightIcon: { spin: true, visible: false }, onClick: this.handleAction }),
                     this.$render("i-vstack", { id: "pnlInfo" })),
                 this.$render("i-scom-amm-pool-result", { id: "resultEl" })));

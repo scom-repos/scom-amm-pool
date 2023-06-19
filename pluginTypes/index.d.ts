@@ -10945,7 +10945,7 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
     export class ScomAmmPoolRemove extends Module {
         private firstInput;
         private secondInput;
-        private btnApproveFirstToken;
+        private btnApprove;
         private btnRemove;
         private resultEl;
         private firstTokenSelection;

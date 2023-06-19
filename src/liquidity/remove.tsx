@@ -27,7 +27,7 @@ declare global {
 export class ScomAmmPoolRemove extends Module {
   private firstInput: Input;
   private secondInput: Input;
-  private btnApproveFirstToken: Button;
+  private btnApprove: Button;
   private btnRemove: Button;
   private resultEl: Result;
   private firstTokenSelection: TokenSelection;
@@ -310,7 +310,7 @@ export class ScomAmmPoolRemove extends Module {
   private resetData() {
     this.btnRemove.caption = 'Connect Wallet';
     this.btnRemove.enabled = false;
-    this.btnApproveFirstToken.visible = false;
+    this.btnApprove.visible = false;
     this.initTokenSelection();
   }
 
@@ -360,13 +360,13 @@ export class ScomAmmPoolRemove extends Module {
   private resetFirstInput() {
     this.firstToken = undefined;
     this.firstInput.value = '';
-    this.btnApproveFirstToken.visible = false;
+    this.btnApprove.visible = false;
   }
 
   private resetSecondInput() {
     this.secondToken = undefined;
     this.secondInput.value = '';
-    this.btnApproveFirstToken.visible = false;
+    this.btnApprove.visible = false;
   }
 
   private setMaxLiquidityBalance() {
@@ -506,35 +506,34 @@ export class ScomAmmPoolRemove extends Module {
         this.onSubmit();
       },
       onToBeApproved: async (token: ITokenObject) => {
-        this.btnApproveFirstToken.caption = `Approve`;
-        this.btnApproveFirstToken.visible = true
-        this.btnApproveFirstToken.enabled = true;
+        this.btnApprove.caption = `Approve`;
+        this.btnApprove.visible = true
+        this.btnApprove.enabled = true;
         this.btnRemove.enabled = false;
       },
       onToBePaid: async (token: ITokenObject) => {
-        this.btnApproveFirstToken.enabled = false;
-        this.btnApproveFirstToken.visible = true;
+        this.btnApprove.visible = false;
         this.updateBtnRemove();
       },
       onApproving: async (token: ITokenObject, receipt?: string) => {
-        this.btnApproveFirstToken.rightIcon.visible = true;
-        this.btnApproveFirstToken.enabled = false;
-        this.btnApproveFirstToken.caption = `Approving`;
+        this.btnApprove.rightIcon.visible = true;
+        this.btnApprove.enabled = false;
+        this.btnApprove.caption = `Approving`;
         if (receipt) {
           this.showResultMessage(this.resultEl, 'success', receipt);
         }
       },
       onApproved: async (token: ITokenObject) => {
-        this.btnApproveFirstToken.rightIcon.visible = false;
-        this.btnApproveFirstToken.visible = false;
-        this.btnApproveFirstToken.caption = 'Approved';
+        this.btnApprove.rightIcon.visible = false;
+        this.btnApprove.visible = false;
+        this.btnApprove.caption = 'Approved';
         this.updateBtnRemove();
       },
       onApprovingError: async (token: ITokenObject, err: Error) => {
         this.showResultMessage(this.resultEl, 'error', err);
-        this.btnApproveFirstToken.rightIcon.visible = false;
-        this.btnApproveFirstToken.enabled = true;
-        this.btnApproveFirstToken.caption = 'Approve';
+        this.btnApprove.rightIcon.visible = false;
+        this.btnApprove.enabled = true;
+        this.btnApprove.caption = 'Approve';
       },
       onPaying: async (receipt?: string) => {
         if (receipt) {
@@ -721,7 +720,7 @@ export class ScomAmmPoolRemove extends Module {
             </i-hstack>
           </i-vstack>
           <i-button
-            id="btnApproveFirstToken" visible={false}
+            id="btnApprove" visible={false}
             class="btn-swap" height="65"
             caption="Approve"
             rightIcon={{ spin: true, visible: false }}
