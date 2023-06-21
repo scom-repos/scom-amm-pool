@@ -643,8 +643,8 @@ export class ScomAmmPoolRemove extends Module {
                 <i-label caption="Input" />
                 <i-label id="lbLiquidityBalance" caption="-" font={{ color: Theme.colors.warning.main }} />
               </i-hstack>
-              <i-hstack horizontalAlignment="space-between">
-                <i-input id="liquidityInput" class="bg-transparent" value="0" onChanged={this.onLiquidityChange} />
+              <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
+                <i-input id="liquidityInput" class="bg-transparent" height={30} value="0" onChanged={this.onLiquidityChange} />
                 <i-panel id="pnlLiquidityImage" class="text-right" />
               </i-hstack>
             </i-vstack>
@@ -661,7 +661,7 @@ export class ScomAmmPoolRemove extends Module {
             <i-hstack horizontalAlignment="space-between">
               <i-label id="lbLabel1" caption='' />
             </i-hstack>
-            <i-hstack horizontalAlignment="space-between">
+            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
               <i-input id="firstInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
             </i-hstack>
@@ -678,7 +678,7 @@ export class ScomAmmPoolRemove extends Module {
             <i-hstack horizontalAlignment="space-between">
               <i-label id="lbLabel2" caption='' />
             </i-hstack>
-            <i-hstack horizontalAlignment="space-between">
+            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
               <i-input id="secondInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
             </i-hstack>
