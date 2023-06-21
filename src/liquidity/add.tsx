@@ -875,7 +875,7 @@ export class ScomAmmPoolAdd extends Module {
               <i-label id="lbLabel1" caption='' />
               <i-label id="lbFirstBalance" font={{ color: Theme.colors.warning.main }} caption="-" />
             </i-hstack>
-            <i-hstack horizontalAlignment="space-between">
+            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
               <i-input id="firstInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
             </i-hstack>
@@ -893,7 +893,7 @@ export class ScomAmmPoolAdd extends Module {
               <i-label id="lbLabel2" caption='' />
               <i-label id="lbSecondBalance" font={{ color: Theme.colors.warning.main }} caption="-" />
             </i-hstack>
-            <i-hstack horizontalAlignment="space-between">
+            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
               <i-input id="secondInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
               <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
             </i-hstack>
