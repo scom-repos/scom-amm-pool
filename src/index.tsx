@@ -1,16 +1,16 @@
 import { customModule, Module, Styles, Button, Container, customElements, ControlElement, IDataSchema, VStack, Tabs } from '@ijstech/components';
 import { } from '@ijstech/eth-contract';
-import { } from '@ijstech/eth-wallet';
+import { Constants, IEventBusRegistry } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
-import { setDexInfoList, setDataFromConfig } from './store/index';
+import { setDexInfoList, setDataFromConfig, getEmbedderCommissionFee, initRpcWallet, getRpcWallet } from './store/index';
 import { poolStyle } from './index.css';
 import { ChainNativeTokenByChainId, DefaultERC20Tokens } from '@scom/scom-token-list';
 import { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
 import configData from './data.json';
-import Config from './config/index';
 import { ScomAmmPoolAdd, ScomAmmPoolRemove } from './liquidity/index';
+import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -38,7 +38,9 @@ declare global {
 export default class ScomAmmPool extends Module {
   private dappContainer: ScomDappContainer;
   private vStackAmmPool: VStack;
-  private configDApp: Config;
+  private poolAdd: ScomAmmPoolAdd;
+  private poolRemove: ScomAmmPoolRemove;
+  // private configDApp: Config;
 
   private _data: IPoolConfig = {
     providers: [],
@@ -49,6 +51,7 @@ export default class ScomAmmPool extends Module {
     mode: 'add'
   }
   tag: any = {};
+  private rpcWalletEvents: IEventBusRegistry[] = [];
 
   constructor(parent?: Container, options?: any) {
     super(parent, options);
@@ -276,13 +279,13 @@ export default class ScomAmmPool extends Module {
             execute: async () => {
               _oldData = { ...this._data };
               if (userInputData.commissions) this._data.commissions = userInputData.commissions;
-              this.configDApp.data = this._data;
+              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
               this._data = { ..._oldData };
-              this.configDApp.data = this._data;
+              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
@@ -292,8 +295,10 @@ export default class ScomAmmPool extends Module {
         customUI: {
           render: (data?: any, onConfirm?: (result: boolean, data: any) => void) => {
             const vstack = new VStack();
-            const config = new Config(null, {
-              commissions: self._data.commissions
+            const config = new ScomCommissionFeeSetup(null, {
+              commissions: self._data.commissions || [],
+              fee: getEmbedderCommissionFee(),
+              networks: self._data.networks
             });
             const button = new Button(null, {
               caption: 'Confirm',
@@ -301,7 +306,7 @@ export default class ScomAmmPool extends Module {
             vstack.append(config);
             vstack.append(button);
             button.onClick = async () => {
-              const commissions = config.data.commissions;
+              const commissions = config.commissions;
               if (onConfirm) onConfirm(true, { commissions });
             }
             return vstack;
@@ -339,13 +344,13 @@ export default class ScomAmmPool extends Module {
                   }
                 }
               }
-              this.configDApp.data = this._data;
+              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
               this._data = { ..._oldData };
-              this.configDApp.data = this._data;
+              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
@@ -419,9 +424,27 @@ export default class ScomAmmPool extends Module {
     return this._data;
   }
 
-  private async setData(data: IPoolConfig) {
-    this.configDApp.data = data;
-    this._data = data;
+  private async setData(config: IPoolConfig) {
+    this.resetEvents();
+    // this.configDApp.data = data;
+    this._data = config;
+    initRpcWallet(this.defaultChainId);
+    const rpcWallet = getRpcWallet();
+    const event = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.Connected, async (connected: boolean) => {
+      console.log(`rpcWallet connected: ${connected}`, this.poolAdd);
+      if (this.poolAdd) this.poolAdd.onWalletConnected(connected);
+      if (this.poolRemove) this.poolRemove.onWalletConnected(connected);
+    });
+    this.rpcWalletEvents.push(event);
+    console.log('rpcWallet.instanceId', rpcWallet.instanceId)
+    const data: any = { 
+      defaultChainId: this.defaultChainId, 
+      wallets: this.wallets, 
+      networks: this.networks, 
+      showHeader: this.showHeader,
+      rpcWalletId: rpcWallet.instanceId
+    }
+    if (this.dappContainer?.setData) this.dappContainer.setData(data)
     await this.refreshUI();
   }
 
@@ -512,8 +535,8 @@ export default class ScomAmmPool extends Module {
             await this.setData(resultingData);
           }
         },
-        bindOnChanged: (element: Config, callback: (data: any) => Promise<void>) => {
-          element.onCustomCommissionsChanged = async (data: any) => {
+        bindOnChanged: (element: ScomCommissionFeeSetup, callback: (data: any) => Promise<void>) => {
+          element.onChanged = async (data: any) => {
             let resultingData = {
               ...self._data,
               ...data
@@ -522,7 +545,10 @@ export default class ScomAmmPool extends Module {
             await callback(data);
           }
         },
-        getData: this.getData.bind(this),
+        getData: () => {
+          const fee = getEmbedderCommissionFee();
+          return {...this._data, fee}
+        },
         setData: this.setData.bind(this),
         getTag: this.getTag.bind(this),
         setTag: this.setTag.bind(this)
@@ -531,40 +557,34 @@ export default class ScomAmmPool extends Module {
   }
 
   private async onSetupPage() {
-    const data: any = {
-      defaultChainId: this.defaultChainId,
-      wallets: this.wallets,
-      networks: this.networks
-    }
-    if (this.dappContainer?.setData) this.dappContainer.setData(data);
     this.vStackAmmPool.clearInnerHTML();
     if (this.isAddLiquidity) {
-      const poolAdd = new ScomAmmPoolAdd(undefined, {
+      this.poolAdd = new ScomAmmPoolAdd(undefined, {
         providers: this.providers,
         commissions: this.commissions,
         tokens: this.tokens
       });
-      this.vStackAmmPool.appendChild(poolAdd);
+      this.vStackAmmPool.appendChild(this.poolAdd);
     } else if (this.isRemoveLiquidity) {
-      const poolRemove = new ScomAmmPoolRemove(undefined, {
+      this.poolRemove = new ScomAmmPoolRemove(undefined, {
         providers: this.providers,
         tokens: this.tokens
       });
-      this.vStackAmmPool.appendChild(poolRemove);
+      this.vStackAmmPool.appendChild(this.poolRemove);
     } else {
       const tabs = new Tabs();
       this.vStackAmmPool.appendChild(tabs);
-      const poolAdd = new ScomAmmPoolAdd(undefined, {
+      this.poolAdd = new ScomAmmPoolAdd(undefined, {
         providers: this.providers,
         commissions: this.commissions,
         tokens: this.tokens
       });
-      const poolRemove = new ScomAmmPoolRemove(undefined, {
+      this.poolRemove = new ScomAmmPoolRemove(undefined, {
         providers: this.providers,
         tokens: this.tokens
       });
-      tabs.add({ caption: 'Add Liquidity', icon: { name: 'plus-circle', fill: Theme.text.primary }, children: poolAdd });
-      tabs.add({ caption: 'Remove Liquidity', icon: { name: 'minus-circle', fill: Theme.text.primary }, children: poolRemove });
+      tabs.add({ caption: 'Add Liquidity', icon: { name: 'plus-circle', fill: Theme.text.primary }, children: this.poolAdd });
+      tabs.add({ caption: 'Remove Liquidity', icon: { name: 'minus-circle', fill: Theme.text.primary }, children: this.poolRemove });
       tabs.activeTabIndex = 0;
     }
   }
@@ -587,6 +607,27 @@ export default class ScomAmmPool extends Module {
     this.executeReadyCallback();
   }
 
+  private resetEvents() {
+    const rpcWallet = getRpcWallet();
+    for (let event of this.rpcWalletEvents) {
+      rpcWallet.unregisterWalletEvent(event);
+    }
+    this.rpcWalletEvents = [];
+    if (this.poolAdd) {
+      this.poolAdd.remove()
+      this.poolAdd.onHide()
+    }
+    if (this.poolRemove) {
+      this.poolRemove.remove()
+      this.poolRemove.onHide()
+    }
+  }
+
+  onHide() {
+    this.dappContainer.onHide();
+    this.resetEvents();
+  }
+
   render() {
     return (
       <i-scom-dapp-container id="dappContainer">
@@ -604,7 +645,7 @@ export default class ScomAmmPool extends Module {
               // background={{ color: Theme.background.modal }}
             />
           </i-panel>
-          <i-scom-amm-pool-config id="configDApp" visible={false} />
+          {/* <i-scom-amm-pool-config id="configDApp" visible={false} /> */}
         </i-panel>
       </i-scom-dapp-container>
     )

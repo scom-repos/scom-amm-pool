@@ -3,7 +3,6 @@ import {} from '@ijstech/eth-contract';
 import { Contracts } from "./contracts/oswap-openswap-contract/index";
 import { Contracts as ProxyContracts } from './contracts/scom-commission-proxy-contract/index';
 import {
-  ITokenObject,
   IERC20ApprovalEventOptions,
   ERC20ApprovalModel,
   ICommissionInfo
@@ -16,6 +15,7 @@ import {
   getProxyAddress
 } from "./store/index";
 import getDexList from '@scom/scom-dex-list';
+import { ITokenObject } from "@scom/scom-token-list";
 
 interface IAmmPairToken {
   pair?: Contracts.OSWAP_Pair;
@@ -208,7 +208,8 @@ const getRemoveLiquidityInfo = async (tokenA: ITokenObject, tokenB: ITokenObject
     address: pricesData.pair.address,
     decimals: 18,
     symbol: 'LP',
-    name: 'LP'
+    name: 'LP',
+    chainId: 0
   }
   return {
     ...userShare,

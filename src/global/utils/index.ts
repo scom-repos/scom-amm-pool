@@ -33,7 +33,6 @@ export {
   approveERC20Max,
   getERC20Allowance,
   getERC20Amount,
-  ITokenObject,
   TokenMapType
 } from './common';
 

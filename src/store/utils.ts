@@ -1,7 +1,7 @@
 import { application } from '@ijstech/components';
 import { Wallet } from '@ijstech/eth-wallet';
-import { EventId, IProvider, ITokenObject, IExtendedNetwork, ICommissionInfo } from '../global/index';
-import { ChainNativeTokenByChainId } from '@scom/scom-token-list';
+import { EventId, IProvider, IExtendedNetwork } from '../global/index';
+import { ChainNativeTokenByChainId, ITokenObject } from '@scom/scom-token-list';
 import getNetworkList from '@scom/scom-network-list'
 import { IDexInfo } from '@scom/scom-dex-list';
 
@@ -25,7 +25,8 @@ export const state = {
   apiGatewayUrls: {} as Record<string, string>,
   proxyAddresses: {} as ProxyAddresses,
   embedderCommissionFee: "0",
-  tokens: []
+  tokens: [],
+  rpcWalletId: ""
 }
 
 export const setDataFromConfig = (options: any) => {
@@ -265,10 +266,6 @@ export const hasMetaMask = function () {
 export const truncateAddress = (address: string) => {
   if (address === undefined || address === null) return '';
   return address.substr(0, 6) + '...' + address.substr(-4);
-}
-
-export function getChainId() {
-  return Wallet.getInstance().chainId;
 }
 
 export const getChainNativeToken = (chainId: number): ITokenObject => {
