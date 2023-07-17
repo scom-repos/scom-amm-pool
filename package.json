@@ -18,7 +18,7 @@
     "@ijstech/components": "^0.1.39",
     "@ijstech/eth-wallet": "^0.1.52",
     "@ijstech/eth-contract": "^0.1.13",
-    "@scom/scom-commission-fee-setup": "https://github.com/scom-repos/scom-commission-fee-setup",
+    "@scom/scom-commission-fee-setup": "^0.1.1",
     "@scom/scom-network-list": "^0.1.0",
     "@scom/scom-token-list": "^0.1.1",
     "@scom/scom-wallet-modal": "^0.1.0",
