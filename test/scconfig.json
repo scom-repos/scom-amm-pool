@@ -18,6 +18,7 @@
     "@scom/scom-dex-list": "*",
     "@ijstech/eth-contract": "*",
     "@ijstech/eth-wallet": "*",
+    "@scom/scom-commission-fee-setup": "*",
     "@scom/scom-wallet-modal": "*",
     "@scom/scom-token-list": "*",
     "@scom/scom-network-list": "*"

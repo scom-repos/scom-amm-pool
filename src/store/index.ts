@@ -1,8 +1,14 @@
-import {ICustomTokenObject, ITokenObject } from '../global/index';
-import { getChainId, getChainNativeToken, isWalletConnected } from './utils';
-import { tokenStore, WETHByChainId, assets as tokenAssets } from '@scom/scom-token-list';
+import { INetwork, Wallet } from '@ijstech/eth-wallet';
+import {ICustomTokenObject } from '../global/index';
+import { getChainNativeToken, isWalletConnected } from './utils';
+import { tokenStore, WETHByChainId, assets as tokenAssets, ITokenObject } from '@scom/scom-token-list';
+import { application } from '@ijstech/components';
 
 export const nullAddress = "0x0000000000000000000000000000000000000000";
+
+export const state = {
+  rpcWalletId: ""
+}
 
 export const getWETH = (chainId: number): ITokenObject => {
   let wrappedToken = WETHByChainId[chainId];
@@ -59,4 +65,47 @@ export const getSupportedTokens = (tokens: ICustomTokenObject[], chainId: number
       ...tokenObj
     }
   })
+}
+
+export function getRpcWallet() {
+  return Wallet.getRpcWalletInstance(state.rpcWalletId);
+}
+
+export function getClientWallet() {
+  return Wallet.getClientInstance();
+}
+
+export function isRpcWalletConnected() {
+  const wallet = getRpcWallet();
+  return wallet?.isConnected;
+}
+
+export function initRpcWallet(defaultChainId: number) {
+  if (state.rpcWalletId) {
+    return state.rpcWalletId;
+  }
+  const clientWallet = Wallet.getClientInstance();
+  const networkList: INetwork[] = Object.values(application.store.networkMap);
+  const instanceId = clientWallet.initRpcWallet({
+    networks: networkList,
+    defaultChainId,
+    infuraId: application.store.infuraId,
+    multicalls: application.store.multicalls
+  });
+  state.rpcWalletId = instanceId;
+  if (clientWallet.address) {
+    const rpcWallet = Wallet.getRpcWalletInstance(instanceId);
+    rpcWallet.address = clientWallet.address;
+  }
+  return instanceId;
+}
+
+export function getChainId() {
+  const rpcWallet = getRpcWallet();
+  return rpcWallet.chainId;
+}
+
+export function isClientWalletConnected() {
+  const wallet = Wallet.getClientInstance();
+  return wallet.isConnected;
 }

@@ -1,11 +1,11 @@
 import { customModule, Control, Module, Styles, Input, Button, Panel, Label, IEventBus, application, Container, customElements, ControlElement, observable } from '@ijstech/components';
 import { Result } from '../result/index';
 import { TokenSelection } from '../token-selection/index';
-import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, IPoolDetailConfig, IProviderUI, IProvider, ICustomTokenObject } from '../global/index';
+import { formatNumber, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, IPoolDetailConfig, IProviderUI, IProvider, ICustomTokenObject } from '../global/index';
 import { BigNumber } from '@ijstech/eth-wallet';
-import { isWalletConnected, getChainId, getSupportedTokens, nullAddress } from '../store/index';
+import { isWalletConnected, getChainId, getSupportedTokens, nullAddress, getRpcWallet } from '../store/index';
 import { getApprovalModelAction, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getRouterAddress } from '../API';
-import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
+import { assets as tokenAssets, tokenStore, ITokenObject } from '@scom/scom-token-list';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -72,6 +72,7 @@ export class ScomAmmPoolRemove extends Module {
 
   tag: any = {};
   private contractAddress: string;
+  private clientEvents: any = [];
 
   constructor(parent?: Container, options?: ScomAmmPoolRemoveElement) {
     super(parent, options);
@@ -126,18 +127,27 @@ export class ScomAmmPoolRemove extends Module {
   }
 
   private registerEvent() {
-    this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
-    this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
-    this.$eventBus.register(this, EventId.chainChanged, this.onChainChange)
+    // this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
+    // this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
+    this.clientEvents.push(this.$eventBus.register(this, EventId.chainChanged, this.onChainChange))
   }
 
-  private onWalletConnect = async (connected: boolean) => {
-    if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
-      this.onChainChange();
-    } else {
-      this.updateContractAddress();
-      if (this.originalData?.providers?.length) await this.onSetupPage(connected);
+  onHide(): void {
+    for (let event of this.clientEvents) {
+      event.unregister();
     }
+    this.clientEvents = [];
+  }
+
+  onWalletConnected = async (connected: boolean) => {
+    // if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
+    //   this.onChainChange();
+    // } else {
+    //   this.updateContractAddress();
+    //   if (this.originalData?.providers?.length) await this.onSetupPage(connected);
+    // }
+    this.updateContractAddress();
+    if (this.originalData?.providers?.length) await this.onSetupPage(connected);
   }
 
   private onWalletDisconnect = async (connected: boolean) => {
@@ -181,9 +191,9 @@ export class ScomAmmPoolRemove extends Module {
     this.resetFirstInput();
     this.resetSecondInput();
     this.liquidityInput.value = '';
-    tokenStore.updateTokenMapData();
+    tokenStore.updateTokenMapData( this.currentChainId);
     if (connected) {
-      await tokenStore.updateAllTokenBalances();
+      await tokenStore.updateAllTokenBalances(getRpcWallet());
       if (!this.approvalModelAction) await this.initApprovalModelAction();
     }
     this.firstTokenSelection.isBtnMaxShown = false;
@@ -542,7 +552,7 @@ export class ScomAmmPoolRemove extends Module {
         this.btnRemove.rightIcon.visible = true;
       },
       onPaid: async () => {
-        await tokenStore.updateAllTokenBalances();
+        await tokenStore.updateAllTokenBalances(getRpcWallet());
         this.btnRemove.rightIcon.visible = false;
       },
       onPayingError: async (err: Error) => {

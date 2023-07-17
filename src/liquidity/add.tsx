@@ -1,11 +1,11 @@
 import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, Icon, HStack } from '@ijstech/components';
 import { Result } from '../result/index';
 import { TokenSelection } from '../token-selection/index';
-import { formatNumber, ITokenObject, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
-import { BigNumber } from '@ijstech/eth-wallet';
-import { getSlippageTolerance, isWalletConnected, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee } from '../store/index';
+import { formatNumber, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
+import { BigNumber, Wallet } from '@ijstech/eth-wallet';
+import { getSlippageTolerance, isWalletConnected, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, getRpcWallet, isRpcWalletConnected } from '../store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRouterAddress, getCurrentCommissions, getCommissionAmount } from '../API';
-import { assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
+import { ITokenObject, assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -80,9 +80,9 @@ export class ScomAmmPoolAdd extends Module {
     providers: [],
     tokens: [],
   }
-  private currentChainId: number;
   private allTokenBalancesMap: any;
   private isInited: boolean = false;
+  private clientEvents: any = [];
 
   tag: any = {};
   private contractAddress: string;
@@ -159,29 +159,37 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private registerEvent() {
-    this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
-    this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
-    this.$eventBus.register(this, EventId.chainChanged, this.onChainChange)
+    // this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
+    // this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
+    this.clientEvents.push(this.$eventBus.register(this, EventId.chainChanged, this.onChainChange))
   }
 
-  private onWalletConnect = async (connected: boolean) => {
-    if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
-      this.onChainChange();
-    } else {
-      this.updateContractAddress();
-      if (this.originalData?.providers?.length) await this.onSetupPage(connected);
+  onHide(): void {
+    for (let event of this.clientEvents) {
+      event.unregister();
     }
+    this.clientEvents = [];
   }
 
-  private onWalletDisconnect = async (connected: boolean) => {
-    if (!connected)
-      await this.onSetupPage(connected);
+  onWalletConnected = async (connected: boolean) => {
+    // if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
+    //   this.onChainChange();
+    // } else {
+    //   this.updateContractAddress();
+    //   if (this.originalData?.providers?.length) await this.onSetupPage(connected);
+    // }
+    this.updateContractAddress();
+    if (this.originalData?.providers?.length) await this.initializeWidgetConfig(connected);
   }
+
+  // private onWalletDisconnect = async (connected: boolean) => {
+  //   if (!connected)
+  //     await this.onSetupPage(connected);
+  // }
 
   private onChainChange = async () => {
-    this.currentChainId = getChainId();
     this.updateContractAddress();
-    if (this.originalData?.providers?.length) await this.onSetupPage(true);
+    if (this.originalData?.providers?.length) await this.initializeWidgetConfig(true);
     this.updateButtonText();
   }
 
@@ -193,7 +201,7 @@ export class ScomAmmPoolAdd extends Module {
 
   private async refreshUI() {
     await this.initData();
-    await this.onSetupPage(isWalletConnected());
+    await this.initializeWidgetConfig(isWalletConnected());
   }
 
   private updateContractAddress = () => {
@@ -229,64 +237,63 @@ export class ScomAmmPoolAdd extends Module {
     }
   }
 
-  private onSetupPage = async (connected: boolean, _chainId?: number) => {
-    this.currentChainId = _chainId ? _chainId : getChainId();
-    if (!this.btnSupply.isConnected) await this.btnSupply.ready();
-    if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
-    if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
-    if (!this.lbLabel1.isConnected) await this.lbLabel1.ready();
-    if (!this.lbLabel2.isConnected) await this.lbLabel2.ready();
-    if (!this.firstInput.isConnected) await this.firstInput.ready();
-    if (!this.secondInput.isConnected) await this.secondInput.ready();
-    this.resetFirstInput();
-    this.resetSecondInput();
-    this.updateCommissionInfo();
-    tokenStore.updateTokenMapData();
-    if (connected) {
-      await tokenStore.updateAllTokenBalances();
-      if (!this.approvalModelAction) await this.initApprovalModelAction();
-    }
-    this.firstTokenSelection.isBtnMaxShown = true;
-    this.secondTokenSelection.isBtnMaxShown = true;
-    const tokens = getSupportedTokens(this._data.tokens || [], this.currentChainId);
-    const isReadonly = tokens.length === 2;
-    this.firstTokenSelection.disableSelect = isReadonly;
-    this.secondTokenSelection.disableSelect = isReadonly;
-    this.firstTokenSelection.tokenDataListProp = tokens;
-    this.secondTokenSelection.tokenDataListProp = tokens;
-    const label = 'Input';
-    this.lbLabel1.caption = label;
-    this.lbLabel2.caption = label;
-    this.setFixedPairData();
-    if (connected) {
-      try {
-        this.updateButtonText();
-        await this.updateBalance();
-        if (this.firstToken && this.secondToken) {
-          if (!this.lbFirstPriceTitle.isConnected) await this.lbFirstPriceTitle.ready();
-          this.lbFirstPriceTitle.caption = `${this.secondToken.symbol} per ${this.firstToken.symbol}`;
-          if (!this.lbSecondPriceTitle.isConnected) await this.lbSecondPriceTitle.ready();
-          this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`;
+  private initializeWidgetConfig = async (connected: boolean, _chainId?: number) => {
+    setTimeout(async () => {
+      const chainId = getChainId();
+      tokenStore.updateTokenMapData(chainId);
+      if (!this.btnSupply.isConnected) await this.btnSupply.ready();
+      if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
+      if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
+      if (!this.lbLabel1.isConnected) await this.lbLabel1.ready();
+      if (!this.lbLabel2.isConnected) await this.lbLabel2.ready();
+      if (!this.firstInput.isConnected) await this.firstInput.ready();
+      if (!this.secondInput.isConnected) await this.secondInput.ready();
+      this.resetFirstInput();
+      this.resetSecondInput();
+      this.updateCommissionInfo();
+      this.firstTokenSelection.isBtnMaxShown = true;
+      this.secondTokenSelection.isBtnMaxShown = true;
+      const tokens = getSupportedTokens(this._data.tokens || [], getChainId());
+      const isReadonly = tokens.length === 2;
+      this.firstTokenSelection.disableSelect = isReadonly;
+      this.secondTokenSelection.disableSelect = isReadonly;
+      this.firstTokenSelection.tokenDataListProp = tokens;
+      this.secondTokenSelection.tokenDataListProp = tokens;
+      const label = 'Input';
+      this.lbLabel1.caption = label;
+      this.lbLabel2.caption = label;
+      this.setFixedPairData();
+      if (connected) {
+        try {
+          this.updateButtonText();
+          await this.updateBalance();
+          if (this.firstToken && this.secondToken) {
+            if (!this.lbFirstPriceTitle.isConnected) await this.lbFirstPriceTitle.ready();
+            this.lbFirstPriceTitle.caption = `${this.secondToken.symbol} per ${this.firstToken.symbol}`;
+            if (!this.lbSecondPriceTitle.isConnected) await this.lbSecondPriceTitle.ready();
+            this.lbSecondPriceTitle.caption = `${this.firstToken.symbol} per ${this.secondToken.symbol}`;
+          }
+          const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
+          this.pricePanel.visible = isShown;
+          await this.checkPairExists();
+          if (tokens.length >= 2 && new BigNumber(this.firstInput.value).isNaN() && new BigNumber(this.firstInput.value).isNaN()) {
+            this.updateCommissionInfo();
+            return;
+          }
+          await this.callAPIBundle(false);
+        } catch {
+          this.btnSupply.caption = 'Supply';
         }
-        const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
-        this.pricePanel.visible = isShown;
-        await this.checkPairExists();
-        if (tokens.length >= 2 && new BigNumber(this.firstInput.value).isNaN() && new BigNumber(this.firstInput.value).isNaN()) {
-          this.updateCommissionInfo();
-          return;
-        }
-        await this.callAPIBundle(false);
-      } catch {
-        this.btnSupply.caption = 'Supply';
+      } else {
+        this.resetData();
       }
-    } else {
-      this.resetData();
-    }
-    this.updateCommissionInfo();
+      this.updateCommissionInfo();
+      await Wallet.getClientInstance().init();
+    });
   }
 
   private setFixedPairData() {
-    let currentChainTokens = this._data.tokens.filter((token) => token.chainId === this.currentChainId);
+    let currentChainTokens = this._data.tokens.filter((token) => token.chainId === getChainId());
     if (currentChainTokens.length < 2) return;
     const providers = this.originalData?.providers;
     if (providers && providers.length) {
@@ -328,8 +335,14 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private async updateBalance() {
-    if (isWalletConnected()) await tokenStore.updateAllTokenBalances();
-    this.allTokenBalancesMap = isWalletConnected() ? tokenStore.tokenBalances : [];
+    const rpcWallet = getRpcWallet();
+    if (rpcWallet.address) {
+      await tokenStore.updateAllTokenBalances(rpcWallet);
+      this.allTokenBalancesMap = tokenStore.tokenBalances;
+    }
+    else {
+      this.allTokenBalancesMap = {};
+    }
     if (this.firstToken) {
       this.firstBalance = this.getBalance(this.firstToken);
       this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance, 4)} ${this.firstToken.symbol}`;
@@ -531,7 +544,7 @@ export class ScomAmmPoolAdd extends Module {
         if (this.secondInput.isConnected) this.secondInput.value = '';
         this.secondInputAmount = '';
       } else {
-        const limit = limitDecimals(this.secondInputAmount, token.decimals || 18);
+        const limit = limitDecimals(this.secondInputAmount || '0', token.decimals || 18);
         if (!new BigNumber(this.secondInputAmount).eq(limit)) {
           if (this.secondInput.isConnected) this.secondInput.value = limit;
           this.secondInputAmount = limit;
@@ -546,6 +559,11 @@ export class ScomAmmPoolAdd extends Module {
 
   private async onSelectToken(token: any, isFrom: boolean) {
     if (!token) return;
+    if (token.isNew && isRpcWalletConnected()) {
+      const rpcWallet = getRpcWallet();
+      await tokenStore.updateAllTokenBalances(rpcWallet);
+      this.allTokenBalancesMap = tokenStore.tokenBalances;
+    }
     const symbol = token.symbol;
     if ((isFrom && this.firstToken?.symbol === symbol) || (!isFrom && this.secondToken?.symbol === symbol)) return;
     this.updateButton(true);
@@ -704,7 +722,7 @@ export class ScomAmmPoolAdd extends Module {
         this.btnSupply.rightIcon.visible = true;
       },
       onPaid: async () => {
-        await tokenStore.updateAllTokenBalances();
+        await tokenStore.updateAllTokenBalances(getRpcWallet());
         if (this.firstToken) {
           this.firstBalance = tokenStore.getTokenBalance(this.firstToken);
           this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance)}`;
