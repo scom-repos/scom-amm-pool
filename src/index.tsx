@@ -1,4 +1,4 @@
-import { customModule, Module, Styles, Button, Container, customElements, ControlElement, IDataSchema, VStack, Tabs } from '@ijstech/components';
+import { customModule, Module, Styles, Button, Container, customElements, ControlElement, IDataSchema, VStack, Tabs, HStack } from '@ijstech/components';
 import { } from '@ijstech/eth-contract';
 import { Constants, IEventBusRegistry } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
@@ -300,11 +300,17 @@ export default class ScomAmmPool extends Module {
               fee: getEmbedderCommissionFee(),
               networks: self._data.networks
             });
-            const button = new Button(null, {
+            const hstack = new HStack(null, {
+              verticalAlignment: 'center',
+            });
+            const button = new Button(hstack, {
               caption: 'Confirm',
+              width: '100%',
+              height: 40,
+              font: {color: Theme.colors.primary.contrastText}
             });
             vstack.append(config);
-            vstack.append(button);
+            vstack.append(hstack);
             button.onClick = async () => {
               const commissions = config.commissions;
               if (onConfirm) onConfirm(true, { commissions });
