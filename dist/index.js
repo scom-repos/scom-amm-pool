@@ -18114,11 +18114,17 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                                 fee: (0, index_19.getEmbedderCommissionFee)(),
                                 networks: self._data.networks
                             });
-                            const button = new components_13.Button(null, {
+                            const hstack = new components_13.HStack(null, {
+                                verticalAlignment: 'center',
+                            });
+                            const button = new components_13.Button(hstack, {
                                 caption: 'Confirm',
+                                width: '100%',
+                                height: 40,
+                                font: { color: Theme.colors.primary.contrastText }
                             });
                             vstack.append(config);
-                            vstack.append(button);
+                            vstack.append(hstack);
                             button.onClick = async () => {
                                 const commissions = config.commissions;
                                 if (onConfirm)
