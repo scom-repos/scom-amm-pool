@@ -3,6 +3,16 @@
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-dex-list/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@scom/scom-token-input/@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@scom/scom-token-input/@scom/scom-token-modal/@ijstech/eth-wallet/index.d.ts" />
+/// <amd-module name="@scom/scom-amm-pool/global/utils/helper.ts" />
+declare module "@scom/scom-amm-pool/global/utils/helper.ts" {
+    export const formatNumber: (value: any, decimals?: number) => string;
+    export const formatNumberWithSeparators: (value: number, precision?: number) => string;
+    export const isInvalidInput: (val: any) => boolean;
+    export const limitInputNumber: (input: any, decimals?: number) => void;
+    export const limitDecimals: (value: any, decimals: number) => any;
+}
 /// <amd-module name="@scom/scom-amm-pool/contracts/oswap-openswap-contract/contracts/OpenSwap.json.ts" />
 declare module "@scom/scom-amm-pool/contracts/oswap-openswap-contract/contracts/OpenSwap.json.ts" {
     const _default: {
@@ -9575,60 +9585,11 @@ declare module "@scom/scom-amm-pool/contracts/oswap-openswap-contract/index.ts" 
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/common.ts" />
 declare module "@scom/scom-amm-pool/global/utils/common.ts" {
-    import { Wallet, BigNumber, ISendTxEventsOptions } from "@ijstech/eth-wallet";
+    import { BigNumber, ISendTxEventsOptions } from "@ijstech/eth-wallet";
     import { ITokenObject } from "@scom/scom-token-list";
-    export type TokenMapType = {
-        [token: string]: ITokenObject;
-    };
-    export const isTransactionConfirmed: (txHash: string) => Promise<boolean>;
     export const registerSendTxEvents: (sendTxEventHandlers: ISendTxEventsOptions) => void;
-    export function getERC20Amount(wallet: Wallet, token: string, decimals: number): Promise<BigNumber>;
     export const approveERC20Max: (token: ITokenObject, spenderAddress: string, callback?: any, confirmationCallback?: any) => Promise<import("@ijstech/eth-contract").TransactionReceipt>;
     export const getERC20Allowance: (token: ITokenObject, spenderAddress: string) => Promise<BigNumber>;
-}
-/// <amd-module name="@scom/scom-amm-pool/global/utils/helper.ts" />
-declare module "@scom/scom-amm-pool/global/utils/helper.ts" {
-    import { BigNumber } from "@ijstech/eth-wallet";
-    import { TokenMapType } from "@scom/scom-amm-pool/global/utils/common.ts";
-    export const DefaultDateTimeFormat = "DD/MM/YYYY HH:mm:ss";
-    export const DefaultDateFormat = "DD/MM/YYYY";
-    export const formatDate: (date: any, customType?: string, showTimezone?: boolean) => string;
-    export const formatUTCDate: (date: any, customType?: string, showTimezone?: boolean) => string;
-    export const compareDate: (fromDate: any, toDate?: any) => boolean;
-    export const formatNumber: (value: any, decimals?: number) => string;
-    export const formatPercentNumber: (value: any, decimals?: number) => string;
-    export const formatNumberWithSeparators: (value: number, precision?: number) => string;
-    export const isValidNumber: (value: string | number) => boolean;
-    export const isInvalidInput: (val: any) => boolean;
-    export const limitInputNumber: (input: any, decimals?: number) => void;
-    export const limitDecimals: (value: any, decimals: number) => any;
-    export function getAPI(url: string, paramsObj?: any): Promise<any>;
-    export const toWeiInv: (n: string, unit?: number) => BigNumber;
-    export const padLeft: (string: string, chars: number, sign?: string) => string;
-    export const numberToBytes32: (value: any, prefix?: string) => any;
-    export const getParamsFromUrl: () => URLSearchParams;
-    export const formatNumberValue: (data: any, tokenMap: TokenMapType) => any;
-    export const uniqWith: (array: any[], compareFn: (cur: any, oth: any) => boolean) => any;
-    export const getWeekDays: () => any[];
-    export const renderBalanceTooltip: (params: any, tokenMap: TokenMapType, isBold?: boolean) => any;
-    export const downloadJsonFile: (name: string, obj: any) => void;
-    export function isWalletAddress(address: string): boolean;
-}
-/// <amd-module name="@scom/scom-amm-pool/global/utils/error.ts" />
-declare module "@scom/scom-amm-pool/global/utils/error.ts" {
-    export function parseContractError(oMessage: string, tokens: string[]): Promise<string>;
-}
-/// <amd-module name="@scom/scom-amm-pool/global/utils/pageBlock.ts" />
-declare module "@scom/scom-amm-pool/global/utils/pageBlock.ts" {
-    export interface PageBlock {
-        getData: () => any;
-        setData: (data: any) => Promise<void>;
-        getTag: () => any;
-        setTag: (tag: any) => Promise<void>;
-        validate?: () => boolean;
-        defaultEdit?: boolean;
-        tag?: any;
-    }
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/approvalModel.ts" />
 declare module "@scom/scom-amm-pool/global/utils/approvalModel.ts" {
@@ -9739,119 +9700,52 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/index.ts" />
 declare module "@scom/scom-amm-pool/global/utils/index.ts" {
-    export { getAPI, formatNumber, formatNumberWithSeparators, DefaultDateTimeFormat, DefaultDateFormat, formatDate, formatUTCDate, limitDecimals, limitInputNumber, isInvalidInput, isValidNumber, toWeiInv, numberToBytes32, getParamsFromUrl, formatNumberValue, uniqWith, getWeekDays, compareDate, renderBalanceTooltip, formatPercentNumber, downloadJsonFile, isWalletAddress } from "@scom/scom-amm-pool/global/utils/helper.ts";
-    export { parseContractError } from "@scom/scom-amm-pool/global/utils/error.ts";
-    export { PageBlock } from "@scom/scom-amm-pool/global/utils/pageBlock.ts";
-    export { isTransactionConfirmed, registerSendTxEvents, approveERC20Max, getERC20Allowance, getERC20Amount, TokenMapType } from "@scom/scom-amm-pool/global/utils/common.ts";
+    export { formatNumber, formatNumberWithSeparators, limitDecimals, limitInputNumber, isInvalidInput } from "@scom/scom-amm-pool/global/utils/helper.ts";
+    export { registerSendTxEvents, approveERC20Max, getERC20Allowance } from "@scom/scom-amm-pool/global/utils/common.ts";
     export { ApprovalStatus, IERC20ApprovalEventOptions, IERC20ApprovalOptions, IERC20ApprovalAction, ERC20ApprovalModel } from "@scom/scom-amm-pool/global/utils/approvalModel.ts";
     export * from "@scom/scom-amm-pool/global/utils/interface.ts";
 }
 /// <amd-module name="@scom/scom-amm-pool/global/index.ts" />
 declare module "@scom/scom-amm-pool/global/index.ts" {
-    import { INetwork } from '@ijstech/eth-wallet';
-    export interface IExtendedNetwork extends INetwork {
-        shortName?: string;
-        isDisabled?: boolean;
-        isMainChain?: boolean;
-        isCrossChainSupported?: boolean;
-        explorerName?: string;
-        explorerTxUrl?: string;
-        explorerAddressUrl?: string;
-        isTestnet?: boolean;
-        symbol?: string;
-        env?: string;
-    }
     export const enum EventId {
-        ConnectWallet = "connectWallet",
         IsWalletConnected = "isWalletConnected",
         IsWalletDisconnected = "IsWalletDisconnected",
         Paid = "Paid",
         chainChanged = "chainChanged",
-        EmitButtonStatus = "emitButtonStatus",
-        EmitInput = "emitInput",
-        EmitNewToken = "emitNewToken",
-        SlippageToleranceChanged = "SlippageToleranceChanged",
-        ExpertModeChanged = "ExpertModeChanged",
-        ShowTransactionModal = "ShowTransactionModal"
-    }
-    export enum QueueType {
-        PRIORITY_QUEUE = 0,
-        RANGE_QUEUE = 1,
-        GROUP_QUEUE = 2,
-        PEGGED_QUEUE = 3
+        EmitNewToken = "emitNewToken"
     }
     export * from "@scom/scom-amm-pool/global/utils/index.ts";
 }
 /// <amd-module name="@scom/scom-amm-pool/store/utils.ts" />
 declare module "@scom/scom-amm-pool/store/utils.ts" {
-    import { IProvider, IExtendedNetwork } from "@scom/scom-amm-pool/global/index.ts";
-    import { ITokenObject } from '@scom/scom-token-list';
+    import { INetwork } from '@ijstech/eth-wallet';
     import { IDexInfo } from '@scom/scom-dex-list';
-    export enum WalletPlugin {
-        MetaMask = "metamask",
-        WalletConnect = "walletconnect"
-    }
     export type ProxyAddresses = {
         [key: number]: string;
     };
     export const state: {
-        currentChainId: number;
         slippageTolerance: number;
         transactionDeadline: number;
-        userTokens: {
-            [key: string]: ITokenObject[];
-        };
         infuraId: string;
         networkMap: {
-            [key: number]: IExtendedNetwork;
+            [key: number]: INetwork;
         };
         dexInfoList: IDexInfo[];
-        providerList: IProvider[];
-        ipfsGatewayUrl: string;
-        apiGatewayUrls: Record<string, string>;
         proxyAddresses: ProxyAddresses;
         embedderCommissionFee: string;
-        tokens: any[];
         rpcWalletId: string;
     };
     export const setDataFromConfig: (options: any) => void;
     export const setProxyAddresses: (data: ProxyAddresses) => void;
     export const getProxyAddress: (chainId?: number) => string;
     export const getEmbedderCommissionFee: () => string;
-    export const setIPFSGatewayUrl: (url: string) => void;
-    export const getIPFSGatewayUrl: () => string;
-    export const setAPIGatewayUrls: (urls: Record<string, string>) => void;
-    export const setCurrentChainId: (value: number) => void;
-    export const getCurrentChainId: () => number;
     export const getSlippageTolerance: () => any;
     export const setSlippageTolerance: (value: any) => void;
     export const getTransactionDeadline: () => any;
     export const setTransactionDeadline: (value: any) => void;
     export const getInfuraId: () => string;
-    export const getSupportedNetworks: () => IExtendedNetwork[];
-    export const getNetworkInfo: (chainId: number) => IExtendedNetwork;
-    interface NetworkConditions {
-        isDisabled?: boolean;
-        isTestnet?: boolean;
-        isMainChain?: boolean;
-    }
-    export const getMatchNetworks: (conditions: NetworkConditions) => IExtendedNetwork[];
-    export const getNetworkExplorerName: (chainId: number) => string;
-    export const setUserTokens: (token: ITokenObject, chainId: number) => void;
-    export const hasUserToken: (address: string, chainId: number) => boolean;
     export const setDexInfoList: (value: IDexInfo[]) => void;
     export const getDexInfoList: () => IDexInfo[];
-    export const setProviderList: (value: IProvider[]) => void;
-    export const getProviderList: () => IProvider[];
-    export const getProviderByKey: (providerKey: string) => IProvider;
-    export const viewOnExplorerByTxHash: (chainId: number, txHash: string) => void;
-    export const viewOnExplorerByAddress: (chainId: number, address: string) => void;
-    export function getWalletProvider(): string;
-    export function isWalletConnected(): boolean;
-    export function switchNetwork(chainId: number): Promise<void>;
-    export const hasMetaMask: () => boolean;
-    export const truncateAddress: (address: string) => string;
-    export const getChainNativeToken: (chainId: number) => ITokenObject;
 }
 /// <amd-module name="@scom/scom-amm-pool/store/index.ts" />
 declare module "@scom/scom-amm-pool/store/index.ts" {
@@ -9862,10 +9756,6 @@ declare module "@scom/scom-amm-pool/store/index.ts" {
         rpcWalletId: string;
     };
     export const getWETH: (chainId: number) => ITokenObject;
-    export const getTokenDecimals: (address: string) => number;
-    export const getTokenIcon: (address: string) => string;
-    export const tokenSymbol: (address: string) => string;
-    export const tokenName: (address: string) => string;
     export * from "@scom/scom-amm-pool/store/utils.ts";
     export const getSupportedTokens: (tokens: ICustomTokenObject[], chainId: number) => {
         chainId: number;
@@ -9892,247 +9782,9 @@ declare module "@scom/scom-amm-pool/store/index.ts" {
 declare module "@scom/scom-amm-pool/index.css.ts" {
     export const poolStyle: string;
 }
-/// <amd-module name="@scom/scom-amm-pool/data.json.ts" />
-declare module "@scom/scom-amm-pool/data.json.ts" {
-    const _default_48: {
-        infuraId: string;
-        networks: ({
-            chainId: number;
-            isMainChain: boolean;
-            isCrossChainSupported: boolean;
-            explorerName: string;
-            explorerTxUrl: string;
-            explorerAddressUrl: string;
-            isTestnet: boolean;
-            shortName?: undefined;
-        } | {
-            chainId: number;
-            shortName: string;
-            isCrossChainSupported: boolean;
-            explorerName: string;
-            explorerTxUrl: string;
-            explorerAddressUrl: string;
-            isTestnet: boolean;
-            isMainChain?: undefined;
-        })[];
-        proxyAddresses: {
-            "97": string;
-            "43113": string;
-        };
-        embedderCommissionFee: string;
-        ipfsGatewayUrl: string;
-        defaultBuilderData: {
-            providers: {
-                caption: string;
-                image: string;
-                key: string;
-                dexId: number;
-                chainId: number;
-            }[];
-            mode: string;
-            tokens: {
-                address: string;
-                chainId: number;
-            }[];
-            defaultChainId: number;
-            networks: {
-                chainId: number;
-            }[];
-            wallets: {
-                name: string;
-            }[];
-            showHeader: boolean;
-            showFooter: boolean;
-        };
-    };
-    export default _default_48;
-}
-/// <amd-module name="@scom/scom-amm-pool/result/result.css.ts" />
-declare module "@scom/scom-amm-pool/result/result.css.ts" {
-    const _default_49: string;
-    export default _default_49;
-}
-/// <amd-module name="@scom/scom-amm-pool/assets.ts" />
-declare module "@scom/scom-amm-pool/assets.ts" {
-    function fullPath(path: string): string;
-    const _default_50: {
-        logo: string;
-        fullPath: typeof fullPath;
-    };
-    export default _default_50;
-}
-/// <amd-module name="@scom/scom-amm-pool/result/result.tsx" />
-declare module "@scom/scom-amm-pool/result/result.tsx" {
-    import { Module, ControlElement, Container } from '@ijstech/components';
-    global {
-        namespace JSX {
-            interface IntrinsicElements {
-                ['i-scom-amm-pool-result']: ControlElement;
-            }
-        }
-    }
-    export interface IMessage {
-        status: 'warning' | 'success' | 'error';
-        content?: any;
-        txtHash?: string;
-        obj?: any;
-        customRedirect?: any;
-    }
-    export class Result extends Module {
-        private confirmModal;
-        private mainContent;
-        private _message;
-        onCustomClose: any;
-        get message(): IMessage;
-        set message(value: IMessage);
-        constructor(parent?: Container, options?: any);
-        init(): Promise<void>;
-        closeModal(): void;
-        showModal(): void;
-        onCloseRedirect(): void;
-        buildLink(): Promise<void>;
-        renderUI(): Promise<void>;
-        onErrMsgChanged(): Promise<any>;
-        render(): any;
-    }
-}
-/// <amd-module name="@scom/scom-amm-pool/result/index.tsx" />
-declare module "@scom/scom-amm-pool/result/index.tsx" {
-    export { Result } from "@scom/scom-amm-pool/result/result.tsx";
-}
-/// <amd-module name="@scom/scom-amm-pool/token-selection/tokenSelection.css.ts" />
-declare module "@scom/scom-amm-pool/token-selection/tokenSelection.css.ts" { }
-/// <amd-module name="@scom/scom-amm-pool/token-selection/importToken.tsx" />
-declare module "@scom/scom-amm-pool/token-selection/importToken.tsx" {
-    import { Control, ControlElement, Module, Container } from '@ijstech/components';
-    import { ITokenObject } from '@scom/scom-token-list';
-    global {
-        namespace JSX {
-            interface IntrinsicElements {
-                ['i-scom-swap-import-token']: ControlElement;
-            }
-        }
-    }
-    export class ImportToken extends Module {
-        private importModal;
-        private importBtn;
-        private tokenAgreeCheckBox;
-        private _token;
-        private $eventBus;
-        onUpdate: any;
-        private _state;
-        constructor(parent?: Container, options?: any);
-        set token(value: ITokenObject);
-        get token(): ITokenObject;
-        updateState(): void;
-        closeModal(): void;
-        showModal(): void;
-        onImportToken(source: Control, event: Event): Promise<void>;
-        onHandleCheck(source: Control, event: Event): void;
-        viewContract(): void;
-        init(): Promise<void>;
-        render(): any;
-    }
-}
-/// <amd-module name="@scom/scom-amm-pool/token-selection/tokenSelection.tsx" />
-declare module "@scom/scom-amm-pool/token-selection/tokenSelection.tsx" {
-    import { Module, ControlElement, Container } from '@ijstech/components';
-    import { ITokenObject } from '@scom/scom-token-list';
-    import "@scom/scom-amm-pool/token-selection/tokenSelection.css.ts";
-    interface TokenSelectionElement extends ControlElement {
-        disableSelect?: boolean;
-        disabledMaxBtn?: boolean;
-    }
-    global {
-        namespace JSX {
-            interface IntrinsicElements {
-                ['i-scom-amm-pool-token-selection']: TokenSelectionElement;
-            }
-        }
-    }
-    export class TokenSelection extends Module {
-        private _token?;
-        private _tokenDataListProp;
-        private _onSelectToken;
-        private _isCommonShown;
-        private _isSortBalanceShown;
-        private _isBtnMaxShown;
-        private _onSetMaxBalance;
-        private tokenSelectionModal;
-        private tokenBalancesMap;
-        private btnToken;
-        private btnMax;
-        private tokenList;
-        private commonTokenList;
-        private commonTokenPanel;
-        private sortBalancePanel;
-        private importTokenModal;
-        private sortValue;
-        private iconSortUp;
-        private iconSortDown;
-        private tokenSearch;
-        private filterValue;
-        private checkHasMetaMask;
-        private $eventBus;
-        private _disableSelect;
-        private _disabledMaxBtn;
-        get token(): ITokenObject | undefined;
-        set token(value: ITokenObject | undefined);
-        get tokenDataListProp(): Array<ITokenObject>;
-        set tokenDataListProp(value: Array<ITokenObject>);
-        get onSelectToken(): any;
-        set onSelectToken(callback: any);
-        get isCommonShown(): boolean;
-        set isCommonShown(value: boolean);
-        get isSortBalanceShown(): boolean;
-        set isSortBalanceShown(value: boolean);
-        get isBtnMaxShown(): boolean;
-        set isBtnMaxShown(value: boolean);
-        get onSetMaxBalance(): any;
-        set onSetMaxBalance(callback: any);
-        get chainId(): number;
-        get disableSelect(): boolean;
-        set disableSelect(value: boolean);
-        get disabledMaxBtn(): boolean;
-        set disabledMaxBtn(value: boolean);
-        private initData;
-        private updateDataByChain;
-        private updateDataByNewToken;
-        private onWalletConnect;
-        private onWalletDisconnect;
-        private onPaid;
-        private registerEvent;
-        private get tokenDataList();
-        private get commonTokenDataList();
-        private get tokenDataListFiltered();
-        private sortToken;
-        private sortBalance;
-        private filterSearch;
-        private renderCommonItems;
-        private renderToken;
-        private getTokenObject;
-        private renderTokenItems;
-        private addToMetamask;
-        private showModal;
-        private updateStatusButton;
-        private updateButton;
-        private onSelect;
-        constructor(parent?: Container, options?: any);
-        init(): Promise<void>;
-        showImportTokenModal(event: Event, token: ITokenObject): void;
-        onImportToken(token: ITokenObject): void;
-        onCloseModal(): void;
-        render(): any;
-    }
-}
-/// <amd-module name="@scom/scom-amm-pool/token-selection/index.tsx" />
-declare module "@scom/scom-amm-pool/token-selection/index.tsx" {
-    export { TokenSelection } from "@scom/scom-amm-pool/token-selection/tokenSelection.tsx";
-    export { ImportToken } from "@scom/scom-amm-pool/token-selection/importToken.tsx";
-}
 /// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.json.ts" />
 declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.json.ts" {
-    const _default_51: {
+    const _default_48: {
         abi: ({
             anonymous: boolean;
             inputs: {
@@ -10221,7 +9873,7 @@ declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/con
         })[];
         bytecode: string;
     };
-    export default _default_51;
+    export default _default_48;
 }
 /// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.ts" />
 declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/Proxy.ts" {
@@ -10384,7 +10036,7 @@ declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/con
 }
 /// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.json.ts" />
 declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.json.ts" {
-    const _default_52: {
+    const _default_49: {
         abi: ({
             anonymous: boolean;
             inputs: {
@@ -10473,7 +10125,7 @@ declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/con
         })[];
         bytecode: string;
     };
-    export default _default_52;
+    export default _default_49;
 }
 /// <amd-module name="@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.ts" />
 declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/contracts/ProxyV2.ts" {
@@ -10655,13 +10307,13 @@ declare module "@scom/scom-amm-pool/contracts/scom-commission-proxy-contract/ind
     export var DefaultDeployOptions: IDeployOptions;
     export function deploy(wallet: IWallet, options?: IDeployOptions): Promise<IDeployResult>;
     export function onProgress(handler: any): void;
-    const _default_53: {
+    const _default_50: {
         Contracts: typeof Contracts;
         deploy: typeof deploy;
         DefaultDeployOptions: IDeployOptions;
         onProgress: typeof onProgress;
     };
-    export default _default_53;
+    export default _default_50;
 }
 /// <amd-module name="@scom/scom-amm-pool/API.ts" />
 declare module "@scom/scom-amm-pool/API.ts" {
@@ -10739,6 +10391,11 @@ declare module "@scom/scom-amm-pool/API.ts" {
     const getTokensBackByAmountOut: (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
     export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
 }
+/// <amd-module name="@scom/scom-amm-pool/liquidity/index.css.ts" />
+declare module "@scom/scom-amm-pool/liquidity/index.css.ts" {
+    export const poolAddStyle: string;
+    export const poolRemoveStyle: string;
+}
 /// <amd-module name="@scom/scom-amm-pool/liquidity/add.tsx" />
 declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
     import { Module, Container, ControlElement } from '@ijstech/components';
@@ -10756,19 +10413,15 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         }
     }
     export class ScomAmmPoolAdd extends Module {
-        private firstInput;
-        private secondInput;
         private btnApproveFirstToken;
         private btnApproveSecondToken;
         private btnSupply;
         private confirmSupplyModal;
-        private resultEl;
-        private firstTokenSelection;
-        private secondTokenSelection;
+        private txStatusModal;
+        private firstTokenInput;
+        private secondTokenInput;
         private firstToken?;
         private secondToken?;
-        private lbFirstBalance;
-        private lbSecondBalance;
         private firstBalance;
         private secondBalance;
         private lbFirstPrice;
@@ -10778,7 +10431,6 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         private lbShareOfPool;
         private isFromEstimated;
         private approvalModelAction;
-        private $eventBus;
         private firstInputAmount;
         private secondInputAmount;
         private firstTokenImage1;
@@ -10802,14 +10454,12 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         private iconCommissionFee;
         private lbFirstCommission;
         private lbSecondCommission;
-        private lbLabel1;
-        private lbLabel2;
         private _data;
         private allTokenBalancesMap;
         private isInited;
-        private clientEvents;
         tag: any;
         private contractAddress;
+        connectWallet: () => void;
         constructor(parent?: Container, options?: ScomAmmPoolAddElement);
         static create(options?: ScomAmmPoolAddElement, parent?: Container): Promise<ScomAmmPoolAdd>;
         get firstTokenDecimals(): number;
@@ -10821,10 +10471,8 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         get commissions(): ICommissionInfo[];
         set commissions(value: ICommissionInfo[]);
         private get originalData();
-        private registerEvent;
-        onHide(): void;
         onWalletConnected: (connected: boolean) => Promise<void>;
-        private onChainChange;
+        onChainChange: () => Promise<void>;
         private setData;
         private refreshUI;
         private updateContractAddress;
@@ -10856,7 +10504,7 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         private callAPIBundle;
         init(): Promise<void>;
         private toggleCreateMessage;
-        private showResultMessage;
+        private showTxStatusModal;
         render(): any;
     }
 }
@@ -10876,13 +10524,11 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         }
     }
     export class ScomAmmPoolRemove extends Module {
-        private firstInput;
-        private secondInput;
         private btnApprove;
         private btnRemove;
-        private resultEl;
-        private firstTokenSelection;
-        private secondTokenSelection;
+        private txStatusModal;
+        private firstTokenInput;
+        private secondTokenInput;
         private firstToken?;
         private secondToken?;
         private lbFirstPrice;
@@ -10891,7 +10537,6 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         private lbSecondPriceTitle;
         private lbShareOfPool;
         private approvalModelAction;
-        private $eventBus;
         private firstInputAmount;
         private secondInputAmount;
         private pnlCreatePairMsg;
@@ -10899,18 +10544,15 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         private pnlLiquidityImage;
         private lbLiquidityBalance;
         private liquidityInput;
-        private lbLabel1;
-        private lbLabel2;
         private pnlInfo;
         private _data;
-        private currentChainId;
         private maxLiquidityBalance;
         private lpToken;
         private isInited;
         private removeInfo;
         tag: any;
         private contractAddress;
-        private clientEvents;
+        connectWallet: () => void;
         constructor(parent?: Container, options?: ScomAmmPoolRemoveElement);
         static create(options?: ScomAmmPoolRemoveElement, parent?: Container): Promise<ScomAmmPoolRemove>;
         get firstTokenDecimals(): number;
@@ -10920,11 +10562,8 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         get providers(): IProviderUI[];
         set providers(value: IProviderUI[]);
         private get originalData();
-        private registerEvent;
-        onHide(): void;
         onWalletConnected: (connected: boolean) => Promise<void>;
-        private onWalletDisconnect;
-        private onChainChange;
+        onChainChange: () => Promise<void>;
         private setData;
         private refreshUI;
         private updateContractAddress;
@@ -10954,7 +10593,7 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         private callAPIBundle;
         init(): Promise<void>;
         private toggleCreateMessage;
-        private showResultMessage;
+        private showTxStatusModal;
         render(): any;
     }
 }
@@ -10963,9 +10602,179 @@ declare module "@scom/scom-amm-pool/liquidity/index.tsx" {
     export { ScomAmmPoolAdd } from "@scom/scom-amm-pool/liquidity/add.tsx";
     export { ScomAmmPoolRemove } from "@scom/scom-amm-pool/liquidity/remove.tsx";
 }
+/// <amd-module name="@scom/scom-amm-pool/data.json.ts" />
+declare module "@scom/scom-amm-pool/data.json.ts" {
+    const _default_51: {
+        infuraId: string;
+        networks: {
+            chainId: number;
+            explorerTxUrl: string;
+            explorerAddressUrl: string;
+        }[];
+        proxyAddresses: {
+            "97": string;
+            "43113": string;
+        };
+        embedderCommissionFee: string;
+        defaultBuilderData: {
+            providers: {
+                caption: string;
+                image: string;
+                key: string;
+                dexId: number;
+                chainId: number;
+            }[];
+            mode: string;
+            tokens: {
+                address: string;
+                chainId: number;
+            }[];
+            defaultChainId: number;
+            networks: {
+                chainId: number;
+            }[];
+            wallets: {
+                name: string;
+            }[];
+            showHeader: boolean;
+            showFooter: boolean;
+        };
+    };
+    export default _default_51;
+}
+/// <amd-module name="@scom/scom-amm-pool/formSchema.json.ts" />
+declare module "@scom/scom-amm-pool/formSchema.json.ts" {
+    const _default_52: {
+        general: {
+            dataSchema: {
+                type: string;
+                properties: {
+                    mode: {
+                        type: string;
+                        required: boolean;
+                        enum: string[];
+                    };
+                    tokens: {
+                        type: string;
+                        required: boolean;
+                        items: {
+                            type: string;
+                            properties: {
+                                chainId: {
+                                    type: string;
+                                    enum: number[];
+                                    required: boolean;
+                                };
+                                address: {
+                                    type: string;
+                                    required: boolean;
+                                };
+                            };
+                        };
+                    };
+                    providers: {
+                        type: string;
+                        required: boolean;
+                        items: {
+                            type: string;
+                            properties: {
+                                caption: {
+                                    type: string;
+                                    required: boolean;
+                                };
+                                image: {
+                                    type: string;
+                                    required: boolean;
+                                };
+                                key: {
+                                    type: string;
+                                    required: boolean;
+                                };
+                                dexId: {
+                                    type: string;
+                                };
+                                chainId: {
+                                    type: string;
+                                    enum: number[];
+                                    required: boolean;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+            uiSchema: {
+                type: string;
+                elements: {
+                    type: string;
+                    scope: string;
+                    options: {
+                        detail: {
+                            type: string;
+                        };
+                    };
+                }[];
+            };
+        };
+        theme: {
+            dataSchema: {
+                type: string;
+                properties: {
+                    dark: {
+                        type: string;
+                        properties: {
+                            properties: {
+                                backgroundColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                fontColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                inputBackgroundColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                inputFontColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                            };
+                        };
+                    };
+                    light: {
+                        type: string;
+                        properties: {
+                            properties: {
+                                backgroundColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                fontColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                inputBackgroundColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                                inputFontColor: {
+                                    type: string;
+                                    format: string;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    export default _default_52;
+}
 /// <amd-module name="@scom/scom-amm-pool" />
 declare module "@scom/scom-amm-pool" {
-    import { Module, Container, ControlElement, IDataSchema, VStack } from '@ijstech/components';
+    import { Module, Container, ControlElement } from '@ijstech/components';
     import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from "@scom/scom-amm-pool/global/index.ts";
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
     import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
@@ -10991,10 +10800,11 @@ declare module "@scom/scom-amm-pool" {
         private vStackAmmPool;
         private poolAdd;
         private poolRemove;
+        private mdWallet;
         private _data;
         tag: any;
         private rpcWalletEvents;
-        constructor(parent?: Container, options?: any);
+        constructor(parent?: Container, options?: ScomAmmPoolElement);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
         get providers(): IProviderUI[];
         set providers(value: IProviderUI[]);
@@ -11014,8 +10824,6 @@ declare module "@scom/scom-amm-pool" {
         set tokens(value: ICustomTokenObject[]);
         private get isRemoveLiquidity();
         private get isAddLiquidity();
-        private getPropertiesSchema;
-        private getThemeSchema;
         private _getActions;
         private getData;
         private setData;
@@ -11028,53 +10836,7 @@ declare module "@scom/scom-amm-pool" {
         getConfigurators(): ({
             name: string;
             target: string;
-            getActions: () => ({
-                name: string;
-                icon: string;
-                command: (builder: any, userInputData: any) => {
-                    execute: () => Promise<void>;
-                    undo: () => void;
-                    redo: () => void;
-                };
-                customUI: {
-                    render: (data?: any, onConfirm?: (result: boolean, data: any) => void) => VStack;
-                };
-                userInputDataSchema?: undefined;
-                userInputUISchema?: undefined;
-            } | {
-                name: string;
-                icon: string;
-                command: (builder: any, userInputData: any) => {
-                    execute: () => Promise<void>;
-                    undo: () => void;
-                    redo: () => void;
-                };
-                userInputDataSchema: IDataSchema;
-                userInputUISchema: {
-                    type: string;
-                    elements: {
-                        type: string;
-                        scope: string;
-                        options: {
-                            detail: {
-                                type: string;
-                            };
-                        };
-                    }[];
-                };
-                customUI?: undefined;
-            } | {
-                name: string;
-                icon: string;
-                command: (builder: any, userInputData: any) => {
-                    execute: () => Promise<void>;
-                    undo: () => void;
-                    redo: () => void;
-                };
-                userInputDataSchema: IDataSchema;
-                customUI?: undefined;
-                userInputUISchema?: undefined;
-            })[];
+            getActions: (category?: string) => any;
             getData: any;
             setData: (data: IPoolConfig) => Promise<void>;
             getTag: any;
@@ -11108,9 +10870,11 @@ declare module "@scom/scom-amm-pool" {
             setTag: any;
             getActions?: undefined;
         })[];
-        private onSetupPage;
+        private initWallet;
+        private initializeWidgetConfig;
         init(): Promise<void>;
         private resetEvents;
+        private connectWallet;
         onHide(): void;
         render(): any;
     }

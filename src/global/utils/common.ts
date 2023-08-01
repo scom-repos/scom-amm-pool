@@ -1,33 +1,21 @@
-import { Wallet, Erc20, BigNumber, ISendTxEventsOptions, Utils } from "@ijstech/eth-wallet";
+import { Wallet, BigNumber, ISendTxEventsOptions, Utils } from "@ijstech/eth-wallet";
 import { Contracts } from "../../contracts/oswap-openswap-contract/index";
 import { ITokenObject } from "@scom/scom-token-list";
-
-export type TokenMapType = { [token: string]: ITokenObject; };
-
-export const isTransactionConfirmed = async (txHash: string) => {
-  const tx = await Wallet.getClientInstance().getTransactionReceipt(txHash);
-  return tx && !!tx.blockNumber;
-}
 
 export const registerSendTxEvents = (sendTxEventHandlers: ISendTxEventsOptions) => {
   const wallet = Wallet.getClientInstance();
   wallet.registerSendTxEvents({
-      transactionHash: (error: Error, receipt?: string) => {
-          if (sendTxEventHandlers.transactionHash) {
-              sendTxEventHandlers.transactionHash(error, receipt);
-          }
-      },
-      confirmation: (receipt: any) => {
-          if (sendTxEventHandlers.confirmation) {
-              sendTxEventHandlers.confirmation(receipt);
-          }
-      },
+    transactionHash: (error: Error, receipt?: string) => {
+      if (sendTxEventHandlers.transactionHash) {
+        sendTxEventHandlers.transactionHash(error, receipt);
+      }
+    },
+    confirmation: (receipt: any) => {
+      if (sendTxEventHandlers.confirmation) {
+        sendTxEventHandlers.confirmation(receipt);
+      }
+    },
   })
-}
-
-export async function getERC20Amount(wallet:Wallet, token:string, decimals:number) { //get token amount in that wallet
-  let erc20 = new Erc20(wallet, token, decimals);
-  return await erc20.balance;
 }
 
 export const approveERC20Max = async (token: ITokenObject, spenderAddress: string, callback?: any, confirmationCallback?: any) => {

@@ -1,16 +1,16 @@
-import { customModule, Module, Styles, Button, Container, customElements, ControlElement, IDataSchema, VStack, Tabs, HStack } from '@ijstech/components';
-import { } from '@ijstech/eth-contract';
-import { Constants, IEventBusRegistry } from '@ijstech/eth-wallet';
+import { customModule, Module, Styles, Button, Container, customElements, ControlElement, VStack, Tabs, HStack, application } from '@ijstech/components';
+import { Constants, IEventBusRegistry, Wallet } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
-import { setDexInfoList, setDataFromConfig, getEmbedderCommissionFee, initRpcWallet, getRpcWallet } from './store/index';
+import { setDexInfoList, setDataFromConfig, getEmbedderCommissionFee, initRpcWallet, getRpcWallet, isClientWalletConnected, isRpcWalletConnected, getChainId } from './store/index';
 import { poolStyle } from './index.css';
 import { ChainNativeTokenByChainId, DefaultERC20Tokens } from '@scom/scom-token-list';
-import { IWalletPlugin } from '@scom/scom-wallet-modal';
+import ScomWalletModal, { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
-import configData from './data.json';
 import { ScomAmmPoolAdd, ScomAmmPoolRemove } from './liquidity/index';
 import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
+import configData from './data.json';
+import formSchema from './formSchema.json';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -40,7 +40,7 @@ export default class ScomAmmPool extends Module {
   private vStackAmmPool: VStack;
   private poolAdd: ScomAmmPoolAdd;
   private poolRemove: ScomAmmPoolRemove;
-  // private configDApp: Config;
+  private mdWallet: ScomWalletModal;
 
   private _data: IPoolConfig = {
     providers: [],
@@ -53,7 +53,7 @@ export default class ScomAmmPool extends Module {
   tag: any = {};
   private rpcWalletEvents: IEventBusRegistry[] = [];
 
-  constructor(parent?: Container, options?: any) {
+  constructor(parent?: Container, options?: ScomAmmPoolElement) {
     super(parent, options);
     setDataFromConfig(configData);
   }
@@ -135,134 +135,9 @@ export default class ScomAmmPool extends Module {
     return this._data?.mode === 'add';
   }
 
-  private getPropertiesSchema() {
-    const propertiesSchema: any = {
-      type: "object",
-      properties: {
-        mode: {
-          type: "string",
-          required: true,
-          enum: [
-            "add",
-            "remove",
-            "both"
-          ]
-        },
-        tokens: {
-          type: "array",
-          required: true,
-          items: {
-            type: "object",
-            properties: {
-              chainId: {
-                type: "number",
-                enum: [1, 56, 137, 250, 97, 80001, 43113, 43114],
-                required: true
-              },
-              address: {
-                type: "string",
-                required: true
-              }
-            }
-          }
-        },
-        providers: {
-          type: "array",
-          required: true,
-          items: {
-            type: "object",
-            properties: {
-              caption: {
-                type: "string",
-                required: true
-              },
-              image: {
-                type: "string",
-                required: true
-              },
-              key: {
-                type: "string",
-                required: true
-              },
-              dexId: {
-                type: "number"
-              },
-              chainId: {
-                type: "number",
-                enum: [1, 56, 137, 250, 97, 80001, 43113, 43114],
-                required: true
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return propertiesSchema;
-  }
-
-  private getThemeSchema(readOnly?: boolean) {
-    const themeSchema: IDataSchema = {
-      type: 'object',
-      properties: {
-        "dark": {
-          type: 'object',
-          properties: {
-            backgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            fontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            inputBackgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            inputFontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            }
-          }
-        },
-        "light": {
-          type: 'object',
-          properties: {
-            backgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            fontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            inputBackgroundColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            },
-            inputFontColor: {
-              type: 'string',
-              format: 'color',
-              readOnly
-            }
-          }
-        }
-      }
-    }
-    return themeSchema;
-  }
-
-  private _getActions(propertiesSchema: IDataSchema, themeSchema: IDataSchema) {
+  private _getActions(category?: string) {
     const self = this;
-    const actions = [
+    const actions: any = [
       {
         name: 'Commissions',
         icon: 'dollar-sign',
@@ -279,13 +154,11 @@ export default class ScomAmmPool extends Module {
             execute: async () => {
               _oldData = { ...this._data };
               if (userInputData.commissions) this._data.commissions = userInputData.commissions;
-              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
               this._data = { ..._oldData };
-              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
@@ -307,7 +180,7 @@ export default class ScomAmmPool extends Module {
               caption: 'Confirm',
               width: '100%',
               height: 40,
-              font: {color: Theme.colors.primary.contrastText}
+              font: { color: Theme.colors.primary.contrastText }
             });
             vstack.append(config);
             vstack.append(hstack);
@@ -318,8 +191,11 @@ export default class ScomAmmPool extends Module {
             return vstack;
           }
         }
-      },
-      {
+      }
+    ];
+
+    if (category && category !== 'offers') {
+      actions.push({
         name: 'Settings',
         icon: 'cog',
         command: (builder: any, userInputData: any) => {
@@ -350,54 +226,22 @@ export default class ScomAmmPool extends Module {
                   }
                 }
               }
-              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             undo: () => {
               this._data = { ..._oldData };
-              // this.configDApp.data = this._data;
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
             redo: () => { }
           }
         },
-        userInputDataSchema: propertiesSchema,
-        userInputUISchema: {
-          type: "Group",
-          elements: [
-            {
-              type: "Control",
-              scope: "#/properties/mode",
-              options: {
-                detail: {
-                  type: "HorizontalLayout"
-                }
-              }
-            },
-            {
-              type: "Control",
-              scope: "#/properties/providers",
-              options: {
-                detail: {
-                  type: "VerticalLayout"
-                }
-              }
-            },
-            {
-              type: "Control",
-              scope: "#/properties/tokens",
-              options: {
-                detail: {
-                  type: "VerticalLayout"
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
+        userInputDataSchema: formSchema.general.dataSchema,
+        userInputUISchema: formSchema.general.uiSchema
+      });
+
+      actions.push({
         name: 'Theme Settings',
         icon: 'palette',
         command: (builder: any, userInputData: any) => {
@@ -420,9 +264,9 @@ export default class ScomAmmPool extends Module {
             redo: () => { }
           }
         },
-        userInputDataSchema: themeSchema
-      }
-    ]
+        userInputDataSchema: formSchema.theme.dataSchema
+      })
+    }
     return actions
   }
 
@@ -432,21 +276,22 @@ export default class ScomAmmPool extends Module {
 
   private async setData(config: IPoolConfig) {
     this.resetEvents();
-    // this.configDApp.data = data;
     this._data = config;
     initRpcWallet(this.defaultChainId);
     const rpcWallet = getRpcWallet();
-    const event = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.Connected, async (connected: boolean) => {
-      console.log(`rpcWallet connected: ${connected}`, this.poolAdd);
+    const connectedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.Connected, async (connected: boolean) => {
       if (this.poolAdd) this.poolAdd.onWalletConnected(connected);
       if (this.poolRemove) this.poolRemove.onWalletConnected(connected);
     });
-    this.rpcWalletEvents.push(event);
-    console.log('rpcWallet.instanceId', rpcWallet.instanceId)
-    const data: any = { 
-      defaultChainId: this.defaultChainId, 
-      wallets: this.wallets, 
-      networks: this.networks, 
+    const chainChangedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.ChainChanged, async (chainId: number) => {
+      if (this.poolAdd) this.poolAdd.onChainChange();
+      if (this.poolRemove) this.poolRemove.onChainChange();
+    });
+    this.rpcWalletEvents.push(connectedEvent, chainChangedEvent);
+    const data = {
+      defaultChainId: this.defaultChainId,
+      wallets: this.wallets,
+      networks: this.networks,
       showHeader: this.showHeader,
       rpcWalletId: rpcWallet.instanceId
     }
@@ -457,7 +302,7 @@ export default class ScomAmmPool extends Module {
   private async refreshUI() {
     const dexList = getDexList();
     setDexInfoList(dexList);
-    await this.onSetupPage();
+    await this.initializeWidgetConfig();
   }
 
   private async getTag() {
@@ -507,10 +352,8 @@ export default class ScomAmmPool extends Module {
       {
         name: 'Builder Configurator',
         target: 'Builders',
-        getActions: () => {
-          const propertiesSchema = this.getPropertiesSchema();
-          const themeSchema = this.getThemeSchema();
-          return this._getActions(propertiesSchema, themeSchema);
+        getActions: (category?: string) => {
+          return this._getActions(category);
         },
         getData: this.getData.bind(this),
         setData: async (data: IPoolConfig) => {
@@ -553,7 +396,7 @@ export default class ScomAmmPool extends Module {
         },
         getData: () => {
           const fee = getEmbedderCommissionFee();
-          return {...this._data, fee}
+          return { ...this._data, fee }
         },
         setData: this.setData.bind(this),
         getTag: this.getTag.bind(this),
@@ -562,7 +405,16 @@ export default class ScomAmmPool extends Module {
     ]
   }
 
-  private async onSetupPage() {
+  private initWallet = async () => {
+    try {
+      await Wallet.getClientInstance().init();
+      const rpcWallet = getRpcWallet();
+      await rpcWallet.init();
+    } catch { }
+  }
+
+  private async initializeWidgetConfig() {
+    await this.initWallet();
     this.vStackAmmPool.clearInnerHTML();
     if (this.isAddLiquidity) {
       this.poolAdd = new ScomAmmPoolAdd(undefined, {
@@ -593,6 +445,12 @@ export default class ScomAmmPool extends Module {
       tabs.add({ caption: 'Remove Liquidity', icon: { name: 'minus-circle', fill: Theme.text.primary }, children: this.poolRemove });
       tabs.activeTabIndex = 0;
     }
+    if (this.poolAdd) {
+      this.poolAdd.connectWallet = () => this.connectWallet();
+    }
+    if (this.poolRemove) {
+      this.poolRemove.connectWallet = () => this.connectWallet();
+    }
   }
 
   async init() {
@@ -619,14 +477,21 @@ export default class ScomAmmPool extends Module {
       rpcWallet.unregisterWalletEvent(event);
     }
     this.rpcWalletEvents = [];
-    if (this.poolAdd) {
-      this.poolAdd.remove()
-      this.poolAdd.onHide()
+  }
+
+  private connectWallet = async () => {
+    if (!isClientWalletConnected()) {
+      await application.loadPackage('@scom/scom-wallet-modal', '*');
+      this.mdWallet.networks = this.networks;
+      this.mdWallet.wallets = this.wallets;
+      this.mdWallet.showModal();
+      return;
     }
-    if (this.poolRemove) {
-      this.poolRemove.remove()
-      this.poolRemove.onHide()
-    }
+    if (!isRpcWalletConnected()) {
+      const chainId = getChainId();
+      const clientWallet = Wallet.getClientInstance();
+      await clientWallet.switchNetwork(chainId);
+    } 
   }
 
   onHide() {
@@ -648,10 +513,10 @@ export default class ScomAmmPool extends Module {
               padding={{ left: '1rem', right: '1rem', top: '0.75rem', bottom: '0.75rem' }}
               border={{ radius: '1rem' }}
               width="100%" maxWidth={520}
-              // background={{ color: Theme.background.modal }}
             />
           </i-panel>
-          {/* <i-scom-amm-pool-config id="configDApp" visible={false} /> */}
+          <i-scom-commission-fee-setup visible={false} />
+          <i-scom-wallet-modal id="mdWallet" wallets={[]} />
         </i-panel>
       </i-scom-dapp-container>
     )

@@ -79,12 +79,40 @@ export const poolStyle = Styles.style({
         'i-tab:not(.disabled).active': {
           backgroundColor: 'transparent',
           borderColor: '#f15e61',
-          color:  '#f15e61',
+          color: '#f15e61',
           $nest: {
             'svg': {
               fill: '#f15e61 !important'
             }
           }
+        }
+      }
+    },
+    'i-scom-token-input': {
+      $nest: {
+        '#gridTokenInput': {
+          padding: '0 !important',
+          background: 'transparent'
+        },
+        '#inputAmount': {
+          paddingInline: 12,
+          background: Theme.input.background
+        },
+        '#pnlTitle i-label': {
+          color: `${Theme.text.primary} !important`,
+          fontSize: '14px !important',
+          fontWeight: 'normal !important'
+        },
+        '#pnlBalance': {
+          marginBottom: '0 !important'
+        },
+        '#btnToken': {
+          paddingRight: '0 !important'
+        },
+        '#btnMax': {
+          background: Theme.background.gradient,
+          color: '#fff !important',
+          height: '1.5375rem !important'
         }
       }
     },
@@ -112,7 +140,7 @@ export const poolStyle = Styles.style({
           borderRadius: '50%',
           padding: '0.25rem'
         },
-        '.modal > * + *': { 
+        '.modal > * + *': {
           marginTop: '1.5em'
         }
       }
