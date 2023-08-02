@@ -1,18 +1,19 @@
-import { customModule, Control, Module, Styles, Input, Button, Panel, Label, Modal, IEventBus, application, Image, Container, customElements, ControlElement, Icon, HStack } from '@ijstech/components';
-import { Result } from '../result/index';
-import { TokenSelection } from '../token-selection/index';
-import { formatNumber, EventId, limitInputNumber, limitDecimals, IERC20ApprovalAction, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
-import { BigNumber, Wallet } from '@ijstech/eth-wallet';
-import { getSlippageTolerance, isWalletConnected, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, getRpcWallet, isRpcWalletConnected } from '../store/index';
+import { customModule, Control, Module, Styles, Button, Panel, Label, Modal, Image, Container, customElements, ControlElement, Icon, HStack } from '@ijstech/components';
+import { formatNumber, limitInputNumber, limitDecimals, IERC20ApprovalAction, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
+import { BigNumber } from '@ijstech/eth-wallet';
+import { getSlippageTolerance, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, getRpcWallet, isRpcWalletConnected, isClientWalletConnected } from '../store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRouterAddress, getCurrentCommissions, getCommissionAmount } from '../API';
 import { ITokenObject, assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
+import ScomTxStatusModal from '@scom/scom-tx-status-modal';
+import ScomTokenInput from '@scom/scom-token-input';
+import { poolAddStyle } from './index.css';
 
 const Theme = Styles.Theme.ThemeVars;
 
 interface ScomAmmPoolAddElement extends ControlElement {
   providers: IProviderUI[];
   tokens?: ICustomTokenObject[];
-  commissions?: ICommissionInfo[]
+  commissions?: ICommissionInfo[];
 }
 
 declare global {
@@ -26,19 +27,15 @@ declare global {
 @customModule
 @customElements('i-scom-amm-pool-add')
 export class ScomAmmPoolAdd extends Module {
-  private firstInput: Input;
-  private secondInput: Input;
   private btnApproveFirstToken: Button;
   private btnApproveSecondToken: Button;
   private btnSupply: Button;
   private confirmSupplyModal: Modal;
-  private resultEl: Result;
-  private firstTokenSelection: TokenSelection;
-  private secondTokenSelection: TokenSelection;
+  private txStatusModal: ScomTxStatusModal;
+  private firstTokenInput: ScomTokenInput;
+  private secondTokenInput: ScomTokenInput;
   private firstToken?: ITokenObject;
   private secondToken?: ITokenObject;
-  private lbFirstBalance: Label;
-  private lbSecondBalance: Label;
   private firstBalance: string = '0';
   private secondBalance: string = '0';
   private lbFirstPrice: Label;
@@ -48,7 +45,6 @@ export class ScomAmmPoolAdd extends Module {
   private lbShareOfPool: Label;
   private isFromEstimated: boolean;
   private approvalModelAction: IERC20ApprovalAction;
-  private $eventBus: IEventBus;
   private firstInputAmount: string = '';
   private secondInputAmount: string = '';
   private firstTokenImage1: Image;
@@ -73,24 +69,19 @@ export class ScomAmmPoolAdd extends Module {
   private lbFirstCommission: Label;
   private lbSecondCommission: Label;
 
-  private lbLabel1: Label;
-  private lbLabel2: Label;
-
   private _data: IPoolDetailConfig = {
     providers: [],
     tokens: [],
   }
   private allTokenBalancesMap: any;
   private isInited: boolean = false;
-  private clientEvents: any = [];
 
   tag: any = {};
   private contractAddress: string;
+  public connectWallet: () => void;
 
   constructor(parent?: Container, options?: ScomAmmPoolAddElement) {
     super(parent, options);
-    this.$eventBus = application.EventBus;
-    this.registerEvent();
   }
 
   static async create(options?: ScomAmmPoolAddElement, parent?: Container) {
@@ -158,19 +149,6 @@ export class ScomAmmPoolAdd extends Module {
     return { providers: _providers };
   }
 
-  private registerEvent() {
-    // this.$eventBus.register(this, EventId.IsWalletConnected, this.onWalletConnect)
-    // this.$eventBus.register(this, EventId.IsWalletDisconnected, this.onWalletDisconnect)
-    this.clientEvents.push(this.$eventBus.register(this, EventId.chainChanged, this.onChainChange))
-  }
-
-  onHide(): void {
-    for (let event of this.clientEvents) {
-      event.unregister();
-    }
-    this.clientEvents = [];
-  }
-
   onWalletConnected = async (connected: boolean) => {
     // if (connected && (this.currentChainId == null || this.currentChainId == undefined)) {
     //   this.onChainChange();
@@ -182,12 +160,7 @@ export class ScomAmmPoolAdd extends Module {
     if (this.originalData?.providers?.length) await this.initializeWidgetConfig(connected);
   }
 
-  // private onWalletDisconnect = async (connected: boolean) => {
-  //   if (!connected)
-  //     await this.onSetupPage(connected);
-  // }
-
-  private onChainChange = async () => {
+  onChainChange = async () => {
     this.updateContractAddress();
     if (this.originalData?.providers?.length) await this.initializeWidgetConfig(true);
     this.updateButtonText();
@@ -201,7 +174,13 @@ export class ScomAmmPoolAdd extends Module {
 
   private async refreshUI() {
     await this.initData();
-    await this.initializeWidgetConfig(isWalletConnected());
+    const instanceId = getRpcWallet()?.instanceId;
+    const inputRpcWalletId = this.firstTokenInput.rpcWalletId;
+    if (instanceId && inputRpcWalletId !== instanceId) {
+      this.firstTokenInput.rpcWalletId = instanceId;
+      this.secondTokenInput.rpcWalletId = instanceId;
+    }
+    await this.initializeWidgetConfig(isClientWalletConnected());
   }
 
   private updateContractAddress = () => {
@@ -242,26 +221,19 @@ export class ScomAmmPoolAdd extends Module {
       const chainId = getChainId();
       tokenStore.updateTokenMapData(chainId);
       if (!this.btnSupply.isConnected) await this.btnSupply.ready();
-      if (!this.lbFirstBalance.isConnected) await this.lbFirstBalance.ready();
-      if (!this.lbSecondBalance.isConnected) await this.lbSecondBalance.ready();
-      if (!this.lbLabel1.isConnected) await this.lbLabel1.ready();
-      if (!this.lbLabel2.isConnected) await this.lbLabel2.ready();
-      if (!this.firstInput.isConnected) await this.firstInput.ready();
-      if (!this.secondInput.isConnected) await this.secondInput.ready();
+      if (!this.firstTokenInput.isConnected) await this.firstTokenInput.ready();
+      if (!this.secondTokenInput.isConnected) await this.secondTokenInput.ready();
       this.resetFirstInput();
       this.resetSecondInput();
       this.updateCommissionInfo();
-      this.firstTokenSelection.isBtnMaxShown = true;
-      this.secondTokenSelection.isBtnMaxShown = true;
-      const tokens = getSupportedTokens(this._data.tokens || [], getChainId());
+      this.firstTokenInput.isBtnMaxShown = true;
+      this.secondTokenInput.isBtnMaxShown = true;
+      const tokens = getSupportedTokens(this._data.tokens || [], chainId);
       const isReadonly = tokens.length === 2;
-      this.firstTokenSelection.disableSelect = isReadonly;
-      this.secondTokenSelection.disableSelect = isReadonly;
-      this.firstTokenSelection.tokenDataListProp = tokens;
-      this.secondTokenSelection.tokenDataListProp = tokens;
-      const label = 'Input';
-      this.lbLabel1.caption = label;
-      this.lbLabel2.caption = label;
+      this.firstTokenInput.tokenReadOnly = isReadonly;
+      this.secondTokenInput.tokenReadOnly = isReadonly;
+      this.firstTokenInput.tokenDataListProp = tokens;
+      this.secondTokenInput.tokenDataListProp = tokens;
       this.setFixedPairData();
       if (connected) {
         try {
@@ -276,7 +248,7 @@ export class ScomAmmPoolAdd extends Module {
           const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
           this.pricePanel.visible = isShown;
           await this.checkPairExists();
-          if (tokens.length >= 2 && new BigNumber(this.firstInput.value).isNaN() && new BigNumber(this.firstInput.value).isNaN()) {
+          if (tokens.length >= 2 && new BigNumber(this.firstTokenInput.value).isNaN() && new BigNumber(this.firstTokenInput.value).isNaN()) {
             this.updateCommissionInfo();
             return;
           }
@@ -288,12 +260,12 @@ export class ScomAmmPoolAdd extends Module {
         this.resetData();
       }
       this.updateCommissionInfo();
-      await Wallet.getClientInstance().init();
     });
   }
 
   private setFixedPairData() {
-    let currentChainTokens = this._data.tokens.filter((token) => token.chainId === getChainId());
+    const chainId = getChainId();
+    let currentChainTokens = this._data.tokens.filter((token) => token.chainId === chainId);
     if (currentChainTokens.length < 2) return;
     const providers = this.originalData?.providers;
     if (providers && providers.length) {
@@ -305,23 +277,23 @@ export class ScomAmmPoolAdd extends Module {
       this.secondToken = tokenStore.tokenMap[toToken];
       this.onUpdateToken(this.firstToken, true);
       this.onUpdateToken(this.secondToken, false);
-      this.firstTokenSelection.token = this.firstToken;
-      this.secondTokenSelection.token = this.secondToken;
+      this.firstTokenInput.token = this.firstToken;
+      this.secondTokenInput.token = this.secondToken;
     }
   }
 
   private async initTokenSelection() {
     if (this.isInited) return;
-    await this.firstTokenSelection.ready();
-    await this.secondTokenSelection.ready();
-    this.firstTokenSelection.disableSelect = false;
-    this.firstTokenSelection.onSelectToken = (token: ITokenObject) => this.onSelectToken(token, true);
-    this.firstTokenSelection.onSetMaxBalance = () => this.setMaxBalance(true);
-    this.firstTokenSelection.isCommonShown = false;
-    this.secondTokenSelection.disableSelect = false;
-    this.secondTokenSelection.onSelectToken = (token: ITokenObject) => this.onSelectToken(token, false);
-    this.secondTokenSelection.onSetMaxBalance = () => this.setMaxBalance(false);
-    this.secondTokenSelection.isCommonShown = false;
+    await this.firstTokenInput.ready();
+    await this.secondTokenInput.ready();
+    this.firstTokenInput.tokenReadOnly = false;
+    this.firstTokenInput.onSelectToken = (token: ITokenObject) => this.onSelectToken(token, true);
+    this.firstTokenInput.onSetMaxBalance = () => this.setMaxBalance(true);
+    this.firstTokenInput.isCommonShown = false;
+    this.secondTokenInput.tokenReadOnly = false;
+    this.secondTokenInput.onSelectToken = (token: ITokenObject) => this.onSelectToken(token, false);
+    this.secondTokenInput.onSetMaxBalance = () => this.setMaxBalance(false);
+    this.secondTokenInput.isCommonShown = false;
     this.isInited = true;
   }
 
@@ -345,33 +317,26 @@ export class ScomAmmPoolAdd extends Module {
     }
     if (this.firstToken) {
       this.firstBalance = this.getBalance(this.firstToken);
-      this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance, 4)} ${this.firstToken.symbol}`;
     } else {
-      this.firstInput.value = '';
+      this.firstTokenInput.value = '';
       this.firstToken = Object.values(tokenStore.tokenMap).find(v => v.isNative);
-      this.firstTokenSelection.token = this.firstToken;
+      this.firstTokenInput.token = this.firstToken;
       this.firstBalance = tokenStore.getTokenBalance(this.firstToken!);
-      this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance)}`;
     }
     if (this.secondToken) {
       this.secondBalance = this.getBalance(this.secondToken);
-      this.lbSecondBalance.caption = `Balance: ${formatNumber(this.secondBalance, 4)} ${this.secondToken.symbol}`;
     } else {
       this.secondToken = undefined;
-      this.secondInput.value = '';
+      this.secondTokenInput.value = '';
       this.secondBalance = '0';
-      this.secondTokenSelection.token = this.secondToken;
-      this.lbSecondBalance.caption = '-';
+      this.secondTokenInput.token = this.secondToken;
     }
   }
 
   private resetData() {
-    this.btnSupply.caption = 'Connect Wallet';
-    this.btnSupply.enabled = false;
+    this.updateButtonText();
     this.btnApproveFirstToken.visible = false;
     this.btnApproveSecondToken.visible = false;
-    this.lbFirstBalance.caption = 'Balance: 0';
-    this.lbSecondBalance.caption = 'Balance: 0';
     this.initTokenSelection();
   }
 
@@ -383,12 +348,18 @@ export class ScomAmmPoolAdd extends Module {
   private updateButtonText() {
     if (!this.btnSupply || !this.btnSupply.hasChildNodes()) return;
     this.btnSupply.enabled = false;
-    if (!isWalletConnected()) {
+    if (!isClientWalletConnected()) {
+      this.btnSupply.enabled = true;
       this.btnSupply.caption = 'Connect Wallet';
       return;
     }
-    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstInput.value || 0));
-    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondInput.value || 0));
+    if (!isRpcWalletConnected()) {
+      this.btnSupply.enabled = true;
+      this.btnSupply.caption = 'Switch Network';
+      return;
+    }
+    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstTokenInput.value || 0));
+    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondTokenInput.value || 0));
     if (this.btnSupply.rightIcon.visible) {
       this.btnSupply.caption = 'Loading';
     } else if (
@@ -397,13 +368,13 @@ export class ScomAmmPoolAdd extends Module {
       [this.firstToken?.symbol, this.secondToken?.symbol].every(v => v === 'ETH' || v === 'WETH')
     ) {
       this.btnSupply.caption = 'Invalid Pair';
-    } else if (new BigNumber(this.firstInput.value).isZero() || new BigNumber(this.secondInput.value).isZero()) {
+    } else if (new BigNumber(this.firstTokenInput.value).isZero() || new BigNumber(this.secondTokenInput.value).isZero()) {
       this.btnSupply.caption = 'Enter Amount';
-    } else if (new BigNumber(this.firstInput.value).plus(firstCommissionAmount).gt(this.firstBalance)) {
+    } else if (new BigNumber(this.firstTokenInput.value).plus(firstCommissionAmount).gt(this.firstBalance)) {
       this.btnSupply.caption = `Insufficient ${this.firstToken?.symbol} balance`;
-    } else if (new BigNumber(this.secondInput.value).plus(secondCommissionAmount).gt(this.secondBalance)) {
+    } else if (new BigNumber(this.secondTokenInput.value).plus(secondCommissionAmount).gt(this.secondBalance)) {
       this.btnSupply.caption = `Insufficient ${this.secondToken?.symbol} balance`;
-    } else if (new BigNumber(this.firstInput.value).gt(0) && new BigNumber(this.secondInput.value).gt(0)) {
+    } else if (new BigNumber(this.firstTokenInput.value).gt(0) && new BigNumber(this.secondTokenInput.value).gt(0)) {
       this.btnSupply.caption = 'Supply';
       this.btnSupply.enabled = !(this.btnApproveFirstToken.visible || this.btnApproveSecondToken.visible);
     } else {
@@ -414,24 +385,24 @@ export class ScomAmmPoolAdd extends Module {
   private onCheckInput(value: string) {
     const inputValue = new BigNumber(value);
     if (inputValue.isNaN()) {
-      this.firstInput.value = '';
+      this.firstTokenInput.value = '';
       this.firstInputAmount = '0';
-      this.secondInput.value = '';
+      this.secondTokenInput.value = '';
       this.secondInputAmount = '0';
       return false;
     }
     return inputValue.gt(0);
   }
 
-  private async handleInputChange(source: Control) {
-    let amount = (source as Input).value;
-    if (source == this.firstInput) {
-      limitInputNumber(this.firstInput, this.firstTokenDecimals);
-      amount = this.firstInput.value;
+  private async handleInputChange(isFrom?: boolean) {
+    let amount: string;
+    if (isFrom) {
+      limitInputNumber(this.firstTokenInput, this.firstTokenDecimals);
+      amount = this.firstTokenInput.value;
       if (this.firstInputAmount === amount) return;
     } else {
-      limitInputNumber(this.secondInput, this.secondTokenDecimals);
-      amount = this.secondInput.value;
+      limitInputNumber(this.secondTokenInput, this.secondTokenDecimals);
+      amount = this.secondTokenInput.value;
       if (this.secondInputAmount === amount) return;
     }
     if (!this.onCheckInput(amount)) {
@@ -440,11 +411,11 @@ export class ScomAmmPoolAdd extends Module {
     };
     this.updateButton(true);
     try {
-      this.isFromEstimated = source === this.secondInput;
-      if (source === this.firstInput)
-        this.firstInputAmount = this.firstInput.value;
-      else if (source === this.secondInput)
-        this.secondInputAmount = this.secondInput.value;
+      this.isFromEstimated = !isFrom;
+      if (isFrom)
+        this.firstInputAmount = this.firstTokenInput.value;
+      else
+        this.secondInputAmount = this.secondTokenInput.value;
       await this.checkPairExists();
       await this.callAPIBundle(true);
       this.updateButton(false);
@@ -453,16 +424,15 @@ export class ScomAmmPoolAdd extends Module {
     }
   }
 
-  private async handleEnterAmount(source: Control) {
-    await this.handleInputChange(source);
+  private async handleEnterAmount(isFrom?: boolean) {
+    await this.handleInputChange(isFrom);
     this.updateCommissionInfo();
   }
 
   private resetFirstInput() {
     this.firstToken = undefined;
     this.firstBalance = '0';
-    this.lbFirstBalance.caption = '-';
-    this.firstInput.value = '';
+    this.firstTokenInput.value = '';
     this.btnApproveFirstToken.visible = false;
     this.btnApproveSecondToken.visible = false;
   }
@@ -470,14 +440,13 @@ export class ScomAmmPoolAdd extends Module {
   private resetSecondInput() {
     this.secondToken = undefined;
     this.secondBalance = '0';
-    this.lbSecondBalance.caption = '-';
-    this.secondInput.value = '';
+    this.secondTokenInput.value = '';
     this.btnApproveFirstToken.visible = false;
     this.btnApproveSecondToken.visible = false;
   }
 
   private async setMaxBalance(isFrom: boolean) {
-    if (!isWalletConnected()) return;
+    if (!isClientWalletConnected()) return;
     this.isFromEstimated = !isFrom;
     const balance = new BigNumber(isFrom ? this.firstBalance : this.secondBalance);
     let inputVal = balance;
@@ -489,11 +458,11 @@ export class ScomAmmPoolAdd extends Module {
     if (isFrom) {
       const maxVal = limitDecimals(inputVal, this.firstTokenDecimals);
       this.firstInputAmount = maxVal;
-      this.firstInput.value = maxVal;
+      this.firstTokenInput.value = maxVal;
     } else {
       const maxVal = limitDecimals(inputVal, this.secondTokenDecimals);
       this.secondInputAmount = maxVal;
-      this.secondInput.value = maxVal;
+      this.secondTokenInput.value = maxVal;
     }
     if (!this.onCheckInput(balance.toFixed())) {
       this.updateButtonText();
@@ -512,8 +481,8 @@ export class ScomAmmPoolAdd extends Module {
   private updateButton(status: boolean) {
     this.btnSupply.rightIcon.visible = status;
     this.updateButtonText();
-    this.firstTokenSelection.enabled = !status;
-    this.secondTokenSelection.enabled = !status;
+    this.firstTokenInput.enabled = !status;
+    this.secondTokenInput.enabled = !status;
   }
 
   private async onUpdateToken(token: ITokenObject, isFrom: boolean) {
@@ -522,37 +491,33 @@ export class ScomAmmPoolAdd extends Module {
     if (isFrom) {
       this.firstToken = token;
       if (this.secondToken?.symbol === symbol) {
-        this.secondTokenSelection.token = undefined;
+        this.secondTokenInput.token = undefined;
         this.resetSecondInput();
-        if (this.firstInput.isConnected) this.firstInput.value = '';
+        if (this.firstTokenInput.isConnected) this.firstTokenInput.value = '';
         this.firstInputAmount = '';
       } else {
         const limit = limitDecimals(this.firstInputAmount, token.decimals || 18);
         if (!new BigNumber(this.firstInputAmount).eq(limit)) {
-          if (this.firstInput.isConnected) this.firstInput.value = limit;
+          if (this.firstTokenInput.isConnected) this.firstTokenInput.value = limit;
           this.firstInputAmount = limit;
         }
       }
       this.firstBalance = balance;
-      if (this.lbFirstBalance.isConnected)
-        this.lbFirstBalance.caption = `Balance: ${formatNumber(balance)}`;
     } else {
       this.secondToken = token;
       if (this.firstToken?.symbol === symbol) {
-        this.firstTokenSelection.token = undefined;
+        this.firstTokenInput.token = undefined;
         this.resetFirstInput();
-        if (this.secondInput.isConnected) this.secondInput.value = '';
+        if (this.secondTokenInput.isConnected) this.secondTokenInput.value = '';
         this.secondInputAmount = '';
       } else {
         const limit = limitDecimals(this.secondInputAmount || '0', token.decimals || 18);
         if (!new BigNumber(this.secondInputAmount).eq(limit)) {
-          if (this.secondInput.isConnected) this.secondInput.value = limit;
+          if (this.secondTokenInput.isConnected) this.secondTokenInput.value = limit;
           this.secondInputAmount = limit;
         }
       }
       this.secondBalance = balance;
-      if (this.lbSecondBalance.isConnected)
-        this.lbSecondBalance.caption = `Balance: ${formatNumber(balance)}`;
     }
     this.updateCommissionInfo();
   }
@@ -587,7 +552,7 @@ export class ScomAmmPoolAdd extends Module {
 
   private handleApprove(source: Control) {
     if (source === this.btnApproveFirstToken) {
-      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.firstToken?.symbol} allowance`);
+      this.showTxStatusModal('warning', `Approving ${this.firstToken?.symbol} allowance`);
       this.btnApproveFirstToken.rightIcon.visible = true;
       if (this.firstToken) {
         this.approvalModelAction.doApproveAction(this.firstToken, this.firstInputAmount);
@@ -595,7 +560,7 @@ export class ScomAmmPoolAdd extends Module {
       this.btnApproveFirstToken.rightIcon.visible = false;
     }
     else if (source === this.btnApproveSecondToken) {
-      this.showResultMessage(this.resultEl, 'warning', `Approving ${this.secondToken?.symbol} allowance`);
+      this.showTxStatusModal('warning', `Approving ${this.secondToken?.symbol} allowance`);
       this.btnApproveSecondToken.rightIcon.visible = true;
       if (this.secondToken) {
         this.approvalModelAction.doApproveAction(this.secondToken, this.secondInputAmount);
@@ -608,7 +573,11 @@ export class ScomAmmPoolAdd extends Module {
     this.handleSupply();
   }
 
-  private handleSupply() {
+  private async handleSupply() {
+    if (!isClientWalletConnected() || !isRpcWalletConnected()) {
+      this.connectWallet();
+      return;
+    }
     if (!this.firstToken || !this.secondToken) return;
     const chainId = getChainId();
     this.firstTokenImage1.url = this.firstTokenImage2.url = tokenAssets.tokenPath(this.firstToken, chainId);
@@ -620,7 +589,7 @@ export class ScomAmmPoolAdd extends Module {
     this.lbFirstInput.caption = formatNumber(firstAmount.plus(firstCommissionAmount), 4);
     this.lbSecondInput.caption = formatNumber(secondAmount.plus(secondCommissionAmount), 4);
     this.lbPoolTokensTitle.caption = `${this.firstToken.symbol}/${this.secondToken.symbol} Pool Tokens`;
-    this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${getSlippageTolerance()}% your transaction will revert.`
+    this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${getSlippageTolerance()}% your transaction will revert.`;
     this.lbFirstDeposited.caption = `${this.firstToken.symbol} Deposited`;
     this.lbSecondDeposited.caption = `${this.secondToken.symbol} Deposited`;
     this.lbSummaryFirstPrice.caption = `1 ${this.secondToken.symbol} = ${this.lbFirstPrice.caption} ${this.firstToken.symbol}`;
@@ -635,7 +604,7 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private onSubmit() {
-    this.showResultMessage(this.resultEl, 'warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
+    this.showTxStatusModal('warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
     if (this.isFromEstimated) {
       addLiquidity(
         this.secondToken,
@@ -657,7 +626,7 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private async initApprovalModelAction() {
-    if (!isWalletConnected()) return;
+    if (!isClientWalletConnected()) return;
     this.approvalModelAction = await getApprovalModelAction({
       sender: this,
       payAction: async () => {
@@ -697,7 +666,7 @@ export class ScomAmmPoolAdd extends Module {
           this.btnApproveSecondToken.caption = `Approving ${token.symbol}`;
         }
         if (receipt) {
-          this.showResultMessage(this.resultEl, 'success', receipt);
+          this.showTxStatusModal('success', receipt);
         }
       },
       onApproved: async (token: ITokenObject) => {
@@ -712,11 +681,11 @@ export class ScomAmmPoolAdd extends Module {
         this.updateButtonText();
       },
       onApprovingError: async (token: ITokenObject, err: Error) => {
-        this.showResultMessage(this.resultEl, 'error', err);
+        this.showTxStatusModal('error', err);
       },
       onPaying: async (receipt?: string) => {
         if (receipt) {
-          this.showResultMessage(this.resultEl, 'success', receipt);
+          this.showTxStatusModal('success', receipt);
         }
         this.confirmSupplyModal.visible = false;
         this.btnSupply.rightIcon.visible = true;
@@ -725,16 +694,14 @@ export class ScomAmmPoolAdd extends Module {
         await tokenStore.updateAllTokenBalances(getRpcWallet());
         if (this.firstToken) {
           this.firstBalance = tokenStore.getTokenBalance(this.firstToken);
-          this.lbFirstBalance.caption = `Balance: ${formatNumber(this.firstBalance)}`;
         }
         if (this.secondToken) {
           this.secondBalance = tokenStore.getTokenBalance(this.secondToken);
-          this.lbSecondBalance.caption = `Balance: ${formatNumber(this.secondBalance)}`;
         }
         this.btnSupply.rightIcon.visible = false;
       },
       onPayingError: async (err: Error) => {
-        this.showResultMessage(this.resultEl, 'error', err);
+        this.showTxStatusModal('error', err);
         this.btnSupply.rightIcon.visible = false;
       }
     }, this.contractAddress);
@@ -766,22 +733,22 @@ export class ScomAmmPoolAdd extends Module {
       let newShareInfo;
       let invalidVal = false;
       if (this.isFromEstimated) {
-        invalidVal = new BigNumber(this.firstInput.value).isNaN();
-        newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
+        invalidVal = new BigNumber(this.firstTokenInput.value).isNaN();
+        newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         const val = limitDecimals(newShareInfo?.quote || '0', this.firstTokenDecimals);
         this.firstInputAmount = val;
-        this.firstInput.value = val;
+        this.firstTokenInput.value = val;
         if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondInput.value, this.firstInput.value, this.secondInput.value);
+          newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
       }
       else {
-        invalidVal = new BigNumber(this.secondInput.value).isNaN();
-        newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
+        invalidVal = new BigNumber(this.secondTokenInput.value).isNaN();
+        newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         const val = limitDecimals(newShareInfo?.quote || '0', this.secondTokenDecimals);
         this.secondInputAmount = val;
-        this.secondInput.value = val;
+        this.secondTokenInput.value = val;
         if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstInput.value, this.firstInput.value, this.secondInput.value);
+          newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
       }
       if (!newShareInfo) {
         this.lbFirstPrice.caption = '0';
@@ -818,17 +785,17 @@ export class ScomAmmPoolAdd extends Module {
         this.lbSecondPrice.caption = formatNumber(price1, 3);
         this.lbShareOfPool.caption = `${formatNumber(shareOfPool, 2)}%`;
         if (this.isFromEstimated) {
-          if (new BigNumber(this.secondInput.value).gt(0)) {
-            const price = new BigNumber(price1).multipliedBy(this.secondInput.value).toFixed();
+          if (new BigNumber(this.secondTokenInput.value).gt(0)) {
+            const price = new BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
             const val = limitDecimals(price, this.firstTokenDecimals);
-            this.firstInput.value = val;
+            this.firstTokenInput.value = val;
             this.firstInputAmount = val;
           }
         } else {
-          if (new BigNumber(this.firstInput.value).gt(0)) {
-            const price = new BigNumber(price0).multipliedBy(this.firstInput.value).toFixed();
+          if (new BigNumber(this.firstTokenInput.value).gt(0)) {
+            const price = new BigNumber(price0).multipliedBy(this.firstTokenInput.value).toFixed();
             const val = limitDecimals(price, this.secondTokenDecimals);
-            this.secondInput.value = val;
+            this.secondTokenInput.value = val;
             this.secondInputAmount = val;
           }
         }
@@ -856,21 +823,21 @@ export class ScomAmmPoolAdd extends Module {
     this.pnlCreatePairMsg.visible = value;
   }
 
-  private showResultMessage = (result: Result, status: 'warning' | 'success' | 'error', content?: string | Error) => {
-    if (!result) return;
+  private showTxStatusModal = (status: 'warning' | 'success' | 'error', content?: string | Error) => {
+    if (!this.txStatusModal) return;
     let params: any = { status };
     if (status === 'success') {
       params.txtHash = content;
     } else {
       params.content = content;
     }
-    result.message = { ...params };
-    result.showModal();
+    this.txStatusModal.message = { ...params };
+    this.txStatusModal.showModal();
   }
 
   render() {
     return (
-      <i-panel>
+      <i-panel class={poolAddStyle}>
         <i-panel>
           <i-vstack
             id="pnlCreatePairMsg" visible={false}
@@ -889,14 +856,7 @@ export class ScomAmmPoolAdd extends Module {
             margin={{ top: 10, bottom: 10 }}
             gap="0.5rem"
           >
-            <i-hstack horizontalAlignment="space-between">
-              <i-label id="lbLabel1" caption='' />
-              <i-label id="lbFirstBalance" font={{ color: Theme.colors.warning.main }} caption="-" />
-            </i-hstack>
-            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
-              <i-input id="firstInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
-              <i-scom-amm-pool-token-selection width="auto" id="firstTokenSelection" />
-            </i-hstack>
+            <i-scom-token-input id="firstTokenInput" title="Input" width="100%" isCommonShown={false} onInputAmountChanged={() => this.handleEnterAmount(true)} />
           </i-vstack>
           <i-hstack horizontalAlignment="center">
             <i-icon width={20} height={20} name="plus" fill="#fff" />
@@ -907,14 +867,7 @@ export class ScomAmmPoolAdd extends Module {
             margin={{ top: 10, bottom: 10 }}
             gap="0.5rem"
           >
-            <i-hstack horizontalAlignment="space-between">
-              <i-label id="lbLabel2" caption='' />
-              <i-label id="lbSecondBalance" font={{ color: Theme.colors.warning.main }} caption="-" />
-            </i-hstack>
-            <i-hstack horizontalAlignment="space-between" verticalAlignment="center" gap={10}>
-              <i-input id="secondInput" class="bg-transparent" height={30} placeholder='0.0' onChanged={this.handleEnterAmount} />
-              <i-scom-amm-pool-token-selection width="auto" id="secondTokenSelection" />
-            </i-hstack>
+            <i-scom-token-input id="secondTokenInput" title="Input" width="100%" isCommonShown={false} onInputAmountChanged={() => this.handleEnterAmount()} />
           </i-vstack>
           <i-hstack id="hStackCommissionInfo" verticalAlignment="start" gap={10} wrap="wrap">
             <i-hstack gap={4} verticalAlignment="center">
@@ -1024,7 +977,7 @@ export class ScomAmmPoolAdd extends Module {
           </i-hstack>
           <i-button class="btn-swap" height="auto" caption="Confirm Supply" onClick={this.handleConfirmSupply} />
         </i-modal>
-        <i-scom-amm-pool-result id="resultEl" />
+        <i-scom-tx-status-modal id="txStatusModal" />
       </i-panel>
     )
   }

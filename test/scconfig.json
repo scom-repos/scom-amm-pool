@@ -1,6 +1,6 @@
 {
   "env": "testnet",
-  "main": "@scom/dapp",
+  "main": "@modules/module1",
   "assets": "@modules/assets",
   "moduleDir": "modules",
   "modules": {
@@ -12,7 +12,6 @@
     }
   },
   "dependencies": {
-    "@scom/dapp": "*",
     "@scom/scom-amm-pool": "*",
     "@scom/scom-dapp-container": "*",
     "@scom/scom-dex-list": "*",
@@ -74,5 +73,6 @@
     "tablet": 1280,
     "desktop": 1920
   },
-  "showThemeButton": true
+  "showThemeButton": true,
+  "infuraId": "928992396bec4e7ea3b68b0e2d6ee4fe"
 }

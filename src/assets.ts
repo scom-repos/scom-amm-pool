@@ -7,6 +7,5 @@ function fullPath(path: string): string {
 };
 
 export default {
-  logo: fullPath('img/logo.svg'),
   fullPath
 };

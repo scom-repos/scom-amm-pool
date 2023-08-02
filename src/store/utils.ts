@@ -1,31 +1,17 @@
-import { application } from '@ijstech/components';
-import { Wallet } from '@ijstech/eth-wallet';
-import { EventId, IProvider, IExtendedNetwork } from '../global/index';
-import { ChainNativeTokenByChainId, ITokenObject } from '@scom/scom-token-list';
+import { INetwork, Wallet } from '@ijstech/eth-wallet';
 import getNetworkList from '@scom/scom-network-list'
 import { IDexInfo } from '@scom/scom-dex-list';
-
-export enum WalletPlugin {
-  MetaMask = 'metamask',
-  WalletConnect = 'walletconnect',
-}
 
 export type ProxyAddresses = { [key: number]: string };
 
 export const state = {
-  currentChainId: 0,
   slippageTolerance: 0.5,
   transactionDeadline: 30,
-  userTokens: {} as { [key: string]: ITokenObject[] },
   infuraId: "",
-  networkMap: {} as { [key: number]: IExtendedNetwork },
+  networkMap: {} as { [key: number]: INetwork },
   dexInfoList: [] as IDexInfo[],
-  providerList: [] as IProvider[],
-  ipfsGatewayUrl: "",
-  apiGatewayUrls: {} as Record<string, string>,
   proxyAddresses: {} as ProxyAddresses,
   embedderCommissionFee: "0",
-  tokens: [],
   rpcWalletId: ""
 }
 
@@ -35,12 +21,6 @@ export const setDataFromConfig = (options: any) => {
   }
   if (options.networks) {
     setNetworkList(options.networks, options.infuraId)
-  }
-  if (options.ipfsGatewayUrl) {
-    setIPFSGatewayUrl(options.ipfsGatewayUrl);
-  }
-  if (options.apiGatewayUrls) {
-    setAPIGatewayUrls(options.apiGatewayUrls);
   }
   if (options.proxyAddresses) {
     setProxyAddresses(options.proxyAddresses)
@@ -71,26 +51,6 @@ export const getEmbedderCommissionFee = () => {
   return state.embedderCommissionFee;
 }
 
-export const setIPFSGatewayUrl = (url: string) => {
-  state.ipfsGatewayUrl = url;
-}
-
-export const getIPFSGatewayUrl = () => {
-  return state.ipfsGatewayUrl;
-}
-
-export const setAPIGatewayUrls = (urls: Record<string, string>) => {
-  state.apiGatewayUrls = urls;
-}
-
-export const setCurrentChainId = (value: number) => {
-  state.currentChainId = value;
-}
-
-export const getCurrentChainId = (): number => {
-  return state.currentChainId;
-}
-
 export const getSlippageTolerance = (): any => {
   return state.slippageTolerance
 };
@@ -115,7 +75,7 @@ export const getInfuraId = () => {
   return state.infuraId;
 }
 
-const setNetworkList = (networkList: IExtendedNetwork[], infuraId?: string) => {
+const setNetworkList = (networkList: INetwork[], infuraId?: string) => {
   const wallet = Wallet.getClientInstance();
   state.networkMap = {};
   const defaultNetworkList = getNetworkList();
@@ -139,65 +99,6 @@ const setNetworkList = (networkList: IExtendedNetwork[], infuraId?: string) => {
   }
 }
 
-export const getSupportedNetworks = () => {
-  return Object.values(state.networkMap);
-}
-
-export const getNetworkInfo = (chainId: number) => {
-  return state.networkMap[chainId];
-}
-
-interface NetworkConditions {
-  isDisabled?: boolean,
-  isTestnet?: boolean,
-  isMainChain?: boolean
-}
-
-function matchFilter<O extends { [keys: string]: any }>(list: O[], filter: Partial<O>): O[] {
-  let filters = Object.keys(filter);
-  return list.filter(item => filters.every(f => {
-    switch (typeof filter[f]) {
-      case 'boolean':
-        if (filter[f] === false) {
-          return item[f] === undefined || item[f] === null;
-        }
-      // also case for filter[f] === true 
-      case 'string':
-      case 'number':
-        return filter[f] === item[f];
-      case 'object': // have not implemented yet
-      default:
-        console.log(`matchFilter do not support ${typeof filter[f]} yet!`)
-        return false;
-    }
-  }));
-}
-
-export const getMatchNetworks = (conditions: NetworkConditions): IExtendedNetwork[] => {
-  let networkFullList = Object.values(state.networkMap);
-  let out = matchFilter(networkFullList, conditions);
-  return out;
-}
-
-export const getNetworkExplorerName = (chainId: number) => {
-  if (getNetworkInfo(chainId)) {
-    return getNetworkInfo(chainId).explorerName;
-  }
-  return 'Unknown';
-}
-
-export const setUserTokens = (token: ITokenObject, chainId: number) => {
-  if (!state.userTokens[chainId]) {
-    state.userTokens[chainId] = [token];
-  } else {
-    state.userTokens[chainId].push(token);
-  }
-}
-
-export const hasUserToken = (address: string, chainId: number) => {
-  return state.userTokens[chainId]?.some((token: ITokenObject) => token.address?.toLocaleLowerCase() === address?.toLocaleLowerCase());
-}
-
 export const setDexInfoList = (value: IDexInfo[]) => {
   state.dexInfoList = value;
 }
@@ -206,68 +107,3 @@ export const getDexInfoList = () => {
   return state.dexInfoList || [];
 }
 
-export const setProviderList = (value: IProvider[]) => {
-  state.providerList = value;
-}
-
-export const getProviderList = () => {
-  return state.providerList || [];
-}
-
-export const getProviderByKey = (providerKey: string) => {
-  const providers = state.providerList || [];
-  return providers.find(item => item.key === providerKey) || null;
-}
-
-export const viewOnExplorerByTxHash = (chainId: number, txHash: string) => {
-  let network = getNetworkInfo(chainId);
-  if (network && network.explorerTxUrl) {
-    let url = `${network.explorerTxUrl}${txHash}`;
-    window.open(url);
-  }
-}
-
-export const viewOnExplorerByAddress = (chainId: number, address: string) => {
-  let network = getNetworkInfo(chainId);
-  if (network && network.explorerAddressUrl) {
-    let url = `${network.explorerAddressUrl}${address}`;
-    window.open(url);
-  }
-}
-
-// wallet
-export function getWalletProvider() {
-  return localStorage.getItem('walletProvider') || '';
-}
-
-export function isWalletConnected() {
-  const wallet = Wallet.getClientInstance();
-  return wallet.isConnected;
-}
-
-export async function switchNetwork(chainId: number) {
-  const wallet = Wallet.getClientInstance();
-  if (!isWalletConnected()) {
-    setCurrentChainId(chainId);
-    wallet.chainId = chainId;
-    application.EventBus.dispatch(EventId.chainChanged, chainId);
-    return;
-  }
-  if (wallet?.clientSideProvider?.name === WalletPlugin.MetaMask) {
-    await wallet.switchNetwork(chainId);
-  }
-}
-
-export const hasMetaMask = function () {
-  const wallet = Wallet.getClientInstance();
-  return wallet?.clientSideProvider?.name === WalletPlugin.MetaMask;
-}
-
-export const truncateAddress = (address: string) => {
-  if (address === undefined || address === null) return '';
-  return address.substr(0, 6) + '...' + address.substr(-4);
-}
-
-export const getChainNativeToken = (chainId: number): ITokenObject => {
-  return ChainNativeTokenByChainId[chainId];
-};

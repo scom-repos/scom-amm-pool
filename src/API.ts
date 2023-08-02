@@ -12,7 +12,8 @@ import {
   getSlippageTolerance, 
   getTransactionDeadline,
   getChainId,
-  getProxyAddress
+  getProxyAddress,
+  getRpcWallet
 } from "./store/index";
 import getDexList from '@scom/scom-dex-list';
 import { ITokenObject } from "@scom/scom-token-list";
@@ -157,7 +158,7 @@ const getPrices = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
 }
 
 const getUserShare = async (pairTokenInfo: IAmmPairToken) => {
-  const wallet = Wallet.getClientInstance();
+  const wallet = getRpcWallet();
   let chainId = getChainId();
   let {pair, tokenA, tokenB, balance} = pairTokenInfo;
   if (!pair) {
@@ -220,7 +221,7 @@ const getRemoveLiquidityInfo = async (tokenA: ITokenObject, tokenB: ITokenObject
 }
 
 const getPairFromTokens = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let wallet = Wallet.getClientInstance();
+  let wallet = getRpcWallet();
   let chainId = getChainId();
   const factoryAddress = getFactoryAddress(chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
@@ -259,7 +260,7 @@ const getPricesInfo = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
   if (!pricesData) return null;
 
   let {pair, price0, price1} = pricesData;
-  let wallet = Wallet.getClientInstance();
+  let wallet = getRpcWallet();
   let balance = await pair.balanceOf(wallet.address);
   let totalSupply = await pair.totalSupply();
 
@@ -287,7 +288,7 @@ const calculateNewPairShareInfo = (tokenA: ITokenObject, tokenB: ITokenObject, a
 }
 
 const getNewShareInfo = async (tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => {
-  let wallet = Wallet.getClientInstance();
+  let wallet = getRpcWallet();
   let chainId = getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
@@ -560,7 +561,7 @@ const getApprovalModelAction = async (options: IERC20ApprovalEventOptions, spend
 }
 
 const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => {
-  let wallet = Wallet.getClientInstance();
+  let wallet = getRpcWallet();
   let chainId = getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
@@ -612,7 +613,7 @@ const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidi
 }
 
 const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => {
-  let wallet: any = Wallet.getClientInstance();
+  let wallet = getRpcWallet();
   let chainId = getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
