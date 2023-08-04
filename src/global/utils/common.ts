@@ -1,5 +1,5 @@
 import { Wallet, BigNumber, ISendTxEventsOptions, Utils } from "@ijstech/eth-wallet";
-import { Contracts } from "../../contracts/oswap-openswap-contract/index";
+import { Contracts } from "@scom/oswap-openswap-contract";
 import { ITokenObject } from "@scom/scom-token-list";
 
 export const registerSendTxEvents = (sendTxEventHandlers: ISendTxEventsOptions) => {

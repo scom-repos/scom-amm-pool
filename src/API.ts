@@ -1,7 +1,7 @@
 import { Wallet, BigNumber, Utils, TransactionReceipt } from "@ijstech/eth-wallet";
 import {} from '@ijstech/eth-contract';
-import { Contracts } from "./contracts/oswap-openswap-contract/index";
-import { Contracts as ProxyContracts } from './contracts/scom-commission-proxy-contract/index';
+import { Contracts } from "@scom/oswap-openswap-contract";
+import { Contracts as ProxyContracts } from '@scom/scom-commission-proxy-contract';
 import {
   IERC20ApprovalEventOptions,
   ERC20ApprovalModel,
@@ -85,8 +85,8 @@ const FEE_BASE = 10**5
 
 const mintFee = async (factory: Contracts.OSWAP_Factory, pair: Contracts.OSWAP_Pair, totalSupply: BigNumber, reserve0: BigNumber, reserve1: BigNumber) => {
   let protocolFeeParams = await factory.protocolFeeParams();
-  let protocolFee = new BigNumber(protocolFeeParams._protocolFee);
-  let protocolFeeTo = protocolFeeParams._protocolFeeTo;
+  let protocolFee = new BigNumber(protocolFeeParams.protocolFee);
+  let protocolFeeTo = protocolFeeParams.protocolFeeTo;
   if (protocolFeeTo != Utils.nullAddress) {
     let kLast = await pair.kLast();
     if (!kLast.eq(0)) {
@@ -179,12 +179,12 @@ const getUserShare = async (pairTokenInfo: IAmmPairToken) => {
   let reserve0: BigNumber;
   let reserve1: BigNumber;
   if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
-    reserve0 = reserve._reserve0;
-    reserve1 = reserve._reserve1;
+    reserve0 = reserve.reserve0;
+    reserve1 = reserve.reserve1;
   }
   else {
-    reserve0 = reserve._reserve1;
-    reserve1 = reserve._reserve0;
+    reserve0 = reserve.reserve1;
+    reserve1 = reserve.reserve0;
   }
   let share = new BigNumber(balance).div(totalSupply);
 
@@ -243,13 +243,13 @@ const getReserves = async (pair: Contracts.OSWAP_Pair, tokenA: ITokenObject, tok
   let reserve = await pair.getReserves();
   if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())){
       reserveObj = {
-          reserveA: reserve._reserve0, 
-          reserveB: reserve._reserve1
+          reserveA: reserve.reserve0, 
+          reserveB: reserve.reserve1
       };
   } else {
       reserveObj = {
-          reserveA: reserve._reserve1, 
-          reserveB: reserve._reserve0
+          reserveA: reserve.reserve1, 
+          reserveB: reserve.reserve0
       };
   }  
   return reserveObj;
@@ -582,12 +582,12 @@ const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidi
   let reserve0: BigNumber;
   let reserve1: BigNumber;
   if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
-    reserve0 = reserve._reserve0;
-    reserve1 = reserve._reserve1;
+    reserve0 = reserve.reserve0;
+    reserve1 = reserve.reserve1;
   }
   else {
-    reserve0 = reserve._reserve1;
-    reserve1 = reserve._reserve0;
+    reserve0 = reserve.reserve1;
+    reserve1 = reserve.reserve0;
   }
 
   totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
@@ -633,12 +633,12 @@ const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObje
   let reserve0: BigNumber;
   let reserve1: BigNumber;
   if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
-    reserve0 = reserve._reserve0;
-    reserve1 = reserve._reserve1;
+    reserve0 = reserve.reserve0;
+    reserve1 = reserve.reserve1;
   }
   else {
-    reserve0 = reserve._reserve1;
-    reserve1 = reserve._reserve0;
+    reserve0 = reserve.reserve1;
+    reserve1 = reserve.reserve0;
   }
   totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
 

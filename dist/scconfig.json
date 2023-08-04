@@ -5,12 +5,14 @@
     "dependencies": [
         "@ijstech/components",
         "@ijstech/eth-wallet",
-        "@ijstech/eth-contract",
+        "@scom/oswap-openswap-contract",
         "@scom/scom-token-list",
         "@scom/scom-wallet-modal",
         "@scom/scom-network-list",
         "@scom/scom-dex-list",
         "@scom/scom-dapp-container",
+        "@ijstech/eth-contract",
+        "@scom/scom-commission-proxy-contract",
         "@scom/scom-tx-status-modal",
         "@scom/scom-token-input",
         "@scom/scom-commission-fee-setup"
