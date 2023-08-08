@@ -100,10 +100,10 @@ define("@scom/scom-amm-pool/global/utils/helper.ts", ["require", "exports", "@ij
     };
     exports.limitDecimals = limitDecimals;
 });
-define("@scom/scom-amm-pool/global/utils/common.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1) {
+define("@scom/scom-amm-pool/global/utils/common.ts", ["require", "exports", "@ijstech/eth-wallet"], function (require, exports, eth_wallet_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getERC20Allowance = exports.approveERC20Max = exports.registerSendTxEvents = void 0;
+    exports.registerSendTxEvents = void 0;
     const registerSendTxEvents = (sendTxEventHandlers) => {
         const wallet = eth_wallet_2.Wallet.getClientInstance();
         wallet.registerSendTxEvents({
@@ -120,261 +120,161 @@ define("@scom/scom-amm-pool/global/utils/common.ts", ["require", "exports", "@ij
         });
     };
     exports.registerSendTxEvents = registerSendTxEvents;
-    const approveERC20Max = async (token, spenderAddress, callback, confirmationCallback) => {
-        let wallet = eth_wallet_2.Wallet.getClientInstance();
-        let amount = new eth_wallet_2.BigNumber(2).pow(256).minus(1);
-        let erc20 = new oswap_openswap_contract_1.Contracts.ERC20(wallet, token.address);
-        (0, exports.registerSendTxEvents)({
-            transactionHash: callback,
-            confirmation: confirmationCallback
-        });
-        let receipt = await erc20.approve({
-            spender: spenderAddress,
-            amount
-        });
-        return receipt;
-    };
-    exports.approveERC20Max = approveERC20Max;
-    const getERC20Allowance = async (token, spenderAddress) => {
-        if (!(token === null || token === void 0 ? void 0 : token.address))
-            return null;
-        let wallet = eth_wallet_2.Wallet.getClientInstance();
-        let erc20 = new oswap_openswap_contract_1.Contracts.ERC20(wallet, token.address);
-        let allowance = await erc20.allowance({
-            owner: wallet.account.address,
-            spender: spenderAddress
-        });
-        return eth_wallet_2.Utils.fromDecimals(allowance, token.decimals || 18);
-    };
-    exports.getERC20Allowance = getERC20Allowance;
-});
-define("@scom/scom-amm-pool/global/utils/approvalModel.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-amm-pool/global/utils/common.ts"], function (require, exports, eth_wallet_3, common_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.ERC20ApprovalModel = exports.ApprovalStatus = void 0;
-    var ApprovalStatus;
-    (function (ApprovalStatus) {
-        ApprovalStatus[ApprovalStatus["TO_BE_APPROVED"] = 0] = "TO_BE_APPROVED";
-        ApprovalStatus[ApprovalStatus["APPROVING"] = 1] = "APPROVING";
-        ApprovalStatus[ApprovalStatus["NONE"] = 2] = "NONE";
-    })(ApprovalStatus = exports.ApprovalStatus || (exports.ApprovalStatus = {}));
-    class ERC20ApprovalModel {
-        constructor(options) {
-            this.options = {
-                sender: null,
-                spenderAddress: '',
-                payAction: async () => { },
-                onToBeApproved: async (token) => { },
-                onToBePaid: async (token) => { },
-                onApproving: async (token, receipt, data) => { },
-                onApproved: async (token, data) => { },
-                onPaying: async (receipt, data) => { },
-                onPaid: async (data) => { },
-                onApprovingError: async (token, err) => { },
-                onPayingError: async (err) => { }
-            };
-            this.setSpenderAddress = (value) => {
-                this.options.spenderAddress = value;
-            };
-            this.checkAllowance = async (token, inputAmount) => {
-                let allowance = await (0, common_1.getERC20Allowance)(token, this.options.spenderAddress);
-                if (!allowance) {
-                    await this.options.onToBePaid.bind(this.options.sender)(token);
-                }
-                else if (new eth_wallet_3.BigNumber(inputAmount).gt(allowance)) {
-                    await this.options.onToBeApproved.bind(this.options.sender)(token);
-                }
-                else {
-                    await this.options.onToBePaid.bind(this.options.sender)(token);
-                }
-            };
-            this.doApproveAction = async (token, inputAmount, data) => {
-                const txHashCallback = async (err, receipt) => {
-                    if (err) {
-                        await this.options.onApprovingError.bind(this.options.sender)(token, err);
-                    }
-                    else {
-                        await this.options.onApproving.bind(this.options.sender)(token, receipt, data);
-                    }
-                };
-                const confirmationCallback = async (receipt) => {
-                    await this.options.onApproved.bind(this.options.sender)(token, data);
-                    await this.checkAllowance(token, inputAmount);
-                };
-                (0, common_1.approveERC20Max)(token, this.options.spenderAddress, txHashCallback, confirmationCallback);
-            };
-            this.doPayAction = async (data) => {
-                const txHashCallback = async (err, receipt) => {
-                    if (err) {
-                        await this.options.onPayingError.bind(this.options.sender)(err);
-                    }
-                    else {
-                        await this.options.onPaying.bind(this.options.sender)(receipt, data);
-                    }
-                };
-                const confirmationCallback = async (receipt) => {
-                    await this.options.onPaid.bind(this.options.sender)(data);
-                };
-                (0, common_1.registerSendTxEvents)({
-                    transactionHash: txHashCallback,
-                    confirmation: confirmationCallback
-                });
-                await this.options.payAction.bind(this.options.sender)();
-            };
-            this.getAction = () => {
-                return {
-                    setSpenderAddress: this.setSpenderAddress,
-                    doApproveAction: this.doApproveAction,
-                    doPayAction: this.doPayAction,
-                    checkAllowance: this.checkAllowance
-                };
-            };
-            this.options = options;
-        }
-    }
-    exports.ERC20ApprovalModel = ERC20ApprovalModel;
 });
 define("@scom/scom-amm-pool/global/utils/interface.ts", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("@scom/scom-amm-pool/global/utils/index.ts", ["require", "exports", "@scom/scom-amm-pool/global/utils/helper.ts", "@scom/scom-amm-pool/global/utils/common.ts", "@scom/scom-amm-pool/global/utils/approvalModel.ts", "@scom/scom-amm-pool/global/utils/interface.ts"], function (require, exports, helper_1, common_2, approvalModel_1, interface_1) {
+define("@scom/scom-amm-pool/global/utils/index.ts", ["require", "exports", "@scom/scom-amm-pool/global/utils/helper.ts", "@scom/scom-amm-pool/global/utils/common.ts", "@scom/scom-amm-pool/global/utils/interface.ts"], function (require, exports, helper_1, common_1, interface_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.ERC20ApprovalModel = exports.ApprovalStatus = exports.getERC20Allowance = exports.approveERC20Max = exports.registerSendTxEvents = exports.isInvalidInput = exports.limitInputNumber = exports.limitDecimals = exports.formatNumberWithSeparators = exports.formatNumber = void 0;
+    exports.registerSendTxEvents = exports.isInvalidInput = exports.limitInputNumber = exports.limitDecimals = exports.formatNumberWithSeparators = exports.formatNumber = void 0;
     Object.defineProperty(exports, "formatNumber", { enumerable: true, get: function () { return helper_1.formatNumber; } });
     Object.defineProperty(exports, "formatNumberWithSeparators", { enumerable: true, get: function () { return helper_1.formatNumberWithSeparators; } });
     Object.defineProperty(exports, "limitDecimals", { enumerable: true, get: function () { return helper_1.limitDecimals; } });
     Object.defineProperty(exports, "limitInputNumber", { enumerable: true, get: function () { return helper_1.limitInputNumber; } });
     Object.defineProperty(exports, "isInvalidInput", { enumerable: true, get: function () { return helper_1.isInvalidInput; } });
-    Object.defineProperty(exports, "registerSendTxEvents", { enumerable: true, get: function () { return common_2.registerSendTxEvents; } });
-    Object.defineProperty(exports, "approveERC20Max", { enumerable: true, get: function () { return common_2.approveERC20Max; } });
-    Object.defineProperty(exports, "getERC20Allowance", { enumerable: true, get: function () { return common_2.getERC20Allowance; } });
-    Object.defineProperty(exports, "ApprovalStatus", { enumerable: true, get: function () { return approvalModel_1.ApprovalStatus; } });
-    Object.defineProperty(exports, "ERC20ApprovalModel", { enumerable: true, get: function () { return approvalModel_1.ERC20ApprovalModel; } });
+    Object.defineProperty(exports, "registerSendTxEvents", { enumerable: true, get: function () { return common_1.registerSendTxEvents; } });
     __exportStar(interface_1, exports);
 });
 define("@scom/scom-amm-pool/global/index.ts", ["require", "exports", "@scom/scom-amm-pool/global/utils/index.ts"], function (require, exports, index_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    ///<amd-module name='@scom/scom-amm-pool/global/index.ts'/> 
     __exportStar(index_1, exports);
 });
-define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-network-list"], function (require, exports, eth_wallet_4, scom_network_list_1) {
+define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-network-list", "@ijstech/components"], function (require, exports, eth_wallet_3, scom_network_list_1, components_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getDexInfoList = exports.setDexInfoList = exports.getInfuraId = exports.setTransactionDeadline = exports.getTransactionDeadline = exports.setSlippageTolerance = exports.getSlippageTolerance = exports.getEmbedderCommissionFee = exports.getProxyAddress = exports.setProxyAddresses = exports.setDataFromConfig = exports.state = void 0;
-    exports.state = {
-        slippageTolerance: 0.5,
-        transactionDeadline: 30,
-        infuraId: "",
-        networkMap: {},
-        dexInfoList: [],
-        proxyAddresses: {},
-        embedderCommissionFee: "0",
-        rpcWalletId: ""
-    };
-    const setDataFromConfig = (options) => {
-        if (options.infuraId) {
-            setInfuraId(options.infuraId);
+    exports.isClientWalletConnected = exports.State = void 0;
+    class State {
+        constructor(options) {
+            this.slippageTolerance = 0.5;
+            this.transactionDeadline = 30;
+            this.infuraId = '';
+            this.networkMap = {};
+            this.dexInfoList = [];
+            this.proxyAddresses = {};
+            this.embedderCommissionFee = '0';
+            this.rpcWalletId = '';
+            this.getCommissionAmount = (commissions, amount) => {
+                const _commissions = (commissions || []).filter(v => v.chainId == this.getChainId()).map(v => {
+                    return {
+                        to: v.walletAddress,
+                        amount: amount.times(v.share)
+                    };
+                });
+                const commissionsAmount = _commissions.length ? _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)) : new eth_wallet_3.BigNumber(0);
+                return commissionsAmount;
+            };
+            this.networkMap = (0, scom_network_list_1.default)();
+            this.initData(options);
         }
-        if (options.networks) {
-            setNetworkList(options.networks, options.infuraId);
-        }
-        if (options.proxyAddresses) {
-            (0, exports.setProxyAddresses)(options.proxyAddresses);
-        }
-        if (options.embedderCommissionFee) {
-            setEmbedderCommissionFee(options.embedderCommissionFee);
-        }
-    };
-    exports.setDataFromConfig = setDataFromConfig;
-    const setProxyAddresses = (data) => {
-        exports.state.proxyAddresses = data;
-    };
-    exports.setProxyAddresses = setProxyAddresses;
-    const getProxyAddress = (chainId) => {
-        const _chainId = chainId || eth_wallet_4.Wallet.getInstance().chainId;
-        const proxyAddresses = exports.state.proxyAddresses;
-        if (proxyAddresses) {
-            return proxyAddresses[_chainId];
-        }
-        return null;
-    };
-    exports.getProxyAddress = getProxyAddress;
-    const setEmbedderCommissionFee = (fee) => {
-        exports.state.embedderCommissionFee = fee;
-    };
-    const getEmbedderCommissionFee = () => {
-        return exports.state.embedderCommissionFee;
-    };
-    exports.getEmbedderCommissionFee = getEmbedderCommissionFee;
-    const getSlippageTolerance = () => {
-        return exports.state.slippageTolerance;
-    };
-    exports.getSlippageTolerance = getSlippageTolerance;
-    const setSlippageTolerance = (value) => {
-        exports.state.slippageTolerance = value;
-    };
-    exports.setSlippageTolerance = setSlippageTolerance;
-    const getTransactionDeadline = () => {
-        return exports.state.transactionDeadline;
-    };
-    exports.getTransactionDeadline = getTransactionDeadline;
-    const setTransactionDeadline = (value) => {
-        exports.state.transactionDeadline = value;
-    };
-    exports.setTransactionDeadline = setTransactionDeadline;
-    const setInfuraId = (infuraId) => {
-        exports.state.infuraId = infuraId;
-    };
-    const getInfuraId = () => {
-        return exports.state.infuraId;
-    };
-    exports.getInfuraId = getInfuraId;
-    const setNetworkList = (networkList, infuraId) => {
-        const wallet = eth_wallet_4.Wallet.getClientInstance();
-        exports.state.networkMap = {};
-        const defaultNetworkList = (0, scom_network_list_1.default)();
-        const defaultNetworkMap = defaultNetworkList.reduce((acc, cur) => {
-            acc[cur.chainId] = cur;
-            return acc;
-        }, {});
-        for (let network of networkList) {
-            const networkInfo = defaultNetworkMap[network.chainId];
-            if (!networkInfo)
-                continue;
-            if (infuraId && network.rpcUrls && network.rpcUrls.length > 0) {
-                for (let i = 0; i < network.rpcUrls.length; i++) {
-                    network.rpcUrls[i] = network.rpcUrls[i].replace(/{InfuraId}/g, infuraId);
-                }
+        initData(options) {
+            if (options.infuraId) {
+                this.infuraId = options.infuraId;
             }
-            exports.state.networkMap[network.chainId] = Object.assign(Object.assign({}, networkInfo), network);
-            wallet.setNetworkInfo(exports.state.networkMap[network.chainId]);
+            if (options.networks) {
+                this.setNetworkList(options.networks, options.infuraId);
+            }
+            if (options.proxyAddresses) {
+                this.proxyAddresses = options.proxyAddresses;
+            }
+            if (options.embedderCommissionFee) {
+                this.embedderCommissionFee = options.embedderCommissionFee;
+            }
         }
-    };
-    const setDexInfoList = (value) => {
-        exports.state.dexInfoList = value;
-    };
-    exports.setDexInfoList = setDexInfoList;
-    const getDexInfoList = () => {
-        return exports.state.dexInfoList || [];
-    };
-    exports.getDexInfoList = getDexInfoList;
+        initRpcWallet(defaultChainId) {
+            var _a, _b, _c;
+            if (this.rpcWalletId) {
+                return this.rpcWalletId;
+            }
+            const clientWallet = eth_wallet_3.Wallet.getClientInstance();
+            const networkList = Object.values(((_a = components_1.application.store) === null || _a === void 0 ? void 0 : _a.networkMap) || []);
+            const instanceId = clientWallet.initRpcWallet({
+                networks: networkList,
+                defaultChainId,
+                infuraId: (_b = components_1.application.store) === null || _b === void 0 ? void 0 : _b.infuraId,
+                multicalls: (_c = components_1.application.store) === null || _c === void 0 ? void 0 : _c.multicalls
+            });
+            this.rpcWalletId = instanceId;
+            if (clientWallet.address) {
+                const rpcWallet = eth_wallet_3.Wallet.getRpcWalletInstance(instanceId);
+                rpcWallet.address = clientWallet.address;
+            }
+            return instanceId;
+        }
+        getProxyAddress(chainId) {
+            const _chainId = chainId || eth_wallet_3.Wallet.getInstance().chainId;
+            const proxyAddresses = this.proxyAddresses;
+            if (proxyAddresses) {
+                return proxyAddresses[_chainId];
+            }
+            return null;
+        }
+        getRpcWallet() {
+            return this.rpcWalletId ? eth_wallet_3.Wallet.getRpcWalletInstance(this.rpcWalletId) : null;
+        }
+        isRpcWalletConnected() {
+            const wallet = this.getRpcWallet();
+            return wallet === null || wallet === void 0 ? void 0 : wallet.isConnected;
+        }
+        getChainId() {
+            const rpcWallet = this.getRpcWallet();
+            return rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.chainId;
+        }
+        setDexInfoList(value) {
+            this.dexInfoList = value;
+        }
+        setNetworkList(networkList, infuraId) {
+            const wallet = eth_wallet_3.Wallet.getClientInstance();
+            this.networkMap = {};
+            const defaultNetworkList = (0, scom_network_list_1.default)();
+            const defaultNetworkMap = defaultNetworkList.reduce((acc, cur) => {
+                acc[cur.chainId] = cur;
+                return acc;
+            }, {});
+            for (let network of networkList) {
+                const networkInfo = defaultNetworkMap[network.chainId];
+                if (!networkInfo)
+                    continue;
+                if (infuraId && network.rpcUrls && network.rpcUrls.length > 0) {
+                    for (let i = 0; i < network.rpcUrls.length; i++) {
+                        network.rpcUrls[i] = network.rpcUrls[i].replace(/{InfuraId}/g, infuraId);
+                    }
+                }
+                this.networkMap[network.chainId] = Object.assign(Object.assign({}, networkInfo), network);
+                wallet.setNetworkInfo(this.networkMap[network.chainId]);
+            }
+        }
+        getCurrentCommissions(commissions) {
+            return (commissions || []).filter(v => v.chainId == this.getChainId());
+        }
+        async setApprovalModelAction(options) {
+            const approvalOptions = Object.assign(Object.assign({}, options), { spenderAddress: '' });
+            let wallet = this.getRpcWallet();
+            this.approvalModel = new eth_wallet_3.ERC20ApprovalModel(wallet, approvalOptions);
+            let approvalModelAction = this.approvalModel.getAction();
+            return approvalModelAction;
+        }
+    }
+    exports.State = State;
+    function isClientWalletConnected() {
+        const wallet = eth_wallet_3.Wallet.getClientInstance();
+        return wallet === null || wallet === void 0 ? void 0 : wallet.isConnected;
+    }
+    exports.isClientWalletConnected = isClientWalletConnected;
 });
-define("@scom/scom-amm-pool/store/index.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-token-list", "@ijstech/components", "@scom/scom-amm-pool/store/utils.ts"], function (require, exports, eth_wallet_5, scom_token_list_1, components_1, utils_1) {
+define("@scom/scom-amm-pool/store/index.ts", ["require", "exports", "@scom/scom-token-list", "@scom/scom-amm-pool/store/utils.ts"], function (require, exports, scom_token_list_1, utils_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.isClientWalletConnected = exports.getChainId = exports.initRpcWallet = exports.isRpcWalletConnected = exports.getClientWallet = exports.getRpcWallet = exports.getSupportedTokens = exports.getWETH = exports.state = exports.nullAddress = void 0;
-    exports.nullAddress = "0x0000000000000000000000000000000000000000";
-    exports.state = {
-        rpcWalletId: ""
-    };
+    exports.getSupportedTokens = exports.getWETH = void 0;
+    __exportStar(utils_1, exports);
     const getWETH = (chainId) => {
         let wrappedToken = scom_token_list_1.WETHByChainId[chainId];
         return wrappedToken;
     };
     exports.getWETH = getWETH;
-    __exportStar(utils_1, exports);
     const getSupportedTokens = (tokens, chainId) => {
         if (!tokens)
             return [];
@@ -386,49 +286,6 @@ define("@scom/scom-amm-pool/store/index.ts", ["require", "exports", "@ijstech/et
         });
     };
     exports.getSupportedTokens = getSupportedTokens;
-    function getRpcWallet() {
-        return eth_wallet_5.Wallet.getRpcWalletInstance(exports.state.rpcWalletId);
-    }
-    exports.getRpcWallet = getRpcWallet;
-    function getClientWallet() {
-        return eth_wallet_5.Wallet.getClientInstance();
-    }
-    exports.getClientWallet = getClientWallet;
-    function isRpcWalletConnected() {
-        const wallet = getRpcWallet();
-        return wallet === null || wallet === void 0 ? void 0 : wallet.isConnected;
-    }
-    exports.isRpcWalletConnected = isRpcWalletConnected;
-    function initRpcWallet(defaultChainId) {
-        if (exports.state.rpcWalletId) {
-            return exports.state.rpcWalletId;
-        }
-        const clientWallet = eth_wallet_5.Wallet.getClientInstance();
-        const networkList = Object.values(components_1.application.store.networkMap);
-        const instanceId = clientWallet.initRpcWallet({
-            networks: networkList,
-            defaultChainId,
-            infuraId: components_1.application.store.infuraId,
-            multicalls: components_1.application.store.multicalls
-        });
-        exports.state.rpcWalletId = instanceId;
-        if (clientWallet.address) {
-            const rpcWallet = eth_wallet_5.Wallet.getRpcWalletInstance(instanceId);
-            rpcWallet.address = clientWallet.address;
-        }
-        return instanceId;
-    }
-    exports.initRpcWallet = initRpcWallet;
-    function getChainId() {
-        const rpcWallet = getRpcWallet();
-        return rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.chainId;
-    }
-    exports.getChainId = getChainId;
-    function isClientWalletConnected() {
-        const wallet = eth_wallet_5.Wallet.getClientInstance();
-        return wallet.isConnected;
-    }
-    exports.isClientWalletConnected = isClientWalletConnected;
 });
 define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_2) {
     "use strict";
@@ -589,26 +446,11 @@ define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/comp
         }
     });
 });
-define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-commission-proxy-contract", "@scom/scom-amm-pool/global/index.ts", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-dex-list"], function (require, exports, eth_wallet_6, oswap_openswap_contract_2, scom_commission_proxy_contract_1, index_2, index_3, scom_dex_list_1) {
+define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-commission-proxy-contract", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-dex-list"], function (require, exports, eth_wallet_4, oswap_openswap_contract_1, scom_commission_proxy_contract_1, index_2, scom_dex_list_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getTokensBackByAmountOut = exports.getTokensBack = exports.removeLiquidity = exports.getRemoveLiquidityInfo = exports.getPairFromTokens = exports.calculateNewPairShareInfo = exports.getApprovalModelAction = exports.addLiquidity = exports.getPricesInfo = exports.getNewShareInfo = exports.getRouterAddress = exports.getCommissionAmount = exports.getCurrentCommissions = exports.ERC20MaxAmount = void 0;
-    exports.ERC20MaxAmount = new eth_wallet_6.BigNumber(2).pow(256).minus(1);
-    const getCurrentCommissions = (commissions) => {
-        return (commissions || []).filter(v => v.chainId == (0, index_3.getChainId)());
-    };
-    exports.getCurrentCommissions = getCurrentCommissions;
-    const getCommissionAmount = (commissions, amount) => {
-        const _commissions = (commissions || []).filter(v => v.chainId == (0, index_3.getChainId)()).map(v => {
-            return {
-                to: v.walletAddress,
-                amount: amount.times(v.share)
-            };
-        });
-        const commissionsAmount = _commissions.length ? _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)) : new eth_wallet_6.BigNumber(0);
-        return commissionsAmount;
-    };
-    exports.getCommissionAmount = getCommissionAmount;
+    exports.getTokensBackByAmountOut = exports.getTokensBack = exports.removeLiquidity = exports.getRemoveLiquidityInfo = exports.getPairFromTokens = exports.calculateNewPairShareInfo = exports.addLiquidity = exports.getPricesInfo = exports.getNewShareInfo = exports.getRouterAddress = exports.ERC20MaxAmount = void 0;
+    exports.ERC20MaxAmount = new eth_wallet_4.BigNumber(2).pow(256).minus(1);
     function getRouterAddress(chainId) {
         const dexItem = (0, scom_dex_list_1.default)().find(item => item.chainId === chainId);
         return (dexItem === null || dexItem === void 0 ? void 0 : dexItem.routerAddress) || '';
@@ -622,16 +464,16 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
     const FEE_BASE = 10 ** 5;
     const mintFee = async (factory, pair, totalSupply, reserve0, reserve1) => {
         let protocolFeeParams = await factory.protocolFeeParams();
-        let protocolFee = new eth_wallet_6.BigNumber(protocolFeeParams.protocolFee);
+        let protocolFee = new eth_wallet_4.BigNumber(protocolFeeParams.protocolFee);
         let protocolFeeTo = protocolFeeParams.protocolFeeTo;
-        if (protocolFeeTo != eth_wallet_6.Utils.nullAddress) {
+        if (protocolFeeTo != eth_wallet_4.Utils.nullAddress) {
             let kLast = await pair.kLast();
             if (!kLast.eq(0)) {
-                let rootK = reserve0.times(reserve1).sqrt().decimalPlaces(0, eth_wallet_6.BigNumber.ROUND_FLOOR);
-                let rootKLast = new eth_wallet_6.BigNumber(kLast).sqrt().decimalPlaces(0, eth_wallet_6.BigNumber.ROUND_FLOOR);
+                let rootK = reserve0.times(reserve1).sqrt().decimalPlaces(0, eth_wallet_4.BigNumber.ROUND_FLOOR);
+                let rootKLast = new eth_wallet_4.BigNumber(kLast).sqrt().decimalPlaces(0, eth_wallet_4.BigNumber.ROUND_FLOOR);
                 if (rootK.gt(rootKLast)) {
-                    let numerator = new eth_wallet_6.BigNumber(totalSupply).times(rootK.minus(rootKLast)).times(protocolFee);
-                    let denominator = new eth_wallet_6.BigNumber(FEE_BASE).minus(protocolFee).times(rootK).plus(new eth_wallet_6.BigNumber(rootKLast).times(protocolFee));
+                    let numerator = new eth_wallet_4.BigNumber(totalSupply).times(rootK.minus(rootKLast)).times(protocolFee);
+                    let denominator = new eth_wallet_4.BigNumber(FEE_BASE).minus(protocolFee).times(rootK).plus(new eth_wallet_4.BigNumber(rootKLast).times(protocolFee));
                     let liquidity = numerator.idiv(denominator);
                     totalSupply = totalSupply.plus(liquidity);
                 }
@@ -643,21 +485,20 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
         let liquidity;
         if (totalSupply.eq(0)) {
-            liquidity = amountInA.times(amountInB).sqrt().decimalPlaces(0, eth_wallet_6.BigNumber.ROUND_FLOOR).minus(MINIMUM_LIQUIDITY);
+            liquidity = amountInA.times(amountInB).sqrt().decimalPlaces(0, eth_wallet_4.BigNumber.ROUND_FLOOR).minus(MINIMUM_LIQUIDITY);
         }
         else {
-            liquidity = eth_wallet_6.BigNumber.min(amountInA.times(totalSupply).idiv(reserve0), amountInB.times(totalSupply).idiv(reserve1));
+            liquidity = eth_wallet_4.BigNumber.min(amountInA.times(totalSupply).idiv(reserve0), amountInB.times(totalSupply).idiv(reserve1));
         }
         return liquidity;
     };
-    const getPrices = async (tokenA, tokenB) => {
-        let chainId = (0, index_3.getChainId)();
-        const WETH = (0, index_3.getWETH)(chainId);
+    const getPrices = async (state, tokenA, tokenB) => {
+        const WETH = (0, index_2.getWETH)(state.getChainId());
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
             tokenB = WETH;
-        let pair = await getPairFromTokens(tokenA, tokenB);
+        let pair = await getPairFromTokens(state, tokenA, tokenB);
         if (!pair)
             return null;
         let reserves = await getReserves(pair, tokenA, tokenB);
@@ -666,8 +507,8 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                 pair
             };
         }
-        let reserveA = eth_wallet_6.Utils.fromDecimals(reserves.reserveA, tokenA.decimals);
-        let reserveB = eth_wallet_6.Utils.fromDecimals(reserves.reserveB, tokenB.decimals);
+        let reserveA = eth_wallet_4.Utils.fromDecimals(reserves.reserveA, tokenA.decimals);
+        let reserveB = eth_wallet_4.Utils.fromDecimals(reserves.reserveB, tokenB.decimals);
         if (reserveA.eq(0)) {
             return {
                 pair,
@@ -686,12 +527,12 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         };
         return pricesObj;
     };
-    const getUserShare = async (pairTokenInfo) => {
-        const wallet = (0, index_3.getRpcWallet)();
-        let chainId = (0, index_3.getChainId)();
+    const getUserShare = async (state, pairTokenInfo) => {
+        const wallet = state.getRpcWallet();
+        let chainId = state.getChainId();
         let { pair, tokenA, tokenB, balance } = pairTokenInfo;
         if (!pair) {
-            let pairFromTokens = await getPairFromTokens(tokenA, tokenB);
+            let pairFromTokens = await getPairFromTokens(state, tokenA, tokenB);
             if (!pairFromTokens)
                 return null;
             pair = pairFromTokens;
@@ -699,7 +540,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         if (!balance) {
             balance = (await pair.balanceOf(wallet.address)).toFixed();
         }
-        const WETH = (0, index_3.getWETH)(chainId);
+        const WETH = (0, index_2.getWETH)(chainId);
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
@@ -708,7 +549,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         let reserve = await pair.getReserves();
         let reserve0;
         let reserve1;
-        if (new eth_wallet_6.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
+        if (new eth_wallet_4.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
             reserve0 = reserve.reserve0;
             reserve1 = reserve.reserve1;
         }
@@ -716,23 +557,23 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             reserve0 = reserve.reserve1;
             reserve1 = reserve.reserve0;
         }
-        let share = new eth_wallet_6.BigNumber(balance).div(totalSupply);
+        let share = new eth_wallet_4.BigNumber(balance).div(totalSupply);
         let result = {
-            tokenAShare: eth_wallet_6.Utils.fromDecimals(share.times(reserve0), tokenA.decimals).toFixed(),
-            tokenBShare: eth_wallet_6.Utils.fromDecimals(share.times(reserve1), tokenB.decimals).toFixed(),
-            totalPoolTokens: eth_wallet_6.Utils.fromDecimals(balance).toFixed(),
+            tokenAShare: eth_wallet_4.Utils.fromDecimals(share.times(reserve0), tokenA.decimals).toFixed(),
+            tokenBShare: eth_wallet_4.Utils.fromDecimals(share.times(reserve1), tokenB.decimals).toFixed(),
+            totalPoolTokens: eth_wallet_4.Utils.fromDecimals(balance).toFixed(),
             poolShare: share.toFixed()
         };
         return result;
     };
-    const getRemoveLiquidityInfo = async (tokenA, tokenB) => {
-        let userShare = await getUserShare({
+    const getRemoveLiquidityInfo = async (state, tokenA, tokenB) => {
+        let userShare = await getUserShare(state, {
             tokenA,
             tokenB
         });
         if (!userShare)
             return null;
-        let pricesData = await getPrices(tokenA, tokenB);
+        let pricesData = await getPrices(state, tokenA, tokenB);
         if (!pricesData)
             return null;
         let lpToken = {
@@ -745,23 +586,23 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return Object.assign(Object.assign({}, userShare), { lpToken, price0: pricesData.price0, price1: pricesData.price1 });
     };
     exports.getRemoveLiquidityInfo = getRemoveLiquidityInfo;
-    const getPairFromTokens = async (tokenA, tokenB) => {
-        let wallet = (0, index_3.getRpcWallet)();
-        let chainId = (0, index_3.getChainId)();
+    const getPairFromTokens = async (state, tokenA, tokenB) => {
+        let wallet = state.getRpcWallet();
+        let chainId = state.getChainId();
         const factoryAddress = getFactoryAddress(chainId);
-        const factory = new oswap_openswap_contract_2.Contracts.OSWAP_Factory(wallet, factoryAddress);
-        let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
-        if (!pairAddress || pairAddress == eth_wallet_6.Utils.nullAddress) {
+        const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
+        let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
+        if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
             return null;
         }
-        let pair = new oswap_openswap_contract_2.Contracts.OSWAP_Pair(wallet, pairAddress);
+        let pair = new oswap_openswap_contract_1.Contracts.OSWAP_Pair(wallet, pairAddress);
         return pair;
     };
     exports.getPairFromTokens = getPairFromTokens;
     const getReserves = async (pair, tokenA, tokenB) => {
         let reserveObj;
         let reserve = await pair.getReserves();
-        if (new eth_wallet_6.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
+        if (new eth_wallet_4.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
             reserveObj = {
                 reserveA: reserve.reserve0,
                 reserveB: reserve.reserve1
@@ -775,45 +616,45 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         }
         return reserveObj;
     };
-    const getPricesInfo = async (tokenA, tokenB) => {
-        let pricesData = await getPrices(tokenA, tokenB);
+    const getPricesInfo = async (state, tokenA, tokenB) => {
+        let pricesData = await getPrices(state, tokenA, tokenB);
         if (!pricesData)
             return null;
         let { pair, price0, price1 } = pricesData;
-        let wallet = (0, index_3.getRpcWallet)();
+        let wallet = state.getRpcWallet();
         let balance = await pair.balanceOf(wallet.address);
         let totalSupply = await pair.totalSupply();
         return {
             pair,
             price0,
             price1,
-            balance: eth_wallet_6.Utils.fromDecimals(balance).toFixed(),
-            totalSupply: eth_wallet_6.Utils.fromDecimals(totalSupply).toFixed()
+            balance: eth_wallet_4.Utils.fromDecimals(balance).toFixed(),
+            totalSupply: eth_wallet_4.Utils.fromDecimals(totalSupply).toFixed()
         };
     };
     exports.getPricesInfo = getPricesInfo;
     const calculateNewPairShareInfo = (tokenA, tokenB, amountADesired, amountBDesired) => {
-        let price0 = new eth_wallet_6.BigNumber(amountBDesired).div(amountADesired).toFixed();
-        let price1 = new eth_wallet_6.BigNumber(amountADesired).div(amountBDesired).toFixed();
-        let amountADesiredToDecimals = eth_wallet_6.Utils.toDecimals(amountADesired, tokenA.decimals);
-        let amountBDesiredToDecimals = eth_wallet_6.Utils.toDecimals(amountBDesired, tokenB.decimals);
-        let minted = amountADesiredToDecimals.times(amountBDesiredToDecimals).sqrt().decimalPlaces(0, eth_wallet_6.BigNumber.ROUND_FLOOR).minus(MINIMUM_LIQUIDITY);
+        let price0 = new eth_wallet_4.BigNumber(amountBDesired).div(amountADesired).toFixed();
+        let price1 = new eth_wallet_4.BigNumber(amountADesired).div(amountBDesired).toFixed();
+        let amountADesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountADesired, tokenA.decimals);
+        let amountBDesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountBDesired, tokenB.decimals);
+        let minted = amountADesiredToDecimals.times(amountBDesiredToDecimals).sqrt().decimalPlaces(0, eth_wallet_4.BigNumber.ROUND_FLOOR).minus(MINIMUM_LIQUIDITY);
         return {
             price0,
             price1,
-            minted: eth_wallet_6.Utils.fromDecimals(minted).toFixed()
+            minted: eth_wallet_4.Utils.fromDecimals(minted).toFixed()
         };
     };
     exports.calculateNewPairShareInfo = calculateNewPairShareInfo;
-    const getNewShareInfo = async (tokenA, tokenB, amountIn, amountADesired, amountBDesired) => {
-        let wallet = (0, index_3.getRpcWallet)();
-        let chainId = (0, index_3.getChainId)();
-        const WETH = (0, index_3.getWETH)(chainId);
+    const getNewShareInfo = async (state, tokenA, tokenB, amountIn, amountADesired, amountBDesired) => {
+        let wallet = state.getRpcWallet();
+        let chainId = state.getChainId();
+        const WETH = (0, index_2.getWETH)(chainId);
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
             tokenB = WETH;
-        let pair = await getPairFromTokens(tokenA, tokenB);
+        let pair = await getPairFromTokens(state, tokenA, tokenB);
         if (!pair)
             return null;
         let reserves = await getReserves(pair, tokenA, tokenB);
@@ -824,13 +665,13 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         }
         let balance = await pair.balanceOf(wallet.address);
         let totalSupply = await pair.totalSupply();
-        let quote = eth_wallet_6.Utils.fromDecimals(reserves.reserveB, tokenB.decimals).times(amountIn).div(eth_wallet_6.Utils.fromDecimals(reserves.reserveA, tokenA.decimals)).toFixed();
-        let amountADesiredToDecimals = eth_wallet_6.Utils.toDecimals(amountADesired, tokenA.decimals);
-        let amountBDesiredToDecimals = eth_wallet_6.Utils.toDecimals(amountBDesired, tokenB.decimals);
+        let quote = eth_wallet_4.Utils.fromDecimals(reserves.reserveB, tokenB.decimals).times(amountIn).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveA, tokenA.decimals)).toFixed();
+        let amountADesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountADesired, tokenA.decimals);
+        let amountBDesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountBDesired, tokenB.decimals);
         const factoryAddress = getFactoryAddress(chainId);
-        const factory = new oswap_openswap_contract_2.Contracts.OSWAP_Factory(wallet, factoryAddress);
-        let newPrice0 = eth_wallet_6.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals).div(eth_wallet_6.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals)).toFixed();
-        let newPrice1 = eth_wallet_6.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals).div(eth_wallet_6.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals)).toFixed();
+        const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
+        let newPrice0 = eth_wallet_4.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals)).toFixed();
+        let newPrice1 = eth_wallet_4.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals)).toFixed();
         let minted = await poolTokenMinted(factory, amountADesiredToDecimals, amountBDesiredToDecimals, pair, totalSupply, reserves.reserveA, reserves.reserveB);
         let newShare = minted.plus(balance).div(minted.plus(totalSupply)).toFixed();
         return {
@@ -838,25 +679,25 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             newPrice0,
             newPrice1,
             newShare,
-            minted: eth_wallet_6.Utils.fromDecimals(minted).toFixed()
+            minted: eth_wallet_4.Utils.fromDecimals(minted).toFixed()
         };
     };
     exports.getNewShareInfo = getNewShareInfo;
-    const addLiquidity = async (tokenA, tokenB, amountADesired, amountBDesired, commissions) => {
+    const addLiquidity = async (state, tokenA, tokenB, amountADesired, amountBDesired, commissions) => {
         let receipt;
         try {
-            const wallet = eth_wallet_6.Wallet.getClientInstance();
-            let chainId = (0, index_3.getChainId)();
+            const wallet = eth_wallet_4.Wallet.getClientInstance();
+            let chainId = state.getChainId();
             const toAddress = wallet.address;
-            const slippageTolerance = (0, index_3.getSlippageTolerance)();
-            const amountAMin = new eth_wallet_6.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
-            const amountBMin = new eth_wallet_6.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
-            const deadline = Math.floor(Date.now() / 1000 + (0, index_3.getTransactionDeadline)() * 60);
+            const slippageTolerance = state.slippageTolerance;
+            const amountAMin = new eth_wallet_4.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
+            const amountBMin = new eth_wallet_4.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
+            const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
             const routerAddress = getRouterAddress(chainId);
-            let router = new oswap_openswap_contract_2.Contracts.OSWAP_Router(wallet, routerAddress);
-            const proxyAddress = (0, index_3.getProxyAddress)();
+            let router = new oswap_openswap_contract_1.Contracts.OSWAP_Router(wallet, routerAddress);
+            const proxyAddress = state.getProxyAddress();
             const proxy = new scom_commission_proxy_contract_1.Contracts.Proxy(wallet, proxyAddress);
-            const _commissions = (commissions || []).filter(v => v.chainId == (0, index_3.getChainId)());
+            const _commissions = (commissions || []).filter(v => v.chainId == state.getChainId());
             if (!tokenA.address || !tokenB.address) {
                 let erc20Token, amountTokenDesired, amountETHDesired, amountTokenMin, amountETHMin;
                 if (tokenA.address) {
@@ -873,8 +714,8 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                     amountTokenMin = amountBMin;
                     amountETHMin = amountAMin;
                 }
-                const amountToken = eth_wallet_6.Utils.toDecimals(amountTokenDesired, erc20Token.decimals).dp(0);
-                const amountETH = eth_wallet_6.Utils.toDecimals(amountETHDesired).dp(0);
+                const amountToken = eth_wallet_4.Utils.toDecimals(amountTokenDesired, erc20Token.decimals).dp(0);
+                const amountETH = eth_wallet_4.Utils.toDecimals(amountETHDesired).dp(0);
                 if (_commissions.length) {
                     const commissionsToken = _commissions.map(v => {
                         return {
@@ -898,7 +739,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                             commissions: commissionsToken
                         },
                         {
-                            token: eth_wallet_6.Utils.nullAddress,
+                            token: eth_wallet_4.Utils.nullAddress,
                             amount: amountETH.plus(commissionsAmountETH),
                             directTransfer: false,
                             commissions: commissionsETH
@@ -907,8 +748,8 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                     const txData = await router.addLiquidityETH.txData({
                         token: erc20Token.address,
                         amountTokenDesired: amountToken,
-                        amountTokenMin: eth_wallet_6.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-                        amountETHMin: eth_wallet_6.Utils.toDecimals(amountETHMin).dp(0),
+                        amountTokenMin: eth_wallet_4.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+                        amountETHMin: eth_wallet_4.Utils.toDecimals(amountETHMin).dp(0),
                         to: toAddress,
                         deadline
                     }, amountETH);
@@ -924,16 +765,16 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                     receipt = await router.addLiquidityETH({
                         token: erc20Token.address,
                         amountTokenDesired: amountToken,
-                        amountTokenMin: eth_wallet_6.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-                        amountETHMin: eth_wallet_6.Utils.toDecimals(amountETHMin).dp(0),
+                        amountTokenMin: eth_wallet_4.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+                        amountETHMin: eth_wallet_4.Utils.toDecimals(amountETHMin).dp(0),
                         to: toAddress,
                         deadline
                     }, amountETH);
                 }
             }
             else {
-                const amountTokenA = eth_wallet_6.Utils.toDecimals(amountADesired, tokenA.decimals).dp(0);
-                const amountTokenB = eth_wallet_6.Utils.toDecimals(amountBDesired, tokenB.decimals).dp(0);
+                const amountTokenA = eth_wallet_4.Utils.toDecimals(amountADesired, tokenA.decimals).dp(0);
+                const amountTokenB = eth_wallet_4.Utils.toDecimals(amountBDesired, tokenB.decimals).dp(0);
                 if (_commissions.length) {
                     const commissionsTokenA = _commissions.map(v => {
                         return {
@@ -968,8 +809,8 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                         tokenB: tokenB.address,
                         amountADesired: amountTokenA,
                         amountBDesired: amountTokenB,
-                        amountAMin: eth_wallet_6.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-                        amountBMin: eth_wallet_6.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+                        amountAMin: eth_wallet_4.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+                        amountBMin: eth_wallet_4.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
                         to: toAddress,
                         deadline
                     });
@@ -987,8 +828,8 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                         tokenB: tokenB.address,
                         amountADesired: amountTokenA,
                         amountBDesired: amountTokenB,
-                        amountAMin: eth_wallet_6.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-                        amountBMin: eth_wallet_6.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+                        amountAMin: eth_wallet_4.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+                        amountBMin: eth_wallet_4.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
                         to: toAddress,
                         deadline
                     });
@@ -1001,18 +842,18 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return receipt;
     };
     exports.addLiquidity = addLiquidity;
-    const removeLiquidity = async (tokenA, tokenB, liquidity, amountADesired, amountBDesired) => {
+    const removeLiquidity = async (state, tokenA, tokenB, liquidity, amountADesired, amountBDesired) => {
         let receipt;
         try {
-            const wallet = eth_wallet_6.Wallet.getClientInstance();
-            let chainId = (0, index_3.getChainId)();
+            const wallet = eth_wallet_4.Wallet.getClientInstance();
+            let chainId = state.getChainId();
             const toAddress = wallet.address;
-            const slippageTolerance = (0, index_3.getSlippageTolerance)();
-            const amountAMin = new eth_wallet_6.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
-            const amountBMin = new eth_wallet_6.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
-            const deadline = Math.floor(Date.now() / 1000 + (0, index_3.getTransactionDeadline)() * 60);
+            const slippageTolerance = state.slippageTolerance;
+            const amountAMin = new eth_wallet_4.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
+            const amountBMin = new eth_wallet_4.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
+            const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
             const routerAddress = getRouterAddress(chainId);
-            let router = new oswap_openswap_contract_2.Contracts.OSWAP_Router(wallet, routerAddress);
+            let router = new oswap_openswap_contract_1.Contracts.OSWAP_Router(wallet, routerAddress);
             if (!tokenA.address || !tokenB.address) {
                 let erc20Token, amountTokenMin, amountETHMin;
                 if (tokenA.address) {
@@ -1027,9 +868,9 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                 }
                 receipt = await router.removeLiquidityETH({
                     token: erc20Token.address,
-                    liquidity: eth_wallet_6.Utils.toDecimals(liquidity).dp(0),
-                    amountTokenMin: eth_wallet_6.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
-                    amountETHMin: eth_wallet_6.Utils.toDecimals(amountETHMin).dp(0),
+                    liquidity: eth_wallet_4.Utils.toDecimals(liquidity).dp(0),
+                    amountTokenMin: eth_wallet_4.Utils.toDecimals(amountTokenMin, erc20Token.decimals).dp(0),
+                    amountETHMin: eth_wallet_4.Utils.toDecimals(amountETHMin).dp(0),
                     to: toAddress,
                     deadline
                 });
@@ -1038,9 +879,9 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
                 receipt = await router.removeLiquidity({
                     tokenA: tokenA.address,
                     tokenB: tokenB.address,
-                    liquidity: eth_wallet_6.Utils.toDecimals(liquidity).dp(0),
-                    amountAMin: eth_wallet_6.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
-                    amountBMin: eth_wallet_6.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
+                    liquidity: eth_wallet_4.Utils.toDecimals(liquidity).dp(0),
+                    amountAMin: eth_wallet_4.Utils.toDecimals(amountAMin, tokenA.decimals).dp(0),
+                    amountBMin: eth_wallet_4.Utils.toDecimals(amountBMin, tokenB.decimals).dp(0),
                     to: toAddress,
                     deadline
                 });
@@ -1052,9 +893,9 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return receipt;
     };
     exports.removeLiquidity = removeLiquidity;
-    const getPairAddressFromTokens = async (factory, tokenA, tokenB) => {
-        let chainId = (0, index_3.getChainId)();
-        const WETH = (0, index_3.getWETH)(chainId);
+    const getPairAddressFromTokens = async (state, factory, tokenA, tokenB) => {
+        let chainId = state.getChainId();
+        const WETH = (0, index_2.getWETH)(chainId);
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
@@ -1063,42 +904,33 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             param1: tokenA.address,
             param2: tokenB.address
         });
-        if (!pairAddress || pairAddress == eth_wallet_6.Utils.nullAddress) {
+        if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
             return null;
         }
         return pairAddress;
     };
-    const getApprovalModelAction = async (options, spenderAddress) => {
-        let chainId = (0, index_3.getChainId)();
-        const routerAddress = spenderAddress || getRouterAddress(chainId);
-        const approvalOptions = Object.assign(Object.assign({}, options), { spenderAddress: routerAddress });
-        const approvalModel = new index_2.ERC20ApprovalModel(approvalOptions);
-        let approvalModelAction = approvalModel.getAction();
-        return approvalModelAction;
-    };
-    exports.getApprovalModelAction = getApprovalModelAction;
-    const getTokensBack = async (tokenA, tokenB, liquidity) => {
-        let wallet = (0, index_3.getRpcWallet)();
-        let chainId = (0, index_3.getChainId)();
-        const WETH = (0, index_3.getWETH)(chainId);
+    const getTokensBack = async (state, tokenA, tokenB, liquidity) => {
+        let wallet = state.getRpcWallet();
+        let chainId = state.getChainId();
+        const WETH = (0, index_2.getWETH)(chainId);
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
             tokenB = WETH;
         const factoryAddress = getFactoryAddress(chainId);
-        const factory = new oswap_openswap_contract_2.Contracts.OSWAP_Factory(wallet, factoryAddress);
-        let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
-        if (!pairAddress || pairAddress == eth_wallet_6.Utils.nullAddress) {
+        const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
+        let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
+        if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
             return null;
         }
-        let pair = new oswap_openswap_contract_2.Contracts.OSWAP_Pair(wallet, pairAddress);
+        let pair = new oswap_openswap_contract_1.Contracts.OSWAP_Pair(wallet, pairAddress);
         let balance = await pair.balanceOf(wallet.address);
         let totalSupply = await pair.totalSupply();
         let reserve = await pair.getReserves();
-        let liquidityToDecimals = eth_wallet_6.Utils.toDecimals(liquidity);
+        let liquidityToDecimals = eth_wallet_4.Utils.toDecimals(liquidity);
         let reserve0;
         let reserve1;
-        if (new eth_wallet_6.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
+        if (new eth_wallet_4.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
             reserve0 = reserve.reserve0;
             reserve1 = reserve.reserve1;
         }
@@ -1107,14 +939,14 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             reserve1 = reserve.reserve0;
         }
         totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
-        let erc20A = new oswap_openswap_contract_2.Contracts.ERC20(wallet, tokenA.address);
-        let erc20B = new oswap_openswap_contract_2.Contracts.ERC20(wallet, tokenB.address);
+        let erc20A = new oswap_openswap_contract_1.Contracts.ERC20(wallet, tokenA.address);
+        let erc20B = new oswap_openswap_contract_1.Contracts.ERC20(wallet, tokenB.address);
         let balanceA = await erc20A.balanceOf(pair.address);
         let balanceB = await erc20B.balanceOf(pair.address);
-        let amountA = eth_wallet_6.Utils.fromDecimals(liquidityToDecimals.times(balanceA).idiv(totalSupply), tokenA.decimals);
-        let amountB = eth_wallet_6.Utils.fromDecimals(liquidityToDecimals.times(balanceB).idiv(totalSupply), tokenB.decimals);
+        let amountA = eth_wallet_4.Utils.fromDecimals(liquidityToDecimals.times(balanceA).idiv(totalSupply), tokenA.decimals);
+        let amountB = eth_wallet_4.Utils.fromDecimals(liquidityToDecimals.times(balanceB).idiv(totalSupply), tokenB.decimals);
         let percent = liquidityToDecimals.div(balance).times(100).toFixed();
-        let newshare = new eth_wallet_6.BigNumber(balance).minus(liquidity).div(new eth_wallet_6.BigNumber(totalSupply).minus(liquidity)).toFixed();
+        let newshare = new eth_wallet_4.BigNumber(balance).minus(liquidity).div(new eth_wallet_4.BigNumber(totalSupply).minus(liquidity)).toFixed();
         let result = {
             amountA: amountA.toFixed(),
             amountB: amountB.toFixed(),
@@ -1127,10 +959,10 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return result;
     };
     exports.getTokensBack = getTokensBack;
-    const getTokensBackByAmountOut = async (tokenA, tokenB, tokenOut, amountOut) => {
-        let wallet = (0, index_3.getRpcWallet)();
-        let chainId = (0, index_3.getChainId)();
-        const WETH = (0, index_3.getWETH)(chainId);
+    const getTokensBackByAmountOut = async (state, tokenA, tokenB, tokenOut, amountOut) => {
+        let wallet = state.getRpcWallet();
+        let chainId = state.getChainId();
+        const WETH = (0, index_2.getWETH)(chainId);
         if (!tokenA.address)
             tokenA = WETH;
         if (!tokenB.address)
@@ -1138,17 +970,17 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         if (!tokenOut.address)
             tokenOut = WETH;
         const factoryAddress = getFactoryAddress(chainId);
-        const factory = new oswap_openswap_contract_2.Contracts.OSWAP_Factory(wallet, factoryAddress);
-        let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
-        if (!pairAddress || pairAddress == eth_wallet_6.Utils.nullAddress) {
+        const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
+        let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
+        if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
             return null;
         }
-        let pair = new oswap_openswap_contract_2.Contracts.OSWAP_Pair(wallet, pairAddress);
+        let pair = new oswap_openswap_contract_1.Contracts.OSWAP_Pair(wallet, pairAddress);
         let totalSupply = await pair.totalSupply();
         let reserve = await pair.getReserves();
         let reserve0;
         let reserve1;
-        if (new eth_wallet_6.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
+        if (new eth_wallet_4.BigNumber(tokenA.address.toLowerCase()).lt(tokenB.address.toLowerCase())) {
             reserve0 = reserve.reserve0;
             reserve1 = reserve.reserve1;
         }
@@ -1159,17 +991,17 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
         let liquidityInDecimals;
         if (tokenA.address == tokenOut.address) {
-            let erc20A = new oswap_openswap_contract_2.Contracts.ERC20(wallet, tokenA.address);
+            let erc20A = new oswap_openswap_contract_1.Contracts.ERC20(wallet, tokenA.address);
             let balanceA = await erc20A.balanceOf(pair.address);
-            liquidityInDecimals = eth_wallet_6.Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceA).plus(1);
+            liquidityInDecimals = eth_wallet_4.Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceA).plus(1);
         }
         else {
-            let erc20B = new oswap_openswap_contract_2.Contracts.ERC20(wallet, tokenB.address);
+            let erc20B = new oswap_openswap_contract_1.Contracts.ERC20(wallet, tokenB.address);
             let balanceB = await erc20B.balanceOf(pair.address);
-            liquidityInDecimals = eth_wallet_6.Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceB).plus(1);
+            liquidityInDecimals = eth_wallet_4.Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceB).plus(1);
         }
-        let liquidity = eth_wallet_6.Utils.fromDecimals(liquidityInDecimals).toFixed();
-        let tokensBack = await getTokensBack(tokenA, tokenB, liquidity);
+        let liquidity = eth_wallet_4.Utils.fromDecimals(liquidityInDecimals).toFixed();
+        let tokensBack = await getTokensBack(state, tokenA, tokenB, liquidity);
         return tokensBack;
     };
     exports.getTokensBackByAmountOut = getTokensBackByAmountOut;
@@ -1223,7 +1055,7 @@ define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ij
         }
     });
 });
-define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_4, index_4, eth_wallet_7, index_5, API_1, scom_token_list_2, index_css_1) {
+define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_4, index_3, eth_wallet_5, index_4, API_1, scom_token_list_2, index_css_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ScomAmmPoolAdd = void 0;
@@ -1261,29 +1093,30 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 this.updateButtonText();
             };
             this.updateContractAddress = () => {
-                if ((0, API_1.getCurrentCommissions)(this.commissions).length) {
-                    this.contractAddress = (0, index_5.getProxyAddress)();
+                var _a;
+                if (this.state.getCurrentCommissions(this.commissions).length) {
+                    this.contractAddress = this.state.getProxyAddress();
                 }
                 else {
-                    this.contractAddress = (0, API_1.getRouterAddress)((0, index_5.getChainId)());
+                    this.contractAddress = (0, API_1.getRouterAddress)(this.state.getChainId());
                 }
-                if (this.approvalModelAction) {
-                    this.approvalModelAction.setSpenderAddress(this.contractAddress);
+                if (((_a = this.state) === null || _a === void 0 ? void 0 : _a.approvalModel) && this.approvalModelAction) {
+                    this.state.approvalModel.spenderAddress = this.contractAddress;
                     this.updateCommissionInfo();
                 }
             };
             this.updateCommissionInfo = () => {
-                if ((0, API_1.getCurrentCommissions)(this.commissions).length) {
+                if (this.state.getCurrentCommissions(this.commissions).length) {
                     this.hStackCommissionInfo.visible = true;
-                    const commissionFee = (0, index_5.getEmbedderCommissionFee)();
-                    this.iconCommissionFee.tooltip.content = `A commission fee of ${new eth_wallet_7.BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
+                    const commissionFee = this.state.embedderCommissionFee;
+                    this.iconCommissionFee.tooltip.content = `A commission fee of ${new eth_wallet_5.BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
                     if (this.firstToken && this.secondToken) {
-                        const firstAmount = new eth_wallet_7.BigNumber(this.firstInputAmount || 0);
-                        const secondAmount = new eth_wallet_7.BigNumber(this.secondInputAmount || 0);
-                        const firstCommission = (0, API_1.getCommissionAmount)(this.commissions, firstAmount);
-                        const secondCommission = (0, API_1.getCommissionAmount)(this.commissions, secondAmount);
-                        this.lbFirstCommission.caption = `${(0, index_4.formatNumber)(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
-                        this.lbSecondCommission.caption = `${(0, index_4.formatNumber)(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
+                        const firstAmount = new eth_wallet_5.BigNumber(this.firstInputAmount || 0);
+                        const secondAmount = new eth_wallet_5.BigNumber(this.secondInputAmount || 0);
+                        const firstCommission = this.state.getCommissionAmount(this.commissions, firstAmount);
+                        const secondCommission = this.state.getCommissionAmount(this.commissions, secondAmount);
+                        this.lbFirstCommission.caption = `${(0, index_3.formatNumber)(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
+                        this.lbSecondCommission.caption = `${(0, index_3.formatNumber)(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
                         this.hStackCommissionInfo.visible = true;
                     }
                     else {
@@ -1296,7 +1129,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             };
             this.initializeWidgetConfig = async (connected, _chainId) => {
                 setTimeout(async () => {
-                    const chainId = (0, index_5.getChainId)();
+                    const chainId = this.state.getChainId();
                     scom_token_list_2.tokenStore.updateTokenMapData(chainId);
                     if (!this.btnSupply.isConnected)
                         await this.btnSupply.ready();
@@ -1309,7 +1142,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.updateCommissionInfo();
                     this.firstTokenInput.isBtnMaxShown = true;
                     this.secondTokenInput.isBtnMaxShown = true;
-                    const tokens = (0, index_5.getSupportedTokens)(this._data.tokens || [], chainId);
+                    const tokens = (0, index_4.getSupportedTokens)(this._data.tokens || [], chainId);
                     const isReadonly = tokens.length === 2;
                     this.firstTokenInput.tokenReadOnly = isReadonly;
                     this.secondTokenInput.tokenReadOnly = isReadonly;
@@ -1331,7 +1164,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                             const isShown = parseFloat(this.firstBalance) > 0 && parseFloat(this.secondBalance) > 0;
                             this.pricePanel.visible = isShown;
                             await this.checkPairExists();
-                            if (tokens.length >= 2 && new eth_wallet_7.BigNumber(this.firstTokenInput.value).isNaN() && new eth_wallet_7.BigNumber(this.firstTokenInput.value).isNaN()) {
+                            if (tokens.length >= 2 && new eth_wallet_5.BigNumber(this.firstTokenInput.value).isNaN() && new eth_wallet_5.BigNumber(this.firstTokenInput.value).isNaN()) {
                                 this.updateCommissionInfo();
                                 return;
                             }
@@ -1360,11 +1193,20 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 this.txStatusModal.message = Object.assign({}, params);
                 this.txStatusModal.showModal();
             };
+            if (options === null || options === void 0 ? void 0 : options.state) {
+                this.state = options.state;
+            }
         }
         static async create(options, parent) {
             let self = new this(parent, options);
             await self.ready();
             return self;
+        }
+        get state() {
+            return this._state;
+        }
+        set state(value) {
+            this._state = value;
         }
         get firstTokenDecimals() {
             var _a;
@@ -1430,17 +1272,17 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         async refreshUI() {
             var _a;
             await this.initData();
-            const instanceId = (_a = (0, index_5.getRpcWallet)()) === null || _a === void 0 ? void 0 : _a.instanceId;
+            const instanceId = (_a = this.state.getRpcWallet()) === null || _a === void 0 ? void 0 : _a.instanceId;
             const inputRpcWalletId = this.firstTokenInput.rpcWalletId;
             if (instanceId && inputRpcWalletId !== instanceId) {
                 this.firstTokenInput.rpcWalletId = instanceId;
                 this.secondTokenInput.rpcWalletId = instanceId;
             }
-            await this.initializeWidgetConfig((0, index_5.isClientWalletConnected)());
+            await this.initializeWidgetConfig((0, index_4.isClientWalletConnected)());
         }
         setFixedPairData() {
             var _a;
-            const chainId = (0, index_5.getChainId)();
+            const chainId = this.state.getChainId();
             let currentChainTokens = this._data.tokens.filter((token) => token.chainId === chainId);
             if (currentChainTokens.length < 2)
                 return;
@@ -1483,7 +1325,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             return 0;
         }
         async updateBalance() {
-            const rpcWallet = (0, index_5.getRpcWallet)();
+            const rpcWallet = this.state.getRpcWallet();
             if (rpcWallet.address) {
                 await scom_token_list_2.tokenStore.updateAllTokenBalances(rpcWallet);
                 this.allTokenBalancesMap = scom_token_list_2.tokenStore.tokenBalances;
@@ -1525,18 +1367,18 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             if (!this.btnSupply || !this.btnSupply.hasChildNodes())
                 return;
             this.btnSupply.enabled = false;
-            if (!(0, index_5.isClientWalletConnected)()) {
+            if (!(0, index_4.isClientWalletConnected)()) {
                 this.btnSupply.enabled = true;
                 this.btnSupply.caption = 'Connect Wallet';
                 return;
             }
-            if (!(0, index_5.isRpcWalletConnected)()) {
+            if (!this.state.isRpcWalletConnected()) {
                 this.btnSupply.enabled = true;
                 this.btnSupply.caption = 'Switch Network';
                 return;
             }
-            const firstCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, new eth_wallet_7.BigNumber(this.firstTokenInput.value || 0));
-            const secondCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, new eth_wallet_7.BigNumber(this.secondTokenInput.value || 0));
+            const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, new eth_wallet_5.BigNumber(this.firstTokenInput.value || 0));
+            const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, new eth_wallet_5.BigNumber(this.secondTokenInput.value || 0));
             if (this.btnSupply.rightIcon.visible) {
                 this.btnSupply.caption = 'Loading';
             }
@@ -1545,16 +1387,16 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 [(_c = this.firstToken) === null || _c === void 0 ? void 0 : _c.symbol, (_d = this.secondToken) === null || _d === void 0 ? void 0 : _d.symbol].every(v => v === 'ETH' || v === 'WETH')) {
                 this.btnSupply.caption = 'Invalid Pair';
             }
-            else if (new eth_wallet_7.BigNumber(this.firstTokenInput.value).isZero() || new eth_wallet_7.BigNumber(this.secondTokenInput.value).isZero()) {
+            else if (new eth_wallet_5.BigNumber(this.firstTokenInput.value).isZero() || new eth_wallet_5.BigNumber(this.secondTokenInput.value).isZero()) {
                 this.btnSupply.caption = 'Enter Amount';
             }
-            else if (new eth_wallet_7.BigNumber(this.firstTokenInput.value).plus(firstCommissionAmount).gt(this.firstBalance)) {
+            else if (new eth_wallet_5.BigNumber(this.firstTokenInput.value).plus(firstCommissionAmount).gt(this.firstBalance)) {
                 this.btnSupply.caption = `Insufficient ${(_e = this.firstToken) === null || _e === void 0 ? void 0 : _e.symbol} balance`;
             }
-            else if (new eth_wallet_7.BigNumber(this.secondTokenInput.value).plus(secondCommissionAmount).gt(this.secondBalance)) {
+            else if (new eth_wallet_5.BigNumber(this.secondTokenInput.value).plus(secondCommissionAmount).gt(this.secondBalance)) {
                 this.btnSupply.caption = `Insufficient ${(_f = this.secondToken) === null || _f === void 0 ? void 0 : _f.symbol} balance`;
             }
-            else if (new eth_wallet_7.BigNumber(this.firstTokenInput.value).gt(0) && new eth_wallet_7.BigNumber(this.secondTokenInput.value).gt(0)) {
+            else if (new eth_wallet_5.BigNumber(this.firstTokenInput.value).gt(0) && new eth_wallet_5.BigNumber(this.secondTokenInput.value).gt(0)) {
                 this.btnSupply.caption = 'Supply';
                 this.btnSupply.enabled = !(this.btnApproveFirstToken.visible || this.btnApproveSecondToken.visible);
             }
@@ -1563,7 +1405,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             }
         }
         onCheckInput(value) {
-            const inputValue = new eth_wallet_7.BigNumber(value);
+            const inputValue = new eth_wallet_5.BigNumber(value);
             if (inputValue.isNaN()) {
                 this.firstTokenInput.value = '';
                 this.firstInputAmount = '0';
@@ -1576,13 +1418,13 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         async handleInputChange(isFrom) {
             let amount;
             if (isFrom) {
-                (0, index_4.limitInputNumber)(this.firstTokenInput, this.firstTokenDecimals);
+                (0, index_3.limitInputNumber)(this.firstTokenInput, this.firstTokenDecimals);
                 amount = this.firstTokenInput.value;
                 if (this.firstInputAmount === amount)
                     return;
             }
             else {
-                (0, index_4.limitInputNumber)(this.secondTokenInput, this.secondTokenDecimals);
+                (0, index_3.limitInputNumber)(this.secondTokenInput, this.secondTokenDecimals);
                 amount = this.secondTokenInput.value;
                 if (this.secondInputAmount === amount)
                     return;
@@ -1626,23 +1468,23 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             this.btnApproveSecondToken.visible = false;
         }
         async setMaxBalance(isFrom) {
-            if (!(0, index_5.isClientWalletConnected)())
+            if (!(0, index_4.isClientWalletConnected)())
                 return;
             this.isFromEstimated = !isFrom;
-            const balance = new eth_wallet_7.BigNumber(isFrom ? this.firstBalance : this.secondBalance);
+            const balance = new eth_wallet_5.BigNumber(isFrom ? this.firstBalance : this.secondBalance);
             let inputVal = balance;
-            const commissionAmount = (0, API_1.getCommissionAmount)(this.commissions, balance);
+            const commissionAmount = this.state.getCommissionAmount(this.commissions, balance);
             if (commissionAmount.gt(0)) {
                 const totalFee = balance.plus(commissionAmount).dividedBy(balance);
                 inputVal = inputVal.dividedBy(totalFee);
             }
             if (isFrom) {
-                const maxVal = (0, index_4.limitDecimals)(inputVal, this.firstTokenDecimals);
+                const maxVal = (0, index_3.limitDecimals)(inputVal, this.firstTokenDecimals);
                 this.firstInputAmount = maxVal;
                 this.firstTokenInput.value = maxVal;
             }
             else {
-                const maxVal = (0, index_4.limitDecimals)(inputVal, this.secondTokenDecimals);
+                const maxVal = (0, index_3.limitDecimals)(inputVal, this.secondTokenDecimals);
                 this.secondInputAmount = maxVal;
                 this.secondTokenInput.value = maxVal;
             }
@@ -1681,8 +1523,8 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.firstInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_4.limitDecimals)(this.firstInputAmount, token.decimals || 18);
-                    if (!new eth_wallet_7.BigNumber(this.firstInputAmount).eq(limit)) {
+                    const limit = (0, index_3.limitDecimals)(this.firstInputAmount, token.decimals || 18);
+                    if (!new eth_wallet_5.BigNumber(this.firstInputAmount).eq(limit)) {
                         if (this.firstTokenInput.isConnected)
                             this.firstTokenInput.value = limit;
                         this.firstInputAmount = limit;
@@ -1700,8 +1542,8 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.secondInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_4.limitDecimals)(this.secondInputAmount || '0', token.decimals || 18);
-                    if (!new eth_wallet_7.BigNumber(this.secondInputAmount).eq(limit)) {
+                    const limit = (0, index_3.limitDecimals)(this.secondInputAmount || '0', token.decimals || 18);
+                    if (!new eth_wallet_5.BigNumber(this.secondInputAmount).eq(limit)) {
                         if (this.secondTokenInput.isConnected)
                             this.secondTokenInput.value = limit;
                         this.secondInputAmount = limit;
@@ -1715,8 +1557,8 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             var _a, _b;
             if (!token)
                 return;
-            if (token.isNew && (0, index_5.isRpcWalletConnected)()) {
-                const rpcWallet = (0, index_5.getRpcWallet)();
+            if (token.isNew && this.state.isRpcWalletConnected()) {
+                const rpcWallet = this.state.getRpcWallet();
                 await scom_token_list_2.tokenStore.updateAllTokenBalances(rpcWallet);
                 this.allTokenBalancesMap = scom_token_list_2.tokenStore.tokenBalances;
             }
@@ -1765,29 +1607,29 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             this.handleSupply();
         }
         async handleSupply() {
-            if (!(0, index_5.isClientWalletConnected)() || !(0, index_5.isRpcWalletConnected)()) {
+            if (!(0, index_4.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
                 this.connectWallet();
                 return;
             }
             if (!this.firstToken || !this.secondToken)
                 return;
-            const chainId = (0, index_5.getChainId)();
+            const chainId = this.state.getChainId();
             this.firstTokenImage1.url = this.firstTokenImage2.url = scom_token_list_2.assets.tokenPath(this.firstToken, chainId);
             this.secondTokenImage1.url = this.secondTokenImage2.url = scom_token_list_2.assets.tokenPath(this.secondToken, chainId);
-            const firstAmount = new eth_wallet_7.BigNumber(this.firstInputAmount);
-            const secondAmount = new eth_wallet_7.BigNumber(this.secondInputAmount);
-            const firstCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, firstAmount);
-            const secondCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, secondAmount);
-            this.lbFirstInput.caption = (0, index_4.formatNumber)(firstAmount.plus(firstCommissionAmount), 4);
-            this.lbSecondInput.caption = (0, index_4.formatNumber)(secondAmount.plus(secondCommissionAmount), 4);
+            const firstAmount = new eth_wallet_5.BigNumber(this.firstInputAmount);
+            const secondAmount = new eth_wallet_5.BigNumber(this.secondInputAmount);
+            const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, firstAmount);
+            const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, secondAmount);
+            this.lbFirstInput.caption = (0, index_3.formatNumber)(firstAmount.plus(firstCommissionAmount), 4);
+            this.lbSecondInput.caption = (0, index_3.formatNumber)(secondAmount.plus(secondCommissionAmount), 4);
             this.lbPoolTokensTitle.caption = `${this.firstToken.symbol}/${this.secondToken.symbol} Pool Tokens`;
-            this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${(0, index_5.getSlippageTolerance)()}% your transaction will revert.`;
+            this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${this.state.slippageTolerance}% your transaction will revert.`;
             this.lbFirstDeposited.caption = `${this.firstToken.symbol} Deposited`;
             this.lbSecondDeposited.caption = `${this.secondToken.symbol} Deposited`;
             this.lbSummaryFirstPrice.caption = `1 ${this.secondToken.symbol} = ${this.lbFirstPrice.caption} ${this.firstToken.symbol}`;
             this.lbSummarySecondPrice.caption = `1 ${this.firstToken.symbol} = ${this.lbSecondPrice.caption} ${this.secondToken.symbol}`;
             this.lbShareOfPool2.caption = this.lbShareOfPool.caption;
-            this.lbPoolTokenAmount.caption = (0, index_4.formatNumber)(this.poolTokenAmount, 4);
+            this.lbPoolTokenAmount.caption = (0, index_3.formatNumber)(this.poolTokenAmount, 4);
             this.confirmSupplyModal.visible = true;
         }
         handleConfirmSupply() {
@@ -1796,16 +1638,20 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         onSubmit() {
             this.showTxStatusModal('warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
             if (this.isFromEstimated) {
-                (0, API_1.addLiquidity)(this.secondToken, this.firstToken, this.secondInputAmount, this.firstInputAmount, this.commissions);
+                (0, API_1.addLiquidity)(this.state, this.secondToken, this.firstToken, this.secondInputAmount, this.firstInputAmount, this.commissions);
             }
             else {
-                (0, API_1.addLiquidity)(this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount, this.commissions);
+                (0, API_1.addLiquidity)(this.state, this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount, this.commissions);
             }
         }
         async initApprovalModelAction() {
-            if (!(0, index_5.isClientWalletConnected)())
+            if (!this.state.isRpcWalletConnected())
                 return;
-            this.approvalModelAction = await (0, API_1.getApprovalModelAction)({
+            if (this.approvalModelAction) {
+                this.state.approvalModel.spenderAddress = this.contractAddress;
+                return;
+            }
+            this.approvalModelAction = await this.state.setApprovalModelAction({
                 sender: this,
                 payAction: async () => {
                     if (!this.firstToken || !this.secondToken)
@@ -1871,7 +1717,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.btnSupply.rightIcon.visible = true;
                 },
                 onPaid: async () => {
-                    await scom_token_list_2.tokenStore.updateAllTokenBalances((0, index_5.getRpcWallet)());
+                    await scom_token_list_2.tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
                     if (this.firstToken) {
                         this.firstBalance = scom_token_list_2.tokenStore.getTokenBalance(this.firstToken);
                     }
@@ -1884,14 +1730,15 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.showTxStatusModal('error', err);
                     this.btnSupply.rightIcon.visible = false;
                 }
-            }, this.contractAddress);
+            });
+            this.state.approvalModel.spenderAddress = this.contractAddress;
         }
         async checkPairExists() {
             if (!this.firstToken || !this.secondToken)
                 return;
             try {
-                let pair = await (0, API_1.getPairFromTokens)(this.firstToken, this.secondToken);
-                if (!pair || pair.address === index_5.nullAddress) {
+                let pair = await (0, API_1.getPairFromTokens)(this.state, this.firstToken, this.secondToken);
+                if (!pair || pair.address === eth_wallet_5.Utils.nullAddress) {
                     this.toggleCreateMessage(true);
                 }
                 else {
@@ -1916,22 +1763,22 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 let newShareInfo;
                 let invalidVal = false;
                 if (this.isFromEstimated) {
-                    invalidVal = new eth_wallet_7.BigNumber(this.firstTokenInput.value).isNaN();
-                    newShareInfo = await (0, API_1.getNewShareInfo)(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = (0, index_4.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.firstTokenDecimals);
+                    invalidVal = new eth_wallet_5.BigNumber(this.firstTokenInput.value).isNaN();
+                    newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    const val = (0, index_3.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.firstTokenDecimals);
                     this.firstInputAmount = val;
                     this.firstTokenInput.value = val;
                     if (invalidVal)
-                        newShareInfo = await (0, API_1.getNewShareInfo)(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                        newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
                 }
                 else {
-                    invalidVal = new eth_wallet_7.BigNumber(this.secondTokenInput.value).isNaN();
-                    newShareInfo = await (0, API_1.getNewShareInfo)(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = (0, index_4.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.secondTokenDecimals);
+                    invalidVal = new eth_wallet_5.BigNumber(this.secondTokenInput.value).isNaN();
+                    newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    const val = (0, index_3.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.secondTokenDecimals);
                     this.secondInputAmount = val;
                     this.secondTokenInput.value = val;
                     if (invalidVal)
-                        newShareInfo = await (0, API_1.getNewShareInfo)(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                        newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
                 }
                 if (!newShareInfo) {
                     this.lbFirstPrice.caption = '0';
@@ -1940,19 +1787,19 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.poolTokenAmount = '0';
                 }
                 else {
-                    let shareOfPool = new eth_wallet_7.BigNumber(newShareInfo.newShare).times(100).toFixed();
-                    this.lbFirstPrice.caption = (0, index_4.formatNumber)(newShareInfo.newPrice0, 3);
-                    this.lbSecondPrice.caption = (0, index_4.formatNumber)(newShareInfo.newPrice1, 3);
-                    this.lbShareOfPool.caption = `${(0, index_4.formatNumber)(shareOfPool, 2)}%`;
+                    let shareOfPool = new eth_wallet_5.BigNumber(newShareInfo.newShare).times(100).toFixed();
+                    this.lbFirstPrice.caption = (0, index_3.formatNumber)(newShareInfo.newPrice0, 3);
+                    this.lbSecondPrice.caption = (0, index_3.formatNumber)(newShareInfo.newPrice1, 3);
+                    this.lbShareOfPool.caption = `${(0, index_3.formatNumber)(shareOfPool, 2)}%`;
                     this.poolTokenAmount = newShareInfo.minted;
                 }
             }
             else {
-                let pricesInfo = await (0, API_1.getPricesInfo)(this.firstToken, this.secondToken);
+                let pricesInfo = await (0, API_1.getPricesInfo)(this.state, this.firstToken, this.secondToken);
                 if (!pricesInfo) {
                     let newPairShareInfo = (0, API_1.calculateNewPairShareInfo)(this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount);
-                    this.lbFirstPrice.caption = (0, index_4.formatNumber)(newPairShareInfo.price0, 3);
-                    this.lbSecondPrice.caption = (0, index_4.formatNumber)(newPairShareInfo.price1, 3);
+                    this.lbFirstPrice.caption = (0, index_3.formatNumber)(newPairShareInfo.price0, 3);
+                    this.lbSecondPrice.caption = (0, index_3.formatNumber)(newPairShareInfo.price1, 3);
                     this.poolTokenAmount = newPairShareInfo.minted;
                     this.lbShareOfPool.caption = '100%';
                 }
@@ -1963,22 +1810,22 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 }
                 else {
                     const { price0, price1 } = pricesInfo;
-                    let shareOfPool = pricesInfo.totalSupply == '0' ? '0' : new eth_wallet_7.BigNumber(pricesInfo.balance).div(pricesInfo.totalSupply).times(100).toFixed();
-                    this.lbFirstPrice.caption = (0, index_4.formatNumber)(price0, 3);
-                    this.lbSecondPrice.caption = (0, index_4.formatNumber)(price1, 3);
-                    this.lbShareOfPool.caption = `${(0, index_4.formatNumber)(shareOfPool, 2)}%`;
+                    let shareOfPool = pricesInfo.totalSupply == '0' ? '0' : new eth_wallet_5.BigNumber(pricesInfo.balance).div(pricesInfo.totalSupply).times(100).toFixed();
+                    this.lbFirstPrice.caption = (0, index_3.formatNumber)(price0, 3);
+                    this.lbSecondPrice.caption = (0, index_3.formatNumber)(price1, 3);
+                    this.lbShareOfPool.caption = `${(0, index_3.formatNumber)(shareOfPool, 2)}%`;
                     if (this.isFromEstimated) {
-                        if (new eth_wallet_7.BigNumber(this.secondTokenInput.value).gt(0)) {
-                            const price = new eth_wallet_7.BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
-                            const val = (0, index_4.limitDecimals)(price, this.firstTokenDecimals);
+                        if (new eth_wallet_5.BigNumber(this.secondTokenInput.value).gt(0)) {
+                            const price = new eth_wallet_5.BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
+                            const val = (0, index_3.limitDecimals)(price, this.firstTokenDecimals);
                             this.firstTokenInput.value = val;
                             this.firstInputAmount = val;
                         }
                     }
                     else {
-                        if (new eth_wallet_7.BigNumber(this.firstTokenInput.value).gt(0)) {
-                            const price = new eth_wallet_7.BigNumber(price0).multipliedBy(this.firstTokenInput.value).toFixed();
-                            const val = (0, index_4.limitDecimals)(price, this.secondTokenDecimals);
+                        if (new eth_wallet_5.BigNumber(this.firstTokenInput.value).gt(0)) {
+                            const price = new eth_wallet_5.BigNumber(price0).multipliedBy(this.firstTokenInput.value).toFixed();
+                            const val = (0, index_3.limitDecimals)(price, this.secondTokenDecimals);
                             this.secondTokenInput.value = val;
                             this.secondInputAmount = val;
                         }
@@ -1986,14 +1833,18 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 }
             }
             this.btnSupply.enabled = true;
-            const firstCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, new eth_wallet_7.BigNumber(this.firstInputAmount));
-            const secondCommissionAmount = (0, API_1.getCommissionAmount)(this.commissions, new eth_wallet_7.BigNumber(this.secondInputAmount));
-            this.approvalModelAction.checkAllowance(this.firstToken, firstCommissionAmount.plus(this.firstInputAmount));
-            this.approvalModelAction.checkAllowance(this.secondToken, secondCommissionAmount.plus(this.secondInputAmount));
+            const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, new eth_wallet_5.BigNumber(this.firstInputAmount));
+            const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, new eth_wallet_5.BigNumber(this.secondInputAmount));
+            this.approvalModelAction.checkAllowance(this.firstToken, firstCommissionAmount.plus(this.firstInputAmount).toFixed());
+            this.approvalModelAction.checkAllowance(this.secondToken, secondCommissionAmount.plus(this.secondInputAmount).toFixed());
         }
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
+            const state = this.getAttribute('state', true);
+            if (state) {
+                this.state = state;
+            }
             const tokens = this.getAttribute('tokens', true, []);
             const providers = this.getAttribute('providers', true, []);
             const commissions = this.getAttribute('commissions', true, []);
@@ -2085,7 +1936,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
     ], ScomAmmPoolAdd);
     exports.ScomAmmPoolAdd = ScomAmmPoolAdd;
 });
-define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_5, index_6, eth_wallet_8, index_7, API_2, scom_token_list_3, index_css_2) {
+define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_5, index_5, eth_wallet_6, index_6, API_2, scom_token_list_3, index_css_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ScomAmmPoolRemove = void 0;
@@ -2129,13 +1980,14 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 this.updateButtonText();
             };
             this.updateContractAddress = () => {
-                this.contractAddress = (0, API_2.getRouterAddress)((0, index_7.getChainId)());
-                if (this.approvalModelAction) {
-                    this.approvalModelAction.setSpenderAddress(this.contractAddress);
+                var _a;
+                this.contractAddress = (0, API_2.getRouterAddress)(this.state.getChainId());
+                if (((_a = this.state) === null || _a === void 0 ? void 0 : _a.approvalModel) && this.approvalModelAction) {
+                    this.state.approvalModel.spenderAddress = this.contractAddress;
                 }
             };
             this.onSetupPage = async (connected) => {
-                const chainId = (0, index_7.getChainId)();
+                const chainId = this.state.getChainId();
                 if (!this.btnRemove.isConnected)
                     await this.btnRemove.ready();
                 if (!this.firstTokenInput.isConnected)
@@ -2149,13 +2001,13 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 this.liquidityInput.value = '';
                 scom_token_list_3.tokenStore.updateTokenMapData(chainId);
                 if (connected) {
-                    await scom_token_list_3.tokenStore.updateAllTokenBalances((0, index_7.getRpcWallet)());
+                    await scom_token_list_3.tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
                     if (!this.approvalModelAction)
                         await this.initApprovalModelAction();
                 }
                 this.firstTokenInput.isBtnMaxShown = false;
                 this.secondTokenInput.isBtnMaxShown = false;
-                const tokens = (0, index_7.getSupportedTokens)(this._data.tokens || [], chainId);
+                const tokens = (0, index_6.getSupportedTokens)(this._data.tokens || [], chainId);
                 const isReadonly = tokens.length === 2;
                 this.firstTokenInput.tokenReadOnly = isReadonly;
                 this.secondTokenInput.tokenReadOnly = isReadonly;
@@ -2179,7 +2031,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                         await this.checkPairExists();
                         await this.callAPIBundle();
                         this.renderLiquidity();
-                        if (new eth_wallet_8.BigNumber(this.liquidityInput.value).gt(0))
+                        if (new eth_wallet_6.BigNumber(this.liquidityInput.value).gt(0))
                             this.approvalModelAction.checkAllowance(this.lpToken, this.liquidityInput.value);
                     }
                     catch (_a) {
@@ -2191,12 +2043,12 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 }
             };
             this.updateBtnRemove = () => {
-                if (!(0, index_7.isClientWalletConnected)()) {
+                if (!(0, index_6.isClientWalletConnected)()) {
                     this.btnRemove.caption = 'Connect Wallet';
                     this.btnRemove.enabled = true;
                     return;
                 }
-                if (!(0, index_7.isRpcWalletConnected)()) {
+                if (!this.state.isRpcWalletConnected()) {
                     this.btnRemove.caption = 'Switch Network';
                     this.btnRemove.enabled = true;
                     return;
@@ -2206,7 +2058,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.btnRemove.enabled = false;
                     return;
                 }
-                const lqAmount = new eth_wallet_8.BigNumber(this.liquidityInput.value || 0);
+                const lqAmount = new eth_wallet_6.BigNumber(this.liquidityInput.value || 0);
                 const canRemove = lqAmount.gt(0) && lqAmount.lte(this.maxLiquidityBalance);
                 this.btnRemove.caption = canRemove || lqAmount.isZero() ? 'Remove' : 'Insufficient balance';
                 this.btnRemove.enabled = canRemove;
@@ -2224,11 +2076,20 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 this.txStatusModal.message = Object.assign({}, params);
                 this.txStatusModal.showModal();
             };
+            if (options === null || options === void 0 ? void 0 : options.state) {
+                this.state = options.state;
+            }
         }
         static async create(options, parent) {
             let self = new this(parent, options);
             await self.ready();
             return self;
+        }
+        get state() {
+            return this._state;
+        }
+        set state(value) {
+            this._state = value;
         }
         get firstTokenDecimals() {
             var _a;
@@ -2276,10 +2137,10 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         }
         async refreshUI() {
             await this.initData();
-            await this.onSetupPage((0, index_7.isClientWalletConnected)());
+            await this.onSetupPage((0, index_6.isClientWalletConnected)());
         }
         renderLiquidity() {
-            const chainId = (0, index_7.getChainId)();
+            const chainId = this.state.getChainId();
             let firstTokenImagePath = scom_token_list_3.assets.tokenPath(this.firstToken, chainId);
             let secondTokenImagePath = scom_token_list_3.assets.tokenPath(this.secondToken, chainId);
             this.pnlLiquidityImage.clearInnerHTML();
@@ -2311,9 +2172,9 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         }
         setFixedPairData() {
             var _a;
-            const chainId = (0, index_7.getChainId)();
+            const chainId = this.state.getChainId();
             let currentChainTokens = this._data.tokens.filter((token) => token.chainId === chainId);
-            if (!currentChainTokens.length && (0, index_7.isClientWalletConnected)()) {
+            if (!currentChainTokens.length && (0, index_6.isClientWalletConnected)()) {
                 this.firstToken = Object.values(scom_token_list_3.tokenStore.tokenMap).find(v => v.isNative);
                 this.firstTokenInput.token = this.firstToken;
                 return;
@@ -2360,11 +2221,11 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             if (!this.btnRemove || !this.btnRemove.hasChildNodes())
                 return;
             this.btnRemove.enabled = false;
-            if (!(0, index_7.isClientWalletConnected)()) {
+            if (!(0, index_6.isClientWalletConnected)()) {
                 this.btnRemove.caption = 'Connect Wallet';
                 return;
             }
-            if (!(0, index_7.isRpcWalletConnected)()) {
+            if (!this.state.isRpcWalletConnected()) {
                 this.btnRemove.enabled = true;
                 this.btnRemove.caption = 'Switch Network';
                 return;
@@ -2381,18 +2242,18 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             if (!this.firstToken || !this.secondToken)
                 return;
             if (isFrom) {
-                (0, index_6.limitInputNumber)(this.firstTokenInput, this.firstToken.decimals);
-                const value = new eth_wallet_8.BigNumber(this.firstTokenInput.value);
-                let tokensBack = await (0, API_2.getTokensBackByAmountOut)(this.firstToken, this.secondToken, this.firstToken, value.toFixed());
+                (0, index_5.limitInputNumber)(this.firstTokenInput, this.firstToken.decimals);
+                const value = new eth_wallet_6.BigNumber(this.firstTokenInput.value);
+                let tokensBack = await (0, API_2.getTokensBackByAmountOut)(this.state, this.firstToken, this.secondToken, this.firstToken, value.toFixed());
                 if (tokensBack && value.eq(this.firstTokenInput.value)) {
                     this.liquidityInput.value = tokensBack.liquidity;
                     this.secondTokenInput.value = tokensBack.amountB;
                 }
             }
             else {
-                (0, index_6.limitInputNumber)(this.secondTokenInput, this.secondToken.decimals);
-                const value = new eth_wallet_8.BigNumber(this.secondTokenInput.value);
-                let tokensBack = await (0, API_2.getTokensBackByAmountOut)(this.firstToken, this.secondToken, this.secondToken, value.toFixed());
+                (0, index_5.limitInputNumber)(this.secondTokenInput, this.secondToken.decimals);
+                const value = new eth_wallet_6.BigNumber(this.secondTokenInput.value);
+                let tokensBack = await (0, API_2.getTokensBackByAmountOut)(this.state, this.firstToken, this.secondToken, this.secondToken, value.toFixed());
                 if (tokensBack && value.eq(this.secondTokenInput.value)) {
                     this.liquidityInput.value = tokensBack.liquidity;
                     this.firstTokenInput.value = tokensBack.amountA;
@@ -2423,9 +2284,9 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             var _a;
             if (!this.firstToken || !this.secondToken)
                 return;
-            (0, index_6.limitInputNumber)(this.liquidityInput, 18);
-            const value = new eth_wallet_8.BigNumber(this.liquidityInput.value);
-            let tokensBack = await (0, API_2.getTokensBack)(this.firstToken, this.secondToken, value.toFixed());
+            (0, index_5.limitInputNumber)(this.liquidityInput, 18);
+            const value = new eth_wallet_6.BigNumber(this.liquidityInput.value);
+            let tokensBack = await (0, API_2.getTokensBack)(this.state, this.firstToken, this.secondToken, value.toFixed());
             if (tokensBack && value.eq(this.liquidityInput.value)) {
                 this.firstTokenInput.value = isNaN(Number(tokensBack.amountA)) ? '0' : tokensBack.amountA;
                 this.secondTokenInput.value = isNaN(Number(tokensBack.amountB)) ? '0' : tokensBack.amountB;
@@ -2451,8 +2312,8 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.firstInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_6.limitDecimals)(this.firstInputAmount, token.decimals || 18);
-                    if (!new eth_wallet_8.BigNumber(this.firstInputAmount).eq(limit)) {
+                    const limit = (0, index_5.limitDecimals)(this.firstInputAmount, token.decimals || 18);
+                    if (!new eth_wallet_6.BigNumber(this.firstInputAmount).eq(limit)) {
                         if (this.firstTokenInput.isConnected)
                             this.firstTokenInput.value = limit;
                         this.firstInputAmount = limit;
@@ -2469,8 +2330,8 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.secondInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_6.limitDecimals)(this.secondInputAmount, token.decimals || 18);
-                    if (!new eth_wallet_8.BigNumber(this.secondInputAmount).eq(limit)) {
+                    const limit = (0, index_5.limitDecimals)(this.secondInputAmount, token.decimals || 18);
+                    if (!new eth_wallet_6.BigNumber(this.secondInputAmount).eq(limit)) {
                         if (this.secondTokenInput.isConnected)
                             this.secondTokenInput.value = limit;
                         this.secondInputAmount = limit;
@@ -2522,17 +2383,21 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             this.approvalModelAction.doPayAction();
         }
         onSubmit() {
-            if (!(0, index_7.isClientWalletConnected)() || !(0, index_7.isRpcWalletConnected)()) {
+            if (!(0, index_6.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
                 this.connectWallet();
                 return;
             }
             this.showTxStatusModal('warning', `Removing ${this.firstToken.symbol}/${this.secondToken.symbol}`);
-            (0, API_2.removeLiquidity)(this.firstToken, this.secondToken, this.liquidityInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+            (0, API_2.removeLiquidity)(this.state, this.firstToken, this.secondToken, this.liquidityInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         }
         async initApprovalModelAction() {
-            if (!(0, index_7.isClientWalletConnected)())
+            if (!this.state.isRpcWalletConnected())
                 return;
-            this.approvalModelAction = await (0, API_2.getApprovalModelAction)({
+            if (this.approvalModelAction) {
+                this.state.approvalModel.spenderAddress = this.contractAddress;
+                return;
+            }
+            this.approvalModelAction = await this.state.setApprovalModelAction({
                 sender: this,
                 payAction: async () => {
                     if (!this.firstToken || !this.secondToken)
@@ -2576,21 +2441,22 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.btnRemove.rightIcon.visible = true;
                 },
                 onPaid: async () => {
-                    await scom_token_list_3.tokenStore.updateAllTokenBalances((0, index_7.getRpcWallet)());
+                    await scom_token_list_3.tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
                     this.btnRemove.rightIcon.visible = false;
                 },
                 onPayingError: async (err) => {
                     this.showTxStatusModal('error', err);
                     this.btnRemove.rightIcon.visible = false;
                 }
-            }, this.contractAddress);
+            });
+            this.state.approvalModel.spenderAddress = this.contractAddress;
         }
         async checkPairExists() {
             if (!this.firstToken || !this.secondToken)
                 return;
             try {
-                let pair = await (0, API_2.getPairFromTokens)(this.firstToken, this.secondToken);
-                if (!pair || pair.address === index_7.nullAddress) {
+                let pair = await (0, API_2.getPairFromTokens)(this.state, this.firstToken, this.secondToken);
+                if (!pair || pair.address === eth_wallet_6.Utils.nullAddress) {
                     this.toggleCreateMessage(true);
                 }
                 else {
@@ -2611,16 +2477,16 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 await this.lbSecondPrice.ready();
             if (!this.lbShareOfPool.isConnected)
                 await this.lbShareOfPool.ready();
-            const info = await (0, API_2.getRemoveLiquidityInfo)(this.firstToken, this.secondToken);
+            const info = await (0, API_2.getRemoveLiquidityInfo)(this.state, this.firstToken, this.secondToken);
             this.removeInfo = {
                 maxBalance: (info === null || info === void 0 ? void 0 : info.totalPoolTokens) || '',
-                totalPoolTokens: info.totalPoolTokens ? (0, index_6.formatNumber)(info.totalPoolTokens, 4) : '',
-                poolShare: info.poolShare ? `${(0, index_6.formatNumber)(new eth_wallet_8.BigNumber(info.poolShare).times(100), 2)}%` : '',
-                tokenAShare: info.tokenAShare ? (0, index_6.formatNumber)(info.tokenAShare, 4) : '',
-                tokenBShare: info.tokenBShare ? (0, index_6.formatNumber)(info.tokenBShare, 4) : ''
+                totalPoolTokens: info.totalPoolTokens ? (0, index_5.formatNumber)(info.totalPoolTokens, 4) : '',
+                poolShare: info.poolShare ? `${(0, index_5.formatNumber)(new eth_wallet_6.BigNumber(info.poolShare).times(100), 2)}%` : '',
+                tokenAShare: info.tokenAShare ? (0, index_5.formatNumber)(info.tokenAShare, 4) : '',
+                tokenBShare: info.tokenBShare ? (0, index_5.formatNumber)(info.tokenBShare, 4) : ''
             };
-            this.lbFirstPrice.caption = `1 ${this.firstTokenSymbol} = ${(0, index_6.formatNumber)(info.price0, 4)} ${this.secondTokenSymbol}`;
-            this.lbSecondPrice.caption = `1 ${this.secondTokenSymbol} = ${(0, index_6.formatNumber)(info.price1, 4)} ${this.firstTokenSymbol}`;
+            this.lbFirstPrice.caption = `1 ${this.firstTokenSymbol} = ${(0, index_5.formatNumber)(info.price0, 4)} ${this.secondTokenSymbol}`;
+            this.lbSecondPrice.caption = `1 ${this.secondTokenSymbol} = ${(0, index_5.formatNumber)(info.price1, 4)} ${this.firstTokenSymbol}`;
             this.lbShareOfPool.caption = this.removeInfo.poolShare;
             this.firstTokenInput.value = this.removeInfo.tokenAShare;
             this.secondTokenInput.value = this.removeInfo.tokenBShare;
@@ -2632,6 +2498,10 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
+            const state = this.getAttribute('state', true);
+            if (state) {
+                this.state = state;
+            }
             const tokens = this.getAttribute('tokens', true, []);
             const providers = this.getAttribute('providers', true, []);
             await this.setData({ providers, tokens });
@@ -2920,7 +2790,7 @@ define("@scom/scom-amm-pool/formSchema.json.ts", ["require", "exports"], functio
         }
     };
 });
-define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.json.ts"], function (require, exports, components_6, eth_wallet_9, index_8, index_css_3, scom_token_list_4, scom_dex_list_2, index_9, scom_commission_fee_setup_1, data_json_1, formSchema_json_1) {
+define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.json.ts"], function (require, exports, components_6, eth_wallet_7, index_7, index_css_3, scom_token_list_4, scom_dex_list_2, index_8, scom_commission_fee_setup_1, data_json_1, formSchema_json_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_6.Styles.Theme.ThemeVars;
@@ -2939,32 +2809,35 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             this.rpcWalletEvents = [];
             this.initWallet = async () => {
                 try {
-                    await eth_wallet_9.Wallet.getClientInstance().init();
-                    const rpcWallet = (0, index_8.getRpcWallet)();
-                    await rpcWallet.init();
+                    await eth_wallet_7.Wallet.getClientInstance().init();
+                    await this.rpcWallet.init();
                 }
                 catch (_a) { }
             };
             this.connectWallet = async () => {
-                if (!(0, index_8.isClientWalletConnected)()) {
+                if (!(0, index_7.isClientWalletConnected)()) {
                     await components_6.application.loadPackage('@scom/scom-wallet-modal', '*');
                     this.mdWallet.networks = this.networks;
                     this.mdWallet.wallets = this.wallets;
                     this.mdWallet.showModal();
                     return;
                 }
-                if (!(0, index_8.isRpcWalletConnected)()) {
-                    const chainId = (0, index_8.getChainId)();
-                    const clientWallet = eth_wallet_9.Wallet.getClientInstance();
-                    await clientWallet.switchNetwork(chainId);
+                if (!this.state.isRpcWalletConnected()) {
+                    const clientWallet = eth_wallet_7.Wallet.getClientInstance();
+                    await clientWallet.switchNetwork(this.chainId);
                 }
             };
-            (0, index_8.setDataFromConfig)(data_json_1.default);
         }
         static async create(options, parent) {
             let self = new this(parent, options);
             await self.ready();
             return self;
+        }
+        get chainId() {
+            return this.state.getChainId();
+        }
+        get rpcWallet() {
+            return this.state.getRpcWallet();
         }
         get providers() {
             return this._data.providers;
@@ -3066,7 +2939,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                             const vstack = new components_6.VStack();
                             const config = new scom_commission_fee_setup_1.default(null, {
                                 commissions: self._data.commissions || [],
-                                fee: (0, index_8.getEmbedderCommissionFee)(),
+                                fee: this.state.embedderCommissionFee,
                                 networks: self._data.networks
                             });
                             const hstack = new components_6.HStack(null, {
@@ -3124,6 +2997,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                                         }
                                     }
                                 }
+                                await this.resetRpcWallet();
                                 this.refreshUI();
                                 if (builder === null || builder === void 0 ? void 0 : builder.setData)
                                     builder.setData(this._data);
@@ -3179,25 +3053,24 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
         getData() {
             return this._data;
         }
-        async setData(config) {
+        async resetRpcWallet() {
             var _a;
-            this.resetEvents();
-            this._data = config;
-            (0, index_8.initRpcWallet)(this.defaultChainId);
-            const rpcWallet = (0, index_8.getRpcWallet)();
-            const connectedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_9.Constants.RpcWalletEvent.Connected, async (connected) => {
-                if (this.poolAdd)
-                    this.poolAdd.onWalletConnected(connected);
-                if (this.poolRemove)
-                    this.poolRemove.onWalletConnected(connected);
-            });
-            const chainChangedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_9.Constants.RpcWalletEvent.ChainChanged, async (chainId) => {
+            this.removeRpcWalletEvents();
+            const rpcWalletId = await this.state.initRpcWallet(this.defaultChainId);
+            const rpcWallet = this.rpcWallet;
+            const chainChangedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_7.Constants.RpcWalletEvent.ChainChanged, async (chainId) => {
                 if (this.poolAdd)
                     this.poolAdd.onChainChange();
                 if (this.poolRemove)
                     this.poolRemove.onChainChange();
             });
-            this.rpcWalletEvents.push(connectedEvent, chainChangedEvent);
+            const connectedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_7.Constants.RpcWalletEvent.Connected, async (connected) => {
+                if (this.poolAdd)
+                    this.poolAdd.onWalletConnected(connected);
+                if (this.poolRemove)
+                    this.poolRemove.onWalletConnected(connected);
+            });
+            this.rpcWalletEvents.push(chainChangedEvent, connectedEvent);
             const data = {
                 defaultChainId: this.defaultChainId,
                 wallets: this.wallets,
@@ -3207,11 +3080,15 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             };
             if ((_a = this.dappContainer) === null || _a === void 0 ? void 0 : _a.setData)
                 this.dappContainer.setData(data);
+        }
+        async setData(config) {
+            this._data = config;
+            await this.resetRpcWallet();
             await this.refreshUI();
         }
         async refreshUI() {
             const dexList = (0, scom_dex_list_2.default)();
-            (0, index_8.setDexInfoList)(dexList);
+            this.state.setDexInfoList(dexList);
             await this.initializeWidgetConfig();
         }
         async getTag() {
@@ -3295,7 +3172,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                         };
                     },
                     getData: () => {
-                        const fee = (0, index_8.getEmbedderCommissionFee)();
+                        const fee = this.state.embedderCommissionFee;
                         return Object.assign(Object.assign({}, this._data), { fee });
                     },
                     setData: this.setData.bind(this),
@@ -3308,7 +3185,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             await this.initWallet();
             this.vStackAmmPool.clearInnerHTML();
             if (this.isAddLiquidity) {
-                this.poolAdd = new index_9.ScomAmmPoolAdd(undefined, {
+                this.poolAdd = new index_8.ScomAmmPoolAdd(undefined, {
+                    state: this.state,
                     providers: this.providers,
                     commissions: this.commissions,
                     tokens: this.tokens
@@ -3316,7 +3194,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                 this.vStackAmmPool.appendChild(this.poolAdd);
             }
             else if (this.isRemoveLiquidity) {
-                this.poolRemove = new index_9.ScomAmmPoolRemove(undefined, {
+                this.poolRemove = new index_8.ScomAmmPoolRemove(undefined, {
+                    state: this.state,
                     providers: this.providers,
                     tokens: this.tokens
                 });
@@ -3325,12 +3204,14 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             else {
                 const tabs = new components_6.Tabs();
                 this.vStackAmmPool.appendChild(tabs);
-                this.poolAdd = new index_9.ScomAmmPoolAdd(undefined, {
+                this.poolAdd = new index_8.ScomAmmPoolAdd(undefined, {
+                    state: this.state,
                     providers: this.providers,
                     commissions: this.commissions,
                     tokens: this.tokens
                 });
-                this.poolRemove = new index_9.ScomAmmPoolRemove(undefined, {
+                this.poolRemove = new index_8.ScomAmmPoolRemove(undefined, {
+                    state: this.state,
                     providers: this.providers,
                     tokens: this.tokens
                 });
@@ -3348,6 +3229,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
+            this.state = new index_7.State(data_json_1.default);
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
                 const mode = this.getAttribute('mode', true);
@@ -3362,8 +3244,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             this.isReadyCallbackQueued = false;
             this.executeReadyCallback();
         }
-        resetEvents() {
-            const rpcWallet = (0, index_8.getRpcWallet)();
+        removeRpcWalletEvents() {
+            const rpcWallet = this.rpcWallet;
             for (let event of this.rpcWalletEvents) {
                 rpcWallet.unregisterWalletEvent(event);
             }
@@ -3371,7 +3253,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
         }
         onHide() {
             this.dappContainer.onHide();
-            this.resetEvents();
+            this.removeRpcWalletEvents();
         }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },

@@ -1,7 +1,7 @@
 import { customModule, Module, Styles, Button, Container, customElements, ControlElement, VStack, Tabs, HStack, application } from '@ijstech/components';
 import { Constants, IEventBusRegistry, Wallet } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
-import { setDexInfoList, setDataFromConfig, getEmbedderCommissionFee, initRpcWallet, getRpcWallet, isClientWalletConnected, isRpcWalletConnected, getChainId } from './store/index';
+import { State, isClientWalletConnected } from './store/index';
 import { poolStyle } from './index.css';
 import { ChainNativeTokenByChainId, DefaultERC20Tokens } from '@scom/scom-token-list';
 import ScomWalletModal, { IWalletPlugin } from '@scom/scom-wallet-modal';
@@ -36,6 +36,7 @@ declare global {
 @customModule
 @customElements('i-scom-amm-pool')
 export default class ScomAmmPool extends Module {
+  private state: State;
   private dappContainer: ScomDappContainer;
   private vStackAmmPool: VStack;
   private poolAdd: ScomAmmPoolAdd;
@@ -55,13 +56,20 @@ export default class ScomAmmPool extends Module {
 
   constructor(parent?: Container, options?: ScomAmmPoolElement) {
     super(parent, options);
-    setDataFromConfig(configData);
   }
 
   static async create(options?: ScomAmmPoolElement, parent?: Container) {
     let self = new this(parent, options);
     await self.ready();
     return self;
+  }
+
+  private get chainId() {
+    return this.state.getChainId();
+  }
+
+  private get rpcWallet() {
+    return this.state.getRpcWallet();
   }
 
   get providers() {
@@ -170,7 +178,7 @@ export default class ScomAmmPool extends Module {
             const vstack = new VStack();
             const config = new ScomCommissionFeeSetup(null, {
               commissions: self._data.commissions || [],
-              fee: getEmbedderCommissionFee(),
+              fee: this.state.embedderCommissionFee,
               networks: self._data.networks
             });
             const hstack = new HStack(null, {
@@ -226,6 +234,7 @@ export default class ScomAmmPool extends Module {
                   }
                 }
               }
+              await this.resetRpcWallet();
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
             },
@@ -274,20 +283,20 @@ export default class ScomAmmPool extends Module {
     return this._data;
   }
 
-  private async setData(config: IPoolConfig) {
-    this.resetEvents();
-    this._data = config;
-    initRpcWallet(this.defaultChainId);
-    const rpcWallet = getRpcWallet();
-    const connectedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.Connected, async (connected: boolean) => {
-      if (this.poolAdd) this.poolAdd.onWalletConnected(connected);
-      if (this.poolRemove) this.poolRemove.onWalletConnected(connected);
-    });
+  private async resetRpcWallet() {
+    this.removeRpcWalletEvents();
+    const rpcWalletId = await this.state.initRpcWallet(this.defaultChainId);
+    const rpcWallet = this.rpcWallet;
     const chainChangedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.ChainChanged, async (chainId: number) => {
       if (this.poolAdd) this.poolAdd.onChainChange();
       if (this.poolRemove) this.poolRemove.onChainChange();
     });
-    this.rpcWalletEvents.push(connectedEvent, chainChangedEvent);
+    const connectedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.Connected, async (connected: boolean) => {
+      if (this.poolAdd) this.poolAdd.onWalletConnected(connected);
+      if (this.poolRemove) this.poolRemove.onWalletConnected(connected);
+    });
+    this.rpcWalletEvents.push(chainChangedEvent, connectedEvent);
+
     const data = {
       defaultChainId: this.defaultChainId,
       wallets: this.wallets,
@@ -295,13 +304,18 @@ export default class ScomAmmPool extends Module {
       showHeader: this.showHeader,
       rpcWalletId: rpcWallet.instanceId
     }
-    if (this.dappContainer?.setData) this.dappContainer.setData(data)
+    if (this.dappContainer?.setData) this.dappContainer.setData(data);
+  }
+
+  private async setData(config: IPoolConfig) {
+    this._data = config;
+    await this.resetRpcWallet();
     await this.refreshUI();
   }
 
   private async refreshUI() {
     const dexList = getDexList();
-    setDexInfoList(dexList);
+    this.state.setDexInfoList(dexList);
     await this.initializeWidgetConfig();
   }
 
@@ -395,7 +409,7 @@ export default class ScomAmmPool extends Module {
           }
         },
         getData: () => {
-          const fee = getEmbedderCommissionFee();
+          const fee = this.state.embedderCommissionFee;
           return { ...this._data, fee }
         },
         setData: this.setData.bind(this),
@@ -408,8 +422,7 @@ export default class ScomAmmPool extends Module {
   private initWallet = async () => {
     try {
       await Wallet.getClientInstance().init();
-      const rpcWallet = getRpcWallet();
-      await rpcWallet.init();
+      await this.rpcWallet.init();
     } catch { }
   }
 
@@ -418,6 +431,7 @@ export default class ScomAmmPool extends Module {
     this.vStackAmmPool.clearInnerHTML();
     if (this.isAddLiquidity) {
       this.poolAdd = new ScomAmmPoolAdd(undefined, {
+        state: this.state,
         providers: this.providers,
         commissions: this.commissions,
         tokens: this.tokens
@@ -425,6 +439,7 @@ export default class ScomAmmPool extends Module {
       this.vStackAmmPool.appendChild(this.poolAdd);
     } else if (this.isRemoveLiquidity) {
       this.poolRemove = new ScomAmmPoolRemove(undefined, {
+        state: this.state,
         providers: this.providers,
         tokens: this.tokens
       });
@@ -433,11 +448,13 @@ export default class ScomAmmPool extends Module {
       const tabs = new Tabs();
       this.vStackAmmPool.appendChild(tabs);
       this.poolAdd = new ScomAmmPoolAdd(undefined, {
+        state: this.state,
         providers: this.providers,
         commissions: this.commissions,
         tokens: this.tokens
       });
       this.poolRemove = new ScomAmmPoolRemove(undefined, {
+        state: this.state,
         providers: this.providers,
         tokens: this.tokens
       });
@@ -456,6 +473,7 @@ export default class ScomAmmPool extends Module {
   async init() {
     this.isReadyCallbackQueued = true;
     super.init();
+    this.state = new State(configData);
     const lazyLoad = this.getAttribute('lazyLoad', true, false);
     if (!lazyLoad) {
       const mode = this.getAttribute('mode', true);
@@ -471,8 +489,8 @@ export default class ScomAmmPool extends Module {
     this.executeReadyCallback();
   }
 
-  private resetEvents() {
-    const rpcWallet = getRpcWallet();
+  removeRpcWalletEvents() {
+    const rpcWallet = this.rpcWallet;
     for (let event of this.rpcWalletEvents) {
       rpcWallet.unregisterWalletEvent(event);
     }
@@ -487,16 +505,15 @@ export default class ScomAmmPool extends Module {
       this.mdWallet.showModal();
       return;
     }
-    if (!isRpcWalletConnected()) {
-      const chainId = getChainId();
+    if (!this.state.isRpcWalletConnected()) {
       const clientWallet = Wallet.getClientInstance();
-      await clientWallet.switchNetwork(chainId);
-    } 
+      await clientWallet.switchNetwork(this.chainId);
+    }
   }
 
   onHide() {
     this.dappContainer.onHide();
-    this.resetEvents();
+    this.removeRpcWalletEvents();
   }
 
   render() {
