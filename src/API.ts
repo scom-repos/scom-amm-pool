@@ -1,19 +1,13 @@
 import { Wallet, BigNumber, Utils, TransactionReceipt } from "@ijstech/eth-wallet";
-import {} from '@ijstech/eth-contract';
+import { } from '@ijstech/eth-contract';
 import { Contracts } from "@scom/oswap-openswap-contract";
 import { Contracts as ProxyContracts } from '@scom/scom-commission-proxy-contract';
 import {
-  IERC20ApprovalEventOptions,
-  ERC20ApprovalModel,
   ICommissionInfo
 } from "./global/index";
 import {
-  getWETH, 
-  getSlippageTolerance, 
-  getTransactionDeadline,
-  getChainId,
-  getProxyAddress,
-  getRpcWallet
+  State,
+  getWETH
 } from "./store/index";
 import getDexList from '@scom/scom-dex-list';
 import { ITokenObject } from "@scom/scom-token-list";
@@ -45,30 +39,15 @@ interface IAmmPair extends IUserShare, IAmmPairToken {
 }
 
 interface ITokensBack {
-  amountA: string; 
-  amountB: string; 
+  amountA: string;
+  amountB: string;
   [x: string]: string;
-  liquidity: string; 
-  percent: string;  
-  newshare: string; 
+  liquidity: string;
+  percent: string;
+  newshare: string;
 }
 
 export const ERC20MaxAmount = new BigNumber(2).pow(256).minus(1);
-
-export const getCurrentCommissions = (commissions: ICommissionInfo[]) => {
-  return (commissions || []).filter(v => v.chainId == getChainId());
-}
-
-export const getCommissionAmount = (commissions: ICommissionInfo[], amount: BigNumber) => {
-  const _commissions = (commissions || []).filter(v => v.chainId == getChainId()).map(v => {
-    return {
-      to: v.walletAddress,
-      amount: amount.times(v.share)
-    }
-  });
-  const commissionsAmount = _commissions.length ? _commissions.map(v => v.amount).reduce((a, b) => a.plus(b)) : new BigNumber(0);
-  return commissionsAmount;
-}
 
 export function getRouterAddress(chainId: number): string {
   const dexItem = getDexList().find(item => item.chainId === chainId)
@@ -80,8 +59,8 @@ function getFactoryAddress(chainId: number): string {
   return dexItem?.factoryAddress || '';
 }
 
-const MINIMUM_LIQUIDITY = 10**3;
-const FEE_BASE = 10**5
+const MINIMUM_LIQUIDITY = 10 ** 3;
+const FEE_BASE = 10 ** 5
 
 const mintFee = async (factory: Contracts.OSWAP_Factory, pair: Contracts.OSWAP_Pair, totalSupply: BigNumber, reserve0: BigNumber, reserve1: BigNumber) => {
   let protocolFeeParams = await factory.protocolFeeParams();
@@ -105,7 +84,7 @@ const mintFee = async (factory: Contracts.OSWAP_Factory, pair: Contracts.OSWAP_P
 
 const poolTokenMinted = async (factory: Contracts.OSWAP_Factory, amountInA: BigNumber, amountInB: BigNumber, pair: Contracts.OSWAP_Pair, totalSupply: BigNumber, reserve0: BigNumber, reserve1: BigNumber) => {
   totalSupply = await mintFee(factory, pair, totalSupply, reserve0, reserve1);
-  let liquidity:BigNumber;
+  let liquidity: BigNumber;
   if (totalSupply.eq(0)) {
     liquidity = amountInA.times(amountInB).sqrt().decimalPlaces(0, BigNumber.ROUND_FLOOR).minus(MINIMUM_LIQUIDITY);
   } else {
@@ -122,12 +101,11 @@ interface IPrices {
   price1?: string;
 }
 
-const getPrices = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let chainId = getChainId();
-  const WETH = getWETH(chainId);
+const getPrices = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  const WETH = getWETH(state.getChainId());
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
-  let pair = await getPairFromTokens(tokenA, tokenB);
+  let pair = await getPairFromTokens(state, tokenA, tokenB);
   if (!pair) return null;
   let reserves = await getReserves(pair, tokenA, tokenB);
   if (!reserves) {
@@ -157,12 +135,12 @@ const getPrices = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
   return pricesObj;
 }
 
-const getUserShare = async (pairTokenInfo: IAmmPairToken) => {
-  const wallet = getRpcWallet();
-  let chainId = getChainId();
-  let {pair, tokenA, tokenB, balance} = pairTokenInfo;
+const getUserShare = async (state: State, pairTokenInfo: IAmmPairToken) => {
+  const wallet = state.getRpcWallet();
+  let chainId = state.getChainId();
+  let { pair, tokenA, tokenB, balance } = pairTokenInfo;
   if (!pair) {
-    let pairFromTokens = await getPairFromTokens(tokenA, tokenB);
+    let pairFromTokens = await getPairFromTokens(state, tokenA, tokenB);
     if (!pairFromTokens) return null;
     pair = pairFromTokens;
   }
@@ -172,7 +150,7 @@ const getUserShare = async (pairTokenInfo: IAmmPairToken) => {
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
-  
+
   let totalSupply = await pair.totalSupply();
   let reserve = await pair.getReserves();
 
@@ -197,14 +175,14 @@ const getUserShare = async (pairTokenInfo: IAmmPairToken) => {
   return result;
 }
 
-const getRemoveLiquidityInfo = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let userShare = await getUserShare({
+const getRemoveLiquidityInfo = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  let userShare = await getUserShare(state, {
     tokenA,
     tokenB
   });
   if (!userShare) return null;
-  let pricesData = await getPrices(tokenA, tokenB);
-  if (!pricesData) return null;  
+  let pricesData = await getPrices(state, tokenA, tokenB);
+  if (!pricesData) return null;
   let lpToken: ITokenObject = {
     address: pricesData.pair.address,
     decimals: 18,
@@ -220,12 +198,12 @@ const getRemoveLiquidityInfo = async (tokenA: ITokenObject, tokenB: ITokenObject
   }
 }
 
-const getPairFromTokens = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let wallet = getRpcWallet();
-  let chainId = getChainId();
+const getPairFromTokens = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  let wallet = state.getRpcWallet();
+  let chainId = state.getChainId();
   const factoryAddress = getFactoryAddress(chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
-  let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
+  let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
     return null;
   }
@@ -233,34 +211,34 @@ const getPairFromTokens = async (tokenA: ITokenObject, tokenB: ITokenObject) => 
   return pair;
 }
 
-interface IPairReserve{
-  reserveA: BigNumber, 
+interface IPairReserve {
+  reserveA: BigNumber,
   reserveB: BigNumber
 }
 
 const getReserves = async (pair: Contracts.OSWAP_Pair, tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let reserveObj:IPairReserve;
+  let reserveObj: IPairReserve;
   let reserve = await pair.getReserves();
-  if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())){
-      reserveObj = {
-          reserveA: reserve.reserve0, 
-          reserveB: reserve.reserve1
-      };
+  if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
+    reserveObj = {
+      reserveA: reserve.reserve0,
+      reserveB: reserve.reserve1
+    };
   } else {
-      reserveObj = {
-          reserveA: reserve.reserve1, 
-          reserveB: reserve.reserve0
-      };
-  }  
+    reserveObj = {
+      reserveA: reserve.reserve1,
+      reserveB: reserve.reserve0
+    };
+  }
   return reserveObj;
 }
 
-const getPricesInfo = async (tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let pricesData = await getPrices(tokenA, tokenB);
+const getPricesInfo = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  let pricesData = await getPrices(state, tokenA, tokenB);
   if (!pricesData) return null;
 
-  let {pair, price0, price1} = pricesData;
-  let wallet = getRpcWallet();
+  let { pair, price0, price1 } = pricesData;
+  let wallet = state.getRpcWallet();
   let balance = await pair.balanceOf(wallet.address);
   let totalSupply = await pair.totalSupply();
 
@@ -287,18 +265,18 @@ const calculateNewPairShareInfo = (tokenA: ITokenObject, tokenB: ITokenObject, a
   }
 }
 
-const getNewShareInfo = async (tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => {
-  let wallet = getRpcWallet();
-  let chainId = getChainId();
+const getNewShareInfo = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => {
+  let wallet = state.getRpcWallet();
+  let chainId = state.getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
-  let pair = await getPairFromTokens(tokenA, tokenB);
+  let pair = await getPairFromTokens(state, tokenA, tokenB);
   if (!pair) return null;
   let reserves = await getReserves(pair, tokenA, tokenB);
   if (!reserves) return null;
-  if (reserves.reserveA.eq(0)){
-      return null;
+  if (reserves.reserveA.eq(0)) {
+    return null;
   }
   let balance = await pair.balanceOf(wallet.address);
   let totalSupply = await pair.totalSupply();
@@ -321,25 +299,25 @@ const getNewShareInfo = async (tokenA: ITokenObject, tokenB: ITokenObject, amoun
   };
 }
 
-const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => {
-  let receipt:TransactionReceipt;
+const addLiquidity = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => {
+  let receipt: TransactionReceipt;
   try {
     const wallet = Wallet.getClientInstance();
-    let chainId = getChainId();
+    let chainId = state.getChainId();
     const toAddress = wallet.address;
-    const slippageTolerance = getSlippageTolerance();
+    const slippageTolerance = state.slippageTolerance;
     const amountAMin = new BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
     const amountBMin = new BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
-    const deadline = Math.floor(Date.now() / 1000 + getTransactionDeadline() * 60);
+    const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
     const routerAddress = getRouterAddress(chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
 
-    const proxyAddress = getProxyAddress();
+    const proxyAddress = state.getProxyAddress();
     const proxy = new ProxyContracts.Proxy(wallet, proxyAddress);
-    const _commissions = (commissions || []).filter(v => v.chainId == getChainId());
+    const _commissions = (commissions || []).filter(v => v.chainId == state.getChainId());
 
     if (!tokenA.address || !tokenB.address) {
-      let erc20Token:ITokenObject, amountTokenDesired:string, amountETHDesired:string, amountTokenMin:string, amountETHMin:string;
+      let erc20Token: ITokenObject, amountTokenDesired: string, amountETHDesired: string, amountTokenMin: string, amountETHMin: string;
       if (tokenA.address) {
         erc20Token = tokenA;
         amountTokenDesired = amountADesired;
@@ -479,20 +457,20 @@ const addLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, amountAD
   return receipt;
 }
 
-const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => {
-  let receipt:TransactionReceipt;
+const removeLiquidity = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => {
+  let receipt: TransactionReceipt;
   try {
     const wallet = Wallet.getClientInstance();
-    let chainId = getChainId();
+    let chainId = state.getChainId();
     const toAddress = wallet.address;
-    const slippageTolerance = getSlippageTolerance();
+    const slippageTolerance = state.slippageTolerance;
     const amountAMin = new BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
     const amountBMin = new BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
-    const deadline = Math.floor(Date.now() / 1000 + getTransactionDeadline() * 60);
+    const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
     const routerAddress = getRouterAddress(chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
     if (!tokenA.address || !tokenB.address) {
-      let erc20Token:ITokenObject, amountTokenMin:string, amountETHMin:string;
+      let erc20Token: ITokenObject, amountTokenMin: string, amountETHMin: string;
       if (tokenA.address) {
         erc20Token = tokenA;
         amountTokenMin = amountAMin;
@@ -530,8 +508,8 @@ const removeLiquidity = async (tokenA: ITokenObject, tokenB: ITokenObject, liqui
   return receipt;
 }
 
-const getPairAddressFromTokens = async (factory: Contracts.OSWAP_Factory, tokenA: ITokenObject, tokenB: ITokenObject) => {
-  let chainId = getChainId();
+const getPairAddressFromTokens = async (state: State, factory: Contracts.OSWAP_Factory, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  let chainId = state.getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
@@ -548,27 +526,15 @@ const getPairAddressFromTokens = async (factory: Contracts.OSWAP_Factory, tokenA
   return pairAddress;
 }
 
-const getApprovalModelAction = async (options: IERC20ApprovalEventOptions, spenderAddress?: string) => {
-  let chainId = getChainId();
-  const routerAddress = spenderAddress || getRouterAddress(chainId);
-  const approvalOptions = {
-    ...options,
-    spenderAddress: routerAddress
-  };
-  const approvalModel = new ERC20ApprovalModel(approvalOptions);
-  let approvalModelAction = approvalModel.getAction();
-  return approvalModelAction;
-}
-
-const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => {
-  let wallet = getRpcWallet();
-  let chainId = getChainId();
+const getTokensBack = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => {
+  let wallet = state.getRpcWallet();
+  let chainId = state.getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
   const factoryAddress = getFactoryAddress(chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
-  let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
+  let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
     return null;
   }
@@ -612,9 +578,9 @@ const getTokensBack = async (tokenA: ITokenObject, tokenB: ITokenObject, liquidi
   return result;
 }
 
-const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => {
-  let wallet = getRpcWallet();
-  let chainId = getChainId();
+const getTokensBackByAmountOut = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => {
+  let wallet = state.getRpcWallet();
+  let chainId = state.getChainId();
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
@@ -622,14 +588,14 @@ const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObje
 
   const factoryAddress = getFactoryAddress(chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
-  let pairAddress = await getPairAddressFromTokens(factory, tokenA, tokenB);
+  let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
     return null;
   }
   let pair = new Contracts.OSWAP_Pair(wallet, pairAddress);
   let totalSupply = await pair.totalSupply();
   let reserve = await pair.getReserves();
-  
+
   let reserve0: BigNumber;
   let reserve1: BigNumber;
   if (new BigNumber(tokenA.address!.toLowerCase()).lt(tokenB.address!.toLowerCase())) {
@@ -649,11 +615,11 @@ const getTokensBackByAmountOut = async (tokenA: ITokenObject, tokenB: ITokenObje
     liquidityInDecimals = Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceA).plus(1);
   } else {
     let erc20B = new Contracts.ERC20(wallet, tokenB.address);
-    let balanceB = await erc20B.balanceOf(pair.address);  
+    let balanceB = await erc20B.balanceOf(pair.address);
     liquidityInDecimals = Utils.toDecimals(amountOut, tokenOut.decimals).times(totalSupply).idiv(balanceB).plus(1);
   }
   let liquidity = Utils.fromDecimals(liquidityInDecimals).toFixed();
-  let tokensBack = await getTokensBack(tokenA, tokenB, liquidity);
+  let tokensBack = await getTokensBack(state, tokenA, tokenB, liquidity);
   return tokensBack;
 }
 
@@ -665,7 +631,6 @@ export {
   getNewShareInfo,
   getPricesInfo,
   addLiquidity,
-  getApprovalModelAction,
   calculateNewPairShareInfo,
   getPairFromTokens,
   getRemoveLiquidityInfo,

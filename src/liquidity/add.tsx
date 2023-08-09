@@ -1,8 +1,8 @@
 import { customModule, Control, Module, Styles, Button, Panel, Label, Modal, Image, Container, customElements, ControlElement, Icon, HStack } from '@ijstech/components';
-import { formatNumber, limitInputNumber, limitDecimals, IERC20ApprovalAction, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
-import { BigNumber } from '@ijstech/eth-wallet';
-import { getSlippageTolerance, getChainId, getSupportedTokens, nullAddress, getProxyAddress, getEmbedderCommissionFee, getRpcWallet, isRpcWalletConnected, isClientWalletConnected } from '../store/index';
-import { getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRouterAddress, getCurrentCommissions, getCommissionAmount } from '../API';
+import { formatNumber, limitInputNumber, limitDecimals, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
+import { BigNumber, IERC20ApprovalAction, Utils } from '@ijstech/eth-wallet';
+import { State, getSupportedTokens, isClientWalletConnected } from '../store/index';
+import { getNewShareInfo, getPricesInfo, addLiquidity, calculateNewPairShareInfo, getPairFromTokens, getRouterAddress } from '../API';
 import { ITokenObject, assets as tokenAssets, tokenStore } from '@scom/scom-token-list';
 import ScomTxStatusModal from '@scom/scom-tx-status-modal';
 import ScomTokenInput from '@scom/scom-token-input';
@@ -11,6 +11,7 @@ import { poolAddStyle } from './index.css';
 const Theme = Styles.Theme.ThemeVars;
 
 interface ScomAmmPoolAddElement extends ControlElement {
+  state: State;
   providers: IProviderUI[];
   tokens?: ICustomTokenObject[];
   commissions?: ICommissionInfo[];
@@ -69,6 +70,7 @@ export class ScomAmmPoolAdd extends Module {
   private lbFirstCommission: Label;
   private lbSecondCommission: Label;
 
+  private _state: State;
   private _data: IPoolDetailConfig = {
     providers: [],
     tokens: [],
@@ -82,12 +84,23 @@ export class ScomAmmPoolAdd extends Module {
 
   constructor(parent?: Container, options?: ScomAmmPoolAddElement) {
     super(parent, options);
+    if (options?.state) {
+      this.state = options.state;
+    }
   }
 
   static async create(options?: ScomAmmPoolAddElement, parent?: Container) {
     let self = new this(parent, options);
     await self.ready();
     return self;
+  }
+
+  get state() {
+    return this._state;
+  }
+
+  set state(value: State) {
+    this._state = value;
   }
 
   get firstTokenDecimals() {
@@ -174,7 +187,7 @@ export class ScomAmmPoolAdd extends Module {
 
   private async refreshUI() {
     await this.initData();
-    const instanceId = getRpcWallet()?.instanceId;
+    const instanceId = this.state.getRpcWallet()?.instanceId;
     const inputRpcWalletId = this.firstTokenInput.rpcWalletId;
     if (instanceId && inputRpcWalletId !== instanceId) {
       this.firstTokenInput.rpcWalletId = instanceId;
@@ -184,27 +197,27 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private updateContractAddress = () => {
-    if (getCurrentCommissions(this.commissions).length) {
-      this.contractAddress = getProxyAddress();
+    if (this.state.getCurrentCommissions(this.commissions).length) {
+      this.contractAddress = this.state.getProxyAddress();
     } else {
-      this.contractAddress = getRouterAddress(getChainId());
+      this.contractAddress = getRouterAddress(this.state.getChainId());
     }
-    if (this.approvalModelAction) {
-      this.approvalModelAction.setSpenderAddress(this.contractAddress);
+    if (this.state?.approvalModel && this.approvalModelAction) {
+      this.state.approvalModel.spenderAddress = this.contractAddress;
       this.updateCommissionInfo();
     }
   }
 
   private updateCommissionInfo = () => {
-    if (getCurrentCommissions(this.commissions).length) {
+    if (this.state.getCurrentCommissions(this.commissions).length) {
       this.hStackCommissionInfo.visible = true;
-      const commissionFee = getEmbedderCommissionFee();
+      const commissionFee = this.state.embedderCommissionFee;
       this.iconCommissionFee.tooltip.content = `A commission fee of ${new BigNumber(commissionFee).times(100)}% will be applied to the amount you input.`;
       if (this.firstToken && this.secondToken) {
         const firstAmount = new BigNumber(this.firstInputAmount || 0);
         const secondAmount = new BigNumber(this.secondInputAmount || 0);
-        const firstCommission = getCommissionAmount(this.commissions, firstAmount);
-        const secondCommission = getCommissionAmount(this.commissions, secondAmount);
+        const firstCommission = this.state.getCommissionAmount(this.commissions, firstAmount);
+        const secondCommission = this.state.getCommissionAmount(this.commissions, secondAmount);
         this.lbFirstCommission.caption = `${formatNumber(firstAmount.plus(firstCommission))} ${this.firstToken.symbol || ''}`;
         this.lbSecondCommission.caption = `${formatNumber(secondAmount.plus(secondCommission))} ${this.secondToken.symbol || ''}`;
         this.hStackCommissionInfo.visible = true;
@@ -218,7 +231,7 @@ export class ScomAmmPoolAdd extends Module {
 
   private initializeWidgetConfig = async (connected: boolean, _chainId?: number) => {
     setTimeout(async () => {
-      const chainId = getChainId();
+      const chainId = this.state.getChainId();
       tokenStore.updateTokenMapData(chainId);
       if (!this.btnSupply.isConnected) await this.btnSupply.ready();
       if (!this.firstTokenInput.isConnected) await this.firstTokenInput.ready();
@@ -264,7 +277,7 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private setFixedPairData() {
-    const chainId = getChainId();
+    const chainId = this.state.getChainId();
     let currentChainTokens = this._data.tokens.filter((token) => token.chainId === chainId);
     if (currentChainTokens.length < 2) return;
     const providers = this.originalData?.providers;
@@ -307,7 +320,7 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private async updateBalance() {
-    const rpcWallet = getRpcWallet();
+    const rpcWallet = this.state.getRpcWallet();
     if (rpcWallet.address) {
       await tokenStore.updateAllTokenBalances(rpcWallet);
       this.allTokenBalancesMap = tokenStore.tokenBalances;
@@ -353,13 +366,13 @@ export class ScomAmmPoolAdd extends Module {
       this.btnSupply.caption = 'Connect Wallet';
       return;
     }
-    if (!isRpcWalletConnected()) {
+    if (!this.state.isRpcWalletConnected()) {
       this.btnSupply.enabled = true;
       this.btnSupply.caption = 'Switch Network';
       return;
     }
-    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstTokenInput.value || 0));
-    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondTokenInput.value || 0));
+    const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, new BigNumber(this.firstTokenInput.value || 0));
+    const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, new BigNumber(this.secondTokenInput.value || 0));
     if (this.btnSupply.rightIcon.visible) {
       this.btnSupply.caption = 'Loading';
     } else if (
@@ -450,7 +463,7 @@ export class ScomAmmPoolAdd extends Module {
     this.isFromEstimated = !isFrom;
     const balance = new BigNumber(isFrom ? this.firstBalance : this.secondBalance);
     let inputVal = balance;
-    const commissionAmount = getCommissionAmount(this.commissions, balance);
+    const commissionAmount = this.state.getCommissionAmount(this.commissions, balance);
     if (commissionAmount.gt(0)) {
       const totalFee = balance.plus(commissionAmount).dividedBy(balance);
       inputVal = inputVal.dividedBy(totalFee);
@@ -524,8 +537,8 @@ export class ScomAmmPoolAdd extends Module {
 
   private async onSelectToken(token: any, isFrom: boolean) {
     if (!token) return;
-    if (token.isNew && isRpcWalletConnected()) {
-      const rpcWallet = getRpcWallet();
+    if (token.isNew && this.state.isRpcWalletConnected()) {
+      const rpcWallet = this.state.getRpcWallet();
       await tokenStore.updateAllTokenBalances(rpcWallet);
       this.allTokenBalancesMap = tokenStore.tokenBalances;
     }
@@ -574,22 +587,22 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private async handleSupply() {
-    if (!isClientWalletConnected() || !isRpcWalletConnected()) {
+    if (!isClientWalletConnected() || !this.state.isRpcWalletConnected()) {
       this.connectWallet();
       return;
     }
     if (!this.firstToken || !this.secondToken) return;
-    const chainId = getChainId();
+    const chainId = this.state.getChainId();
     this.firstTokenImage1.url = this.firstTokenImage2.url = tokenAssets.tokenPath(this.firstToken, chainId);
     this.secondTokenImage1.url = this.secondTokenImage2.url = tokenAssets.tokenPath(this.secondToken, chainId);
     const firstAmount = new BigNumber(this.firstInputAmount);
     const secondAmount = new BigNumber(this.secondInputAmount);
-    const firstCommissionAmount = getCommissionAmount(this.commissions, firstAmount);
-    const secondCommissionAmount = getCommissionAmount(this.commissions, secondAmount);
+    const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, firstAmount);
+    const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, secondAmount);
     this.lbFirstInput.caption = formatNumber(firstAmount.plus(firstCommissionAmount), 4);
     this.lbSecondInput.caption = formatNumber(secondAmount.plus(secondCommissionAmount), 4);
     this.lbPoolTokensTitle.caption = `${this.firstToken.symbol}/${this.secondToken.symbol} Pool Tokens`;
-    this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${getSlippageTolerance()}% your transaction will revert.`;
+    this.lbOutputEstimated.caption = `Output is estimated. If the price changes by more than ${this.state.slippageTolerance}% your transaction will revert.`;
     this.lbFirstDeposited.caption = `${this.firstToken.symbol} Deposited`;
     this.lbSecondDeposited.caption = `${this.secondToken.symbol} Deposited`;
     this.lbSummaryFirstPrice.caption = `1 ${this.secondToken.symbol} = ${this.lbFirstPrice.caption} ${this.firstToken.symbol}`;
@@ -607,6 +620,7 @@ export class ScomAmmPoolAdd extends Module {
     this.showTxStatusModal('warning', `Add Liquidity Pool ${this.firstToken.symbol}/${this.secondToken.symbol}`);
     if (this.isFromEstimated) {
       addLiquidity(
+        this.state,
         this.secondToken,
         this.firstToken,
         this.secondInputAmount,
@@ -616,6 +630,7 @@ export class ScomAmmPoolAdd extends Module {
     }
     else {
       addLiquidity(
+        this.state,
         this.firstToken,
         this.secondToken,
         this.firstInputAmount,
@@ -626,8 +641,12 @@ export class ScomAmmPoolAdd extends Module {
   }
 
   private async initApprovalModelAction() {
-    if (!isClientWalletConnected()) return;
-    this.approvalModelAction = await getApprovalModelAction({
+    if (!this.state.isRpcWalletConnected()) return;
+    if (this.approvalModelAction) {
+      this.state.approvalModel.spenderAddress = this.contractAddress;
+      return;
+    }
+    this.approvalModelAction = await this.state.setApprovalModelAction({
       sender: this,
       payAction: async () => {
         if (!this.firstToken || !this.secondToken) return;
@@ -691,7 +710,7 @@ export class ScomAmmPoolAdd extends Module {
         this.btnSupply.rightIcon.visible = true;
       },
       onPaid: async () => {
-        await tokenStore.updateAllTokenBalances(getRpcWallet());
+        await tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
         if (this.firstToken) {
           this.firstBalance = tokenStore.getTokenBalance(this.firstToken);
         }
@@ -704,15 +723,16 @@ export class ScomAmmPoolAdd extends Module {
         this.showTxStatusModal('error', err);
         this.btnSupply.rightIcon.visible = false;
       }
-    }, this.contractAddress);
+    });
+    this.state.approvalModel.spenderAddress = this.contractAddress;
   }
 
   private async checkPairExists() {
     if (!this.firstToken || !this.secondToken)
       return;
     try {
-      let pair = await getPairFromTokens(this.firstToken, this.secondToken);
-      if (!pair || pair.address === nullAddress) {
+      let pair = await getPairFromTokens(this.state, this.firstToken, this.secondToken);
+      if (!pair || pair.address === Utils.nullAddress) {
         this.toggleCreateMessage(true)
       } else {
         let totalSupply = await pair?.totalSupply();
@@ -734,21 +754,21 @@ export class ScomAmmPoolAdd extends Module {
       let invalidVal = false;
       if (this.isFromEstimated) {
         invalidVal = new BigNumber(this.firstTokenInput.value).isNaN();
-        newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         const val = limitDecimals(newShareInfo?.quote || '0', this.firstTokenDecimals);
         this.firstInputAmount = val;
         this.firstTokenInput.value = val;
         if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+          newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
       }
       else {
         invalidVal = new BigNumber(this.secondTokenInput.value).isNaN();
-        newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         const val = limitDecimals(newShareInfo?.quote || '0', this.secondTokenDecimals);
         this.secondInputAmount = val;
         this.secondTokenInput.value = val;
         if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+          newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
       }
       if (!newShareInfo) {
         this.lbFirstPrice.caption = '0';
@@ -765,7 +785,7 @@ export class ScomAmmPoolAdd extends Module {
       }
     }
     else {
-      let pricesInfo = await getPricesInfo(this.firstToken, this.secondToken);
+      let pricesInfo = await getPricesInfo(this.state, this.firstToken, this.secondToken);
       if (!pricesInfo) {
         let newPairShareInfo = calculateNewPairShareInfo(this.firstToken, this.secondToken, this.firstInputAmount, this.secondInputAmount);
         this.lbFirstPrice.caption = formatNumber(newPairShareInfo.price0, 3);
@@ -802,15 +822,19 @@ export class ScomAmmPoolAdd extends Module {
       }
     }
     this.btnSupply.enabled = true;
-    const firstCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.firstInputAmount));
-    const secondCommissionAmount = getCommissionAmount(this.commissions, new BigNumber(this.secondInputAmount));
-    this.approvalModelAction.checkAllowance(this.firstToken, firstCommissionAmount.plus(this.firstInputAmount));
-    this.approvalModelAction.checkAllowance(this.secondToken, secondCommissionAmount.plus(this.secondInputAmount));
+    const firstCommissionAmount = this.state.getCommissionAmount(this.commissions, new BigNumber(this.firstInputAmount));
+    const secondCommissionAmount = this.state.getCommissionAmount(this.commissions, new BigNumber(this.secondInputAmount));
+    this.approvalModelAction.checkAllowance(this.firstToken, firstCommissionAmount.plus(this.firstInputAmount).toFixed());
+    this.approvalModelAction.checkAllowance(this.secondToken, secondCommissionAmount.plus(this.secondInputAmount).toFixed());
   }
 
   async init() {
     this.isReadyCallbackQueued = true;
     super.init();
+    const state = this.getAttribute('state', true);
+    if (state) {
+      this.state = state;
+    }
     const tokens = this.getAttribute('tokens', true, []);
     const providers = this.getAttribute('providers', true, []);
     const commissions = this.getAttribute('commissions', true, []);

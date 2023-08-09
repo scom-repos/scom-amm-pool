@@ -1,5 +1,3 @@
-/// <reference path="@ijstech/eth-contract/index.d.ts" />
-/// <reference path="@scom/scom-dex-list/@ijstech/eth-contract/index.d.ts" />
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-dex-list/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
@@ -16,51 +14,8 @@ declare module "@scom/scom-amm-pool/global/utils/helper.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/common.ts" />
 declare module "@scom/scom-amm-pool/global/utils/common.ts" {
-    import { BigNumber, ISendTxEventsOptions } from "@ijstech/eth-wallet";
-    import { ITokenObject } from "@scom/scom-token-list";
+    import { ISendTxEventsOptions } from "@ijstech/eth-wallet";
     export const registerSendTxEvents: (sendTxEventHandlers: ISendTxEventsOptions) => void;
-    export const approveERC20Max: (token: ITokenObject, spenderAddress: string, callback?: any, confirmationCallback?: any) => Promise<import("@ijstech/eth-contract").TransactionReceipt>;
-    export const getERC20Allowance: (token: ITokenObject, spenderAddress: string) => Promise<BigNumber>;
-}
-/// <amd-module name="@scom/scom-amm-pool/global/utils/approvalModel.ts" />
-declare module "@scom/scom-amm-pool/global/utils/approvalModel.ts" {
-    import { BigNumber } from "@ijstech/eth-wallet";
-    import { ITokenObject } from "@scom/scom-token-list";
-    export enum ApprovalStatus {
-        TO_BE_APPROVED = 0,
-        APPROVING = 1,
-        NONE = 2
-    }
-    export interface IERC20ApprovalEventOptions {
-        sender: any;
-        payAction: () => Promise<void>;
-        onToBeApproved: (token: ITokenObject) => Promise<void>;
-        onToBePaid: (token: ITokenObject) => Promise<void>;
-        onApproving: (token: ITokenObject, receipt?: string, data?: any) => Promise<void>;
-        onApproved: (token: ITokenObject, data?: any) => Promise<void>;
-        onPaying: (receipt?: string, data?: any) => Promise<void>;
-        onPaid: (data?: any) => Promise<void>;
-        onApprovingError: (token: ITokenObject, err: Error) => Promise<void>;
-        onPayingError: (err: Error) => Promise<void>;
-    }
-    export interface IERC20ApprovalOptions extends IERC20ApprovalEventOptions {
-        spenderAddress: string;
-    }
-    export interface IERC20ApprovalAction {
-        setSpenderAddress: (value: string) => void;
-        doApproveAction: (token: ITokenObject, inputAmount: string, data?: any) => Promise<void>;
-        doPayAction: (data?: any) => Promise<void>;
-        checkAllowance: (token: ITokenObject, inputAmount: string | BigNumber) => Promise<void>;
-    }
-    export class ERC20ApprovalModel {
-        private options;
-        constructor(options: IERC20ApprovalOptions);
-        private setSpenderAddress;
-        private checkAllowance;
-        private doApproveAction;
-        private doPayAction;
-        getAction: () => IERC20ApprovalAction;
-    }
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/interface.ts" />
 declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
@@ -132,29 +87,22 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
 /// <amd-module name="@scom/scom-amm-pool/global/utils/index.ts" />
 declare module "@scom/scom-amm-pool/global/utils/index.ts" {
     export { formatNumber, formatNumberWithSeparators, limitDecimals, limitInputNumber, isInvalidInput } from "@scom/scom-amm-pool/global/utils/helper.ts";
-    export { registerSendTxEvents, approveERC20Max, getERC20Allowance } from "@scom/scom-amm-pool/global/utils/common.ts";
-    export { ApprovalStatus, IERC20ApprovalEventOptions, IERC20ApprovalOptions, IERC20ApprovalAction, ERC20ApprovalModel } from "@scom/scom-amm-pool/global/utils/approvalModel.ts";
+    export { registerSendTxEvents } from "@scom/scom-amm-pool/global/utils/common.ts";
     export * from "@scom/scom-amm-pool/global/utils/interface.ts";
 }
 /// <amd-module name="@scom/scom-amm-pool/global/index.ts" />
 declare module "@scom/scom-amm-pool/global/index.ts" {
-    export const enum EventId {
-        IsWalletConnected = "isWalletConnected",
-        IsWalletDisconnected = "IsWalletDisconnected",
-        Paid = "Paid",
-        chainChanged = "chainChanged",
-        EmitNewToken = "emitNewToken"
-    }
     export * from "@scom/scom-amm-pool/global/utils/index.ts";
 }
 /// <amd-module name="@scom/scom-amm-pool/store/utils.ts" />
 declare module "@scom/scom-amm-pool/store/utils.ts" {
-    import { INetwork } from '@ijstech/eth-wallet';
+    import { BigNumber, ERC20ApprovalModel, IERC20ApprovalEventOptions, INetwork } from '@ijstech/eth-wallet';
     import { IDexInfo } from '@scom/scom-dex-list';
+    import { ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
     export type ProxyAddresses = {
         [key: number]: string;
     };
-    export const state: {
+    export class State {
         slippageTolerance: number;
         transactionDeadline: number;
         infuraId: string;
@@ -165,29 +113,28 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
         proxyAddresses: ProxyAddresses;
         embedderCommissionFee: string;
         rpcWalletId: string;
-    };
-    export const setDataFromConfig: (options: any) => void;
-    export const setProxyAddresses: (data: ProxyAddresses) => void;
-    export const getProxyAddress: (chainId?: number) => string;
-    export const getEmbedderCommissionFee: () => string;
-    export const getSlippageTolerance: () => any;
-    export const setSlippageTolerance: (value: any) => void;
-    export const getTransactionDeadline: () => any;
-    export const setTransactionDeadline: (value: any) => void;
-    export const getInfuraId: () => string;
-    export const setDexInfoList: (value: IDexInfo[]) => void;
-    export const getDexInfoList: () => IDexInfo[];
+        approvalModel: ERC20ApprovalModel;
+        constructor(options: any);
+        private initData;
+        initRpcWallet(defaultChainId: number): string;
+        getProxyAddress(chainId?: number): string;
+        getRpcWallet(): import("@ijstech/eth-wallet").IRpcWallet;
+        isRpcWalletConnected(): boolean;
+        getChainId(): number;
+        setDexInfoList(value: IDexInfo[]): void;
+        private setNetworkList;
+        getCurrentCommissions(commissions: ICommissionInfo[]): ICommissionInfo[];
+        getCommissionAmount: (commissions: ICommissionInfo[], amount: BigNumber) => BigNumber;
+        setApprovalModelAction(options: IERC20ApprovalEventOptions): Promise<import("@ijstech/eth-wallet").IERC20ApprovalAction>;
+    }
+    export function isClientWalletConnected(): boolean;
 }
 /// <amd-module name="@scom/scom-amm-pool/store/index.ts" />
 declare module "@scom/scom-amm-pool/store/index.ts" {
     import { ICustomTokenObject } from "@scom/scom-amm-pool/global/index.ts";
     import { ITokenObject } from '@scom/scom-token-list';
-    export const nullAddress = "0x0000000000000000000000000000000000000000";
-    export const state: {
-        rpcWalletId: string;
-    };
-    export const getWETH: (chainId: number) => ITokenObject;
     export * from "@scom/scom-amm-pool/store/utils.ts";
+    export const getWETH: (chainId: number) => ITokenObject;
     export const getSupportedTokens: (tokens: ICustomTokenObject[], chainId: number) => {
         chainId: number;
         address: string;
@@ -202,12 +149,6 @@ declare module "@scom/scom-amm-pool/store/index.ts" {
         isWETH?: boolean;
         isNew?: boolean;
     }[];
-    export function getRpcWallet(): import("@ijstech/eth-wallet").IRpcWallet;
-    export function getClientWallet(): import("@ijstech/eth-wallet").IClientWallet;
-    export function isRpcWalletConnected(): boolean;
-    export function initRpcWallet(defaultChainId: number): string;
-    export function getChainId(): number;
-    export function isClientWalletConnected(): boolean;
 }
 /// <amd-module name="@scom/scom-amm-pool/index.css.ts" />
 declare module "@scom/scom-amm-pool/index.css.ts" {
@@ -217,7 +158,8 @@ declare module "@scom/scom-amm-pool/index.css.ts" {
 declare module "@scom/scom-amm-pool/API.ts" {
     import { BigNumber, TransactionReceipt } from "@ijstech/eth-wallet";
     import { Contracts } from "@scom/oswap-openswap-contract";
-    import { IERC20ApprovalEventOptions, ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
+    import { ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
+    import { State } from "@scom/scom-amm-pool/store/index.ts";
     import { ITokenObject } from "@scom/scom-token-list";
     interface IAmmPairToken {
         pair?: Contracts.OSWAP_Pair;
@@ -250,10 +192,8 @@ declare module "@scom/scom-amm-pool/API.ts" {
         newshare: string;
     }
     export const ERC20MaxAmount: BigNumber;
-    export const getCurrentCommissions: (commissions: ICommissionInfo[]) => ICommissionInfo[];
-    export const getCommissionAmount: (commissions: ICommissionInfo[], amount: BigNumber) => BigNumber;
     export function getRouterAddress(chainId: number): string;
-    const getRemoveLiquidityInfo: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
+    const getRemoveLiquidityInfo: (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
         lpToken: ITokenObject;
         price0: string;
         price1: string;
@@ -262,8 +202,8 @@ declare module "@scom/scom-amm-pool/API.ts" {
         totalPoolTokens: string;
         poolShare: string;
     }>;
-    const getPairFromTokens: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<Contracts.OSWAP_Pair>;
-    const getPricesInfo: (tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
+    const getPairFromTokens: (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<Contracts.OSWAP_Pair>;
+    const getPricesInfo: (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
         pair: Contracts.OSWAP_Pair;
         price0: string;
         price1: string;
@@ -275,19 +215,18 @@ declare module "@scom/scom-amm-pool/API.ts" {
         price1: string;
         minted: string;
     };
-    const getNewShareInfo: (tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => Promise<{
+    const getNewShareInfo: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, amountIn: string, amountADesired: string, amountBDesired: string) => Promise<{
         quote: string;
         newPrice0: string;
         newPrice1: string;
         newShare: string;
         minted: string;
     }>;
-    const addLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
-    const removeLiquidity: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
-    const getApprovalModelAction: (options: IERC20ApprovalEventOptions, spenderAddress?: string) => Promise<import("@scom/scom-amm-pool/global/index.ts").IERC20ApprovalAction>;
-    const getTokensBack: (tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
-    const getTokensBackByAmountOut: (tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
-    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, getApprovalModelAction, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
+    const addLiquidity: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, amountADesired: string, amountBDesired: string, commissions: ICommissionInfo[]) => Promise<TransactionReceipt>;
+    const removeLiquidity: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
+    const getTokensBack: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
+    const getTokensBackByAmountOut: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
+    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
 }
 /// <amd-module name="@scom/scom-amm-pool/liquidity/index.css.ts" />
 declare module "@scom/scom-amm-pool/liquidity/index.css.ts" {
@@ -298,7 +237,9 @@ declare module "@scom/scom-amm-pool/liquidity/index.css.ts" {
 declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
     import { Module, Container, ControlElement } from '@ijstech/components';
     import { IProviderUI, ICommissionInfo, ICustomTokenObject } from "@scom/scom-amm-pool/global/index.ts";
+    import { State } from "@scom/scom-amm-pool/store/index.ts";
     interface ScomAmmPoolAddElement extends ControlElement {
+        state: State;
         providers: IProviderUI[];
         tokens?: ICustomTokenObject[];
         commissions?: ICommissionInfo[];
@@ -352,6 +293,7 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         private iconCommissionFee;
         private lbFirstCommission;
         private lbSecondCommission;
+        private _state;
         private _data;
         private allTokenBalancesMap;
         private isInited;
@@ -360,6 +302,8 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
         connectWallet: () => void;
         constructor(parent?: Container, options?: ScomAmmPoolAddElement);
         static create(options?: ScomAmmPoolAddElement, parent?: Container): Promise<ScomAmmPoolAdd>;
+        get state(): State;
+        set state(value: State);
         get firstTokenDecimals(): number;
         get secondTokenDecimals(): number;
         get firstTokenSymbol(): string;
@@ -410,7 +354,9 @@ declare module "@scom/scom-amm-pool/liquidity/add.tsx" {
 declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
     import { Module, Container, ControlElement } from '@ijstech/components';
     import { IProviderUI, ICustomTokenObject } from "@scom/scom-amm-pool/global/index.ts";
+    import { State } from "@scom/scom-amm-pool/store/index.ts";
     interface ScomAmmPoolRemoveElement extends ControlElement {
+        state: State;
         providers: IProviderUI[];
         tokens?: ICustomTokenObject[];
     }
@@ -443,6 +389,7 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         private lbLiquidityBalance;
         private liquidityInput;
         private pnlInfo;
+        private _state;
         private _data;
         private maxLiquidityBalance;
         private lpToken;
@@ -453,6 +400,8 @@ declare module "@scom/scom-amm-pool/liquidity/remove.tsx" {
         connectWallet: () => void;
         constructor(parent?: Container, options?: ScomAmmPoolRemoveElement);
         static create(options?: ScomAmmPoolRemoveElement, parent?: Container): Promise<ScomAmmPoolRemove>;
+        get state(): State;
+        set state(value: State);
         get firstTokenDecimals(): number;
         get secondTokenDecimals(): number;
         get firstTokenSymbol(): string;
@@ -694,6 +643,7 @@ declare module "@scom/scom-amm-pool" {
         }
     }
     export default class ScomAmmPool extends Module {
+        private state;
         private dappContainer;
         private vStackAmmPool;
         private poolAdd;
@@ -704,6 +654,8 @@ declare module "@scom/scom-amm-pool" {
         private rpcWalletEvents;
         constructor(parent?: Container, options?: ScomAmmPoolElement);
         static create(options?: ScomAmmPoolElement, parent?: Container): Promise<ScomAmmPool>;
+        private get chainId();
+        private get rpcWallet();
         get providers(): IProviderUI[];
         set providers(value: IProviderUI[]);
         get defaultChainId(): number;
@@ -724,6 +676,7 @@ declare module "@scom/scom-amm-pool" {
         private get isAddLiquidity();
         private _getActions;
         private getData;
+        private resetRpcWallet;
         private setData;
         private refreshUI;
         private getTag;
@@ -771,7 +724,7 @@ declare module "@scom/scom-amm-pool" {
         private initWallet;
         private initializeWidgetConfig;
         init(): Promise<void>;
-        private resetEvents;
+        removeRpcWalletEvents(): void;
         private connectWallet;
         onHide(): void;
         render(): any;

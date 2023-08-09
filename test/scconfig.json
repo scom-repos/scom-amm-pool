@@ -20,7 +20,9 @@
     "@scom/scom-commission-fee-setup": "*",
     "@scom/scom-wallet-modal": "*",
     "@scom/scom-token-list": "*",
-    "@scom/scom-network-list": "*"
+    "@scom/scom-network-list": "*",
+    "@scom/oswap-openswap-contract": "*",
+    "@scom/scom-commission-proxy-contract": "*"
   },
   "menus": [
     {
