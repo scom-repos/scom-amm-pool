@@ -22,7 +22,10 @@
     "@scom/scom-token-list": "*",
     "@scom/scom-network-list": "*",
     "@scom/oswap-openswap-contract": "*",
-    "@scom/scom-commission-proxy-contract": "*"
+    "@scom/scom-commission-proxy-contract": "*",
+    "@scom/oswap-impossible-swap-contract": "*",
+    "@scom/oswap-trader-joe-contract": "*",
+    "@scom/oswap-bakery-swap-contract": "*"
   },
   "menus": [
     {

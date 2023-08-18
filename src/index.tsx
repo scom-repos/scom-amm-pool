@@ -10,7 +10,7 @@ import getDexList from '@scom/scom-dex-list';
 import { ScomAmmPoolAdd, ScomAmmPoolRemove } from './liquidity/index';
 import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
 import configData from './data.json';
-import formSchema from './formSchema.json';
+import formSchema from './formSchema';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -247,7 +247,8 @@ export default class ScomAmmPool extends Module {
           }
         },
         userInputDataSchema: formSchema.general.dataSchema,
-        userInputUISchema: formSchema.general.uiSchema
+        userInputUISchema: formSchema.general.uiSchema,
+        customControls: formSchema.general.customControls(this.rpcWallet?.instanceId)
       });
 
       actions.push({
