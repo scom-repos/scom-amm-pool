@@ -9,7 +9,7 @@ import {
   State,
   getWETH
 } from "./store/index";
-import getDexList from '@scom/scom-dex-list';
+import getDexList, { IDexDetail } from '@scom/scom-dex-list';
 import { ITokenObject } from "@scom/scom-token-list";
 
 interface IAmmPairToken {
@@ -49,13 +49,24 @@ interface ITokensBack {
 
 export const ERC20MaxAmount = new BigNumber(2).pow(256).minus(1);
 
+function getDexDetailItem(chainId: number) {
+  const dexInfoList = getDexList();
+  for (const dex of dexInfoList) {
+    const dexDetail: IDexDetail = dex.details.find(v => v.chainId === chainId);
+    if (dexDetail) {
+      return dexDetail;
+    }
+  }
+  return undefined;
+}
+
 export function getRouterAddress(chainId: number): string {
-  const dexItem = getDexList().find(item => item.chainId === chainId)
+  const dexItem = getDexDetailItem(chainId);
   return dexItem?.routerAddress || '';
 }
 
 function getFactoryAddress(chainId: number): string {
-  const dexItem = getDexList().find(item => item.chainId === chainId)
+  const dexItem = getDexDetailItem(chainId);
   return dexItem?.factoryAddress || '';
 }
 

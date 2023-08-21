@@ -451,13 +451,23 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getTokensBackByAmountOut = exports.getTokensBack = exports.removeLiquidity = exports.getRemoveLiquidityInfo = exports.getPairFromTokens = exports.calculateNewPairShareInfo = exports.addLiquidity = exports.getPricesInfo = exports.getNewShareInfo = exports.getRouterAddress = exports.ERC20MaxAmount = void 0;
     exports.ERC20MaxAmount = new eth_wallet_4.BigNumber(2).pow(256).minus(1);
+    function getDexDetailItem(chainId) {
+        const dexInfoList = (0, scom_dex_list_1.default)();
+        for (const dex of dexInfoList) {
+            const dexDetail = dex.details.find(v => v.chainId === chainId);
+            if (dexDetail) {
+                return dexDetail;
+            }
+        }
+        return undefined;
+    }
     function getRouterAddress(chainId) {
-        const dexItem = (0, scom_dex_list_1.default)().find(item => item.chainId === chainId);
+        const dexItem = getDexDetailItem(chainId);
         return (dexItem === null || dexItem === void 0 ? void 0 : dexItem.routerAddress) || '';
     }
     exports.getRouterAddress = getRouterAddress;
     function getFactoryAddress(chainId) {
-        const dexItem = (0, scom_dex_list_1.default)().find(item => item.chainId === chainId);
+        const dexItem = getDexDetailItem(chainId);
         return (dexItem === null || dexItem === void 0 ? void 0 : dexItem.factoryAddress) || '';
     }
     const MINIMUM_LIQUIDITY = 10 ** 3;
