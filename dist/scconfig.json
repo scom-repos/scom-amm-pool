@@ -1,20 +1,26 @@
 {
     "name": "@scom/scom-amm-pool",
     "type": "widget",
-    "version": "0.1.10",
+    "version": "0.1.11",
     "dependencies": [
         "@ijstech/components",
         "@ijstech/eth-wallet",
+        "@scom/scom-network-list",
         "@scom/scom-wallet-modal",
         "@scom/scom-token-list",
-        "@scom/scom-network-list",
+        "@scom/oswap-openswap-contract",
+        "@scom/oswap-bakery-swap-contract",
+        "@scom/oswap-trader-joe-contract",
+        "@scom/oswap-impossible-swap-contract",
         "@scom/scom-dex-list",
+        "@scom/scom-multicall",
         "@scom/scom-dapp-container",
         "@ijstech/eth-contract",
-        "@scom/oswap-openswap-contract",
         "@scom/scom-commission-proxy-contract",
         "@scom/scom-tx-status-modal",
+        "@scom/scom-token-modal",
         "@scom/scom-token-input",
+        "@scom/scom-network-picker",
         "@scom/scom-commission-fee-setup"
     ]
 }

@@ -1,5 +1,4 @@
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
-/// <reference path="@scom/scom-dex-list/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-commission-proxy-contract/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-token-input/@ijstech/eth-wallet/index.d.ts" />
@@ -489,8 +488,10 @@ declare module "@scom/scom-amm-pool/data.json.ts" {
     };
     export default _default;
 }
-/// <amd-module name="@scom/scom-amm-pool/formSchema.json.ts" />
-declare module "@scom/scom-amm-pool/formSchema.json.ts" {
+/// <amd-module name="@scom/scom-amm-pool/formSchema.ts" />
+declare module "@scom/scom-amm-pool/formSchema.ts" {
+    import ScomNetworkPicker from "@scom/scom-network-picker";
+    import ScomTokenInput from "@scom/scom-token-input";
     const _default_1: {
         general: {
             dataSchema: {
@@ -552,7 +553,7 @@ declare module "@scom/scom-amm-pool/formSchema.json.ts" {
             };
             uiSchema: {
                 type: string;
-                elements: {
+                elements: ({
                     type: string;
                     scope: string;
                     options: {
@@ -560,7 +561,28 @@ declare module "@scom/scom-amm-pool/formSchema.json.ts" {
                             type: string;
                         };
                     };
-                }[];
+                } | {
+                    type: string;
+                    scope: string;
+                    options?: undefined;
+                })[];
+            };
+            customControls(rpcWalletId: string): {
+                "#/properties/tokens/properties/chainId": {
+                    render: () => ScomNetworkPicker;
+                    getData: (control: ScomNetworkPicker) => number;
+                    setData: (control: ScomNetworkPicker, value: number) => void;
+                };
+                "#/properties/tokens/properties/address": {
+                    render: () => ScomTokenInput;
+                    getData: (control: ScomTokenInput) => string;
+                    setData: (control: ScomTokenInput, value: string) => void;
+                };
+                "#/properties/providers/properties/chainId": {
+                    render: () => ScomNetworkPicker;
+                    getData: (control: ScomNetworkPicker) => number;
+                    setData: (control: ScomNetworkPicker, value: number) => void;
+                };
             };
         };
         theme: {

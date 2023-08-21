@@ -24,7 +24,8 @@
     "@scom/scom-dapp-container": "^0.1.3",
     "@scom/scom-dex-list": "^0.1.0",
     "@scom/scom-tx-status-modal": "^0.1.0",
-    "@scom/scom-token-input": "^0.1.3"
+    "@scom/scom-token-input": "^0.1.3",
+    "@scom/scom-network-picker": "^0.1.4"
   },
   "devDependencies": {
     "@ijstech/cli": "^0.1.28",
