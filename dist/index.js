@@ -3062,14 +3062,16 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                         };
                         return {
                             execute: async () => {
+                                var _a, _b;
                                 _oldData = Object.assign({}, this._data);
                                 this._data.mode = userInputData.mode;
                                 this._data.providers = userInputData.providers;
                                 this._data.tokens = [];
                                 if (userInputData.tokens) {
                                     for (let inputToken of userInputData.tokens) {
-                                        if (!inputToken.address) {
-                                            const nativeToken = scom_token_list_4.ChainNativeTokenByChainId[inputToken.chainId];
+                                        const tokenAddress = (_a = inputToken.address) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+                                        const nativeToken = scom_token_list_4.ChainNativeTokenByChainId[inputToken.chainId];
+                                        if (!tokenAddress || tokenAddress === ((_b = nativeToken === null || nativeToken === void 0 ? void 0 : nativeToken.symbol) === null || _b === void 0 ? void 0 : _b.toLowerCase())) {
                                             if (nativeToken)
                                                 this._data.tokens.push(Object.assign(Object.assign({}, nativeToken), { chainId: inputToken.chainId }));
                                         }

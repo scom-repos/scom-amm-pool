@@ -223,8 +223,9 @@ export default class ScomAmmPool extends Module {
               this._data.tokens = [];
               if (userInputData.tokens) {
                 for (let inputToken of userInputData.tokens) {
-                  if (!inputToken.address) {
-                    const nativeToken = ChainNativeTokenByChainId[inputToken.chainId];
+                  const tokenAddress = inputToken.address?.toLowerCase();
+                  const nativeToken = ChainNativeTokenByChainId[inputToken.chainId];
+                  if (!tokenAddress || tokenAddress === nativeToken?.symbol?.toLowerCase()) {
                     if (nativeToken) this._data.tokens.push({ ...nativeToken as any, chainId: inputToken.chainId });
                   }
                   else {
