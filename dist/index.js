@@ -18,6 +18,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 define("@scom/scom-amm-pool/global/utils/helper.ts", ["require", "exports", "@ijstech/eth-wallet"], function (require, exports, eth_wallet_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -1298,10 +1309,10 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 return;
             const providers = (_a = this.originalData) === null || _a === void 0 ? void 0 : _a.providers;
             if (providers && providers.length) {
-                const fromTokenAddress = currentChainTokens[0].address;
-                const toTokenAddress = currentChainTokens[1].address;
-                const fromToken = fromTokenAddress.toLowerCase().startsWith('0x') ? fromTokenAddress.toLowerCase() : fromTokenAddress;
-                const toToken = toTokenAddress.toLowerCase().startsWith('0x') ? toTokenAddress.toLowerCase() : toTokenAddress;
+                const fromTokenAddress = currentChainTokens[0].address || currentChainTokens[0].symbol;
+                const toTokenAddress = currentChainTokens[1].address || currentChainTokens[1].symbol;
+                const fromToken = (fromTokenAddress === null || fromTokenAddress === void 0 ? void 0 : fromTokenAddress.toLowerCase().startsWith('0x')) ? fromTokenAddress.toLowerCase() : fromTokenAddress;
+                const toToken = (toTokenAddress === null || toTokenAddress === void 0 ? void 0 : toTokenAddress.toLowerCase().startsWith('0x')) ? toTokenAddress.toLowerCase() : toTokenAddress;
                 this.firstToken = scom_token_list_2.tokenStore.tokenMap[fromToken];
                 this.secondToken = scom_token_list_2.tokenStore.tokenMap[toToken];
                 this.onUpdateToken(this.firstToken, true);
@@ -2193,10 +2204,10 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 return;
             const providers = (_a = this.originalData) === null || _a === void 0 ? void 0 : _a.providers;
             if (providers && providers.length) {
-                const fromTokenAddress = currentChainTokens[0].address;
-                const toTokenAddress = currentChainTokens[1].address;
-                const fromToken = fromTokenAddress.toLowerCase().startsWith('0x') ? fromTokenAddress.toLowerCase() : fromTokenAddress;
-                const toToken = toTokenAddress.toLowerCase().startsWith('0x') ? toTokenAddress.toLowerCase() : toTokenAddress;
+                const fromTokenAddress = currentChainTokens[0].address || currentChainTokens[0].symbol;
+                const toTokenAddress = currentChainTokens[1].address || currentChainTokens[1].symbol;
+                const fromToken = (fromTokenAddress === null || fromTokenAddress === void 0 ? void 0 : fromTokenAddress.toLowerCase().startsWith('0x')) ? fromTokenAddress.toLowerCase() : fromTokenAddress;
+                const toToken = (toTokenAddress === null || toTokenAddress === void 0 ? void 0 : toTokenAddress.toLowerCase().startsWith('0x')) ? toTokenAddress.toLowerCase() : toTokenAddress;
                 this.firstToken = scom_token_list_3.tokenStore.tokenMap[fromToken];
                 this.secondToken = scom_token_list_3.tokenStore.tokenMap[toToken];
                 this.onUpdateToken(this.firstToken, true);
@@ -2669,6 +2680,7 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
     const chainIds = [1, 56, 137, 250, 97, 80001, 43113, 43114];
     const networks = chainIds.map(v => { return { chainId: v }; });
     const theme = {
+        type: 'object',
         properties: {
             backgroundColor: {
                 type: 'string',
@@ -2689,187 +2701,199 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
         }
     };
     exports.default = {
-        general: {
-            dataSchema: {
-                type: 'object',
-                properties: {
-                    mode: {
-                        type: "string",
-                        required: true,
-                        enum: [
-                            "add",
-                            "remove",
-                            "both"
-                        ]
-                    },
-                    tokens: {
-                        type: "array",
-                        required: true,
-                        items: {
-                            type: "object",
-                            properties: {
-                                chainId: {
-                                    type: "number",
-                                    enum: chainIds,
-                                    required: true
-                                },
-                                address: {
-                                    type: "string",
-                                    required: true
-                                }
-                            }
-                        }
-                    },
-                    providers: {
-                        type: "array",
-                        required: true,
-                        items: {
-                            type: "object",
-                            properties: {
-                                caption: {
-                                    type: "string",
-                                    required: true
-                                },
-                                image: {
-                                    type: "string",
-                                    required: true
-                                },
-                                key: {
-                                    type: "string",
-                                    required: true
-                                },
-                                dexId: {
-                                    type: "number"
-                                },
-                                chainId: {
-                                    type: "number",
-                                    enum: chainIds,
-                                    required: true
-                                }
+        dataSchema: {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    required: true,
+                    enum: [
+                        'add',
+                        'remove',
+                        'both'
+                    ]
+                },
+                tokens: {
+                    type: 'array',
+                    required: true,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            chainId: {
+                                type: 'number',
+                                enum: chainIds,
+                                required: true
+                            },
+                            address: {
+                                type: 'string',
+                                required: true
                             }
                         }
                     }
-                }
-            },
-            uiSchema: {
-                type: "Group",
-                elements: [
-                    {
-                        type: "Control",
-                        scope: "#/properties/mode",
-                        options: {
-                            detail: {
-                                type: "HorizontalLayout"
+                },
+                providers: {
+                    type: 'array',
+                    required: true,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            caption: {
+                                type: 'string',
+                                required: true
+                            },
+                            image: {
+                                type: 'string',
+                                required: true
+                            },
+                            key: {
+                                type: 'string',
+                                required: true
+                            },
+                            dexId: {
+                                type: 'number'
+                            },
+                            chainId: {
+                                type: 'number',
+                                enum: chainIds,
+                                required: true
                             }
-                        }
-                    },
-                    {
-                        type: "Control",
-                        scope: "#/properties/providers",
-                        options: {
-                            detail: {
-                                type: "VerticalLayout"
-                            }
-                        }
-                    },
-                    {
-                        type: "Control",
-                        scope: "#/properties/tokens",
-                        // options: {
-                        //     detail: {
-                        //         type: "VerticalLayout"
-                        //     }
-                        // }
-                    }
-                ]
-            },
-            customControls(rpcWalletId) {
-                let networkPickers = [];
-                let tokenInputs = [];
-                return {
-                    "#/properties/tokens/properties/chainId": {
-                        render: () => {
-                            const idx = networkPickers.length;
-                            networkPickers[idx] = new scom_network_picker_1.default(undefined, {
-                                type: 'combobox',
-                                networks,
-                                onCustomNetworkSelected: () => {
-                                    var _a;
-                                    const chainId = (_a = networkPickers[idx].selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                                    tokenInputs[idx].targetChainId = chainId;
-                                }
-                            });
-                            return networkPickers[idx];
-                        },
-                        getData: (control) => {
-                            var _a;
-                            return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                        },
-                        setData: (control, value) => {
-                            control.setNetworkByChainId(value);
-                            const idx = networkPickers.findIndex(f => f === control);
-                            if (tokenInputs[idx])
-                                tokenInputs[idx].targetChainId = value;
-                        }
-                    },
-                    "#/properties/tokens/properties/address": {
-                        render: () => {
-                            var _a, _b;
-                            const idx = tokenInputs.length;
-                            tokenInputs[idx] = new scom_token_input_1.default(undefined, {
-                                type: 'combobox',
-                                isBalanceShown: false,
-                                isBtnMaxShown: false,
-                                isInputShown: false
-                            });
-                            tokenInputs[idx].rpcWalletId = rpcWalletId;
-                            const chainId = (_b = (_a = networkPickers[idx]) === null || _a === void 0 ? void 0 : _a.selectedNetwork) === null || _b === void 0 ? void 0 : _b.chainId;
-                            if (chainId && tokenInputs[idx].targetChainId !== chainId) {
-                                tokenInputs[idx].targetChainId = chainId;
-                            }
-                            return tokenInputs[idx];
-                        },
-                        getData: (control) => {
-                            var _a, _b;
-                            return ((_a = control.token) === null || _a === void 0 ? void 0 : _a.address) || ((_b = control.token) === null || _b === void 0 ? void 0 : _b.symbol);
-                        },
-                        setData: (control, value) => {
-                            control.address = value;
-                        }
-                    },
-                    "#/properties/providers/properties/chainId": {
-                        render: () => {
-                            const networkPicker = new scom_network_picker_1.default(undefined, {
-                                type: 'combobox',
-                                networks
-                            });
-                            return networkPicker;
-                        },
-                        getData: (control) => {
-                            var _a;
-                            return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                        },
-                        setData: (control, value) => {
-                            control.setNetworkByChainId(value);
                         }
                     }
-                };
+                },
+                dark: theme,
+                light: theme
             }
         },
-        theme: {
-            dataSchema: {
-                type: 'object',
-                properties: {
-                    "dark": {
-                        type: 'object',
-                        properties: theme
+        uiSchema: {
+            type: 'Categorization',
+            elements: [
+                {
+                    type: 'Category',
+                    label: 'General',
+                    elements: [
+                        {
+                            type: 'VerticalLayout',
+                            elements: [
+                                {
+                                    type: 'Control',
+                                    scope: '#/properties/mode',
+                                    options: {
+                                        detail: {
+                                            type: 'HorizontalLayout'
+                                        }
+                                    }
+                                },
+                                {
+                                    type: 'Control',
+                                    scope: '#/properties/providers',
+                                    options: {
+                                        detail: {
+                                            type: 'VerticalLayout'
+                                        }
+                                    }
+                                },
+                                {
+                                    type: 'Control',
+                                    scope: '#/properties/tokens'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    type: 'Category',
+                    label: 'Theme',
+                    elements: [
+                        {
+                            type: 'VerticalLayout',
+                            elements: [
+                                {
+                                    type: 'Control',
+                                    label: 'Dark',
+                                    scope: '#/properties/dark'
+                                },
+                                {
+                                    type: 'Control',
+                                    label: 'Light',
+                                    scope: '#/properties/light'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        customControls(rpcWalletId) {
+            let networkPickers = [];
+            let tokenInputs = [];
+            return {
+                '#/properties/tokens/properties/chainId': {
+                    render: () => {
+                        const idx = networkPickers.length;
+                        networkPickers[idx] = new scom_network_picker_1.default(undefined, {
+                            type: 'combobox',
+                            networks,
+                            onCustomNetworkSelected: () => {
+                                var _a;
+                                const chainId = (_a = networkPickers[idx].selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
+                                tokenInputs[idx].targetChainId = chainId;
+                            }
+                        });
+                        return networkPickers[idx];
                     },
-                    "light": {
-                        type: 'object',
-                        properties: theme
+                    getData: (control) => {
+                        var _a;
+                        return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
+                    },
+                    setData: (control, value) => {
+                        control.setNetworkByChainId(value);
+                        const idx = networkPickers.findIndex(f => f === control);
+                        if (tokenInputs[idx])
+                            tokenInputs[idx].targetChainId = value;
+                    }
+                },
+                '#/properties/tokens/properties/address': {
+                    render: () => {
+                        var _a, _b;
+                        const idx = tokenInputs.length;
+                        tokenInputs[idx] = new scom_token_input_1.default(undefined, {
+                            type: 'combobox',
+                            isBalanceShown: false,
+                            isBtnMaxShown: false,
+                            isInputShown: false
+                        });
+                        tokenInputs[idx].rpcWalletId = rpcWalletId;
+                        const chainId = (_b = (_a = networkPickers[idx]) === null || _a === void 0 ? void 0 : _a.selectedNetwork) === null || _b === void 0 ? void 0 : _b.chainId;
+                        if (chainId && tokenInputs[idx].targetChainId !== chainId) {
+                            tokenInputs[idx].targetChainId = chainId;
+                        }
+                        return tokenInputs[idx];
+                    },
+                    getData: (control) => {
+                        var _a, _b;
+                        return ((_a = control.token) === null || _a === void 0 ? void 0 : _a.address) || ((_b = control.token) === null || _b === void 0 ? void 0 : _b.symbol);
+                    },
+                    setData: (control, value) => {
+                        control.address = value;
+                    }
+                },
+                '#/properties/providers/properties/chainId': {
+                    render: () => {
+                        const networkPicker = new scom_network_picker_1.default(undefined, {
+                            type: 'combobox',
+                            networks
+                        });
+                        return networkPicker;
+                    },
+                    getData: (control) => {
+                        var _a;
+                        return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
+                    },
+                    setData: (control, value) => {
+                        control.setNetworkByChainId(value);
                     }
                 }
-            }
+            };
         }
     };
 });
@@ -3049,10 +3073,10 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             ];
             if (category && category !== 'offers') {
                 actions.push({
-                    name: 'Settings',
-                    icon: 'cog',
+                    name: 'Edit',
+                    icon: 'edit',
                     command: (builder, userInputData) => {
-                        let _oldData = {
+                        let oldData = {
                             providers: [],
                             tokens: [],
                             defaultChainId: 0,
@@ -3060,15 +3084,22 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                             networks: [],
                             mode: 'add'
                         };
+                        let oldTag = {};
                         return {
                             execute: async () => {
                                 var _a, _b;
-                                _oldData = Object.assign({}, this._data);
-                                this._data.mode = userInputData.mode;
-                                this._data.providers = userInputData.providers;
+                                oldData = JSON.parse(JSON.stringify(this._data));
+                                const { mode, providers, tokens } = userInputData, themeSettings = __rest(userInputData, ["mode", "providers", "tokens"]);
+                                const generalSettings = {
+                                    mode,
+                                    providers,
+                                    tokens
+                                };
+                                this._data.mode = generalSettings.mode;
+                                this._data.providers = generalSettings.providers;
                                 this._data.tokens = [];
-                                if (userInputData.tokens) {
-                                    for (let inputToken of userInputData.tokens) {
+                                if (generalSettings.tokens) {
+                                    for (let inputToken of generalSettings.tokens) {
                                         const tokenAddress = (_a = inputToken.address) === null || _a === void 0 ? void 0 : _a.toLowerCase();
                                         const nativeToken = scom_token_list_4.ChainNativeTokenByChainId[inputToken.chainId];
                                         if (!tokenAddress || tokenAddress === ((_b = nativeToken === null || nativeToken === void 0 ? void 0 : nativeToken.symbol) === null || _b === void 0 ? void 0 : _b.toLowerCase())) {
@@ -3087,40 +3118,19 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                                 this.refreshUI();
                                 if (builder === null || builder === void 0 ? void 0 : builder.setData)
                                     builder.setData(this._data);
+                                oldTag = JSON.parse(JSON.stringify(this.tag));
+                                if (builder)
+                                    builder.setTag(themeSettings);
+                                else
+                                    this.setTag(themeSettings);
+                                if (this.dappContainer)
+                                    this.dappContainer.setTag(themeSettings);
                             },
                             undo: () => {
-                                this._data = Object.assign({}, _oldData);
+                                this._data = JSON.parse(JSON.stringify(oldData));
                                 this.refreshUI();
                                 if (builder === null || builder === void 0 ? void 0 : builder.setData)
                                     builder.setData(this._data);
-                            },
-                            redo: () => { }
-                        };
-                    },
-                    userInputDataSchema: formSchema_1.default.general.dataSchema,
-                    userInputUISchema: formSchema_1.default.general.uiSchema,
-                    customControls: formSchema_1.default.general.customControls((_a = this.rpcWallet) === null || _a === void 0 ? void 0 : _a.instanceId)
-                });
-                actions.push({
-                    name: 'Theme Settings',
-                    icon: 'palette',
-                    command: (builder, userInputData) => {
-                        let oldTag = {};
-                        return {
-                            execute: async () => {
-                                if (!userInputData)
-                                    return;
-                                oldTag = JSON.parse(JSON.stringify(this.tag));
-                                if (builder)
-                                    builder.setTag(userInputData);
-                                else
-                                    this.setTag(userInputData);
-                                if (this.dappContainer)
-                                    this.dappContainer.setTag(userInputData);
-                            },
-                            undo: () => {
-                                if (!userInputData)
-                                    return;
                                 this.tag = JSON.parse(JSON.stringify(oldTag));
                                 if (builder)
                                     builder.setTag(this.tag);
@@ -3132,7 +3142,9 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                             redo: () => { }
                         };
                     },
-                    userInputDataSchema: formSchema_1.default.theme.dataSchema
+                    userInputDataSchema: formSchema_1.default.dataSchema,
+                    userInputUISchema: formSchema_1.default.uiSchema,
+                    customControls: formSchema_1.default.customControls((_a = this.rpcWallet) === null || _a === void 0 ? void 0 : _a.instanceId)
                 });
             }
             return actions;

@@ -282,10 +282,10 @@ export class ScomAmmPoolAdd extends Module {
     if (currentChainTokens.length < 2) return;
     const providers = this.originalData?.providers;
     if (providers && providers.length) {
-      const fromTokenAddress = currentChainTokens[0].address;
-      const toTokenAddress = currentChainTokens[1].address;
-      const fromToken = fromTokenAddress.toLowerCase().startsWith('0x') ? fromTokenAddress.toLowerCase() : fromTokenAddress;
-      const toToken = toTokenAddress.toLowerCase().startsWith('0x') ? toTokenAddress.toLowerCase() : toTokenAddress;
+      const fromTokenAddress = currentChainTokens[0].address || currentChainTokens[0].symbol;
+      const toTokenAddress = currentChainTokens[1].address || currentChainTokens[1].symbol;
+      const fromToken = fromTokenAddress?.toLowerCase().startsWith('0x') ? fromTokenAddress.toLowerCase() : fromTokenAddress;
+      const toToken = toTokenAddress?.toLowerCase().startsWith('0x') ? toTokenAddress.toLowerCase() : toTokenAddress;
       this.firstToken = tokenStore.tokenMap[fromToken];
       this.secondToken = tokenStore.tokenMap[toToken];
       this.onUpdateToken(this.firstToken, true);

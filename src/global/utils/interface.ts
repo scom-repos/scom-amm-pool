@@ -54,6 +54,7 @@ export type ModeType = 'add' | 'remove' | 'both';
 
 export interface ICustomTokenObject {
   address: string;
+  symbol?: string;
   chainId: number;
 }
 
