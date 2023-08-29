@@ -204,25 +204,38 @@ export default class ScomAmmPool extends Module {
 
     if (category && category !== 'offers') {
       actions.push({
-        name: 'Settings',
-        icon: 'cog',
+        name: 'Edit',
+        icon: 'edit',
         command: (builder: any, userInputData: any) => {
-          let _oldData: IPoolConfig = {
+          let oldData: IPoolConfig = {
             providers: [],
             tokens: [],
             defaultChainId: 0,
             wallets: [],
             networks: [],
             mode: 'add'
-          }
+          };
+          let oldTag = {};
           return {
             execute: async () => {
-              _oldData = { ...this._data };
-              this._data.mode = userInputData.mode;
-              this._data.providers = userInputData.providers;
+              oldData = JSON.parse(JSON.stringify(this._data));
+              const {
+                mode,
+                providers,
+                tokens,
+                ...themeSettings
+              } = userInputData;
+
+              const generalSettings = {
+                mode,
+                providers,
+                tokens
+              };
+              this._data.mode = generalSettings.mode;
+              this._data.providers = generalSettings.providers;
               this._data.tokens = [];
-              if (userInputData.tokens) {
-                for (let inputToken of userInputData.tokens) {
+              if (generalSettings.tokens) {
+                for (let inputToken of generalSettings.tokens) {
                   const tokenAddress = inputToken.address?.toLowerCase();
                   const nativeToken = ChainNativeTokenByChainId[inputToken.chainId];
                   if (!tokenAddress || tokenAddress === nativeToken?.symbol?.toLowerCase()) {
@@ -238,35 +251,17 @@ export default class ScomAmmPool extends Module {
               await this.resetRpcWallet();
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
+
+              oldTag = JSON.parse(JSON.stringify(this.tag));
+              if (builder) builder.setTag(themeSettings);
+              else this.setTag(themeSettings);
+              if (this.dappContainer) this.dappContainer.setTag(themeSettings);
             },
             undo: () => {
-              this._data = { ..._oldData };
+              this._data = JSON.parse(JSON.stringify(oldData));
               this.refreshUI();
               if (builder?.setData) builder.setData(this._data);
-            },
-            redo: () => { }
-          }
-        },
-        userInputDataSchema: formSchema.general.dataSchema,
-        userInputUISchema: formSchema.general.uiSchema,
-        customControls: formSchema.general.customControls(this.rpcWallet?.instanceId)
-      });
 
-      actions.push({
-        name: 'Theme Settings',
-        icon: 'palette',
-        command: (builder: any, userInputData: any) => {
-          let oldTag = {};
-          return {
-            execute: async () => {
-              if (!userInputData) return;
-              oldTag = JSON.parse(JSON.stringify(this.tag));
-              if (builder) builder.setTag(userInputData);
-              else this.setTag(userInputData);
-              if (this.dappContainer) this.dappContainer.setTag(userInputData);
-            },
-            undo: () => {
-              if (!userInputData) return;
               this.tag = JSON.parse(JSON.stringify(oldTag));
               if (builder) builder.setTag(this.tag);
               else this.setTag(this.tag);
@@ -275,8 +270,10 @@ export default class ScomAmmPool extends Module {
             redo: () => { }
           }
         },
-        userInputDataSchema: formSchema.theme.dataSchema
-      })
+        userInputDataSchema: formSchema.dataSchema,
+        userInputUISchema: formSchema.uiSchema,
+        customControls: formSchema.customControls(this.rpcWallet?.instanceId)
+      });
     }
     return actions
   }
