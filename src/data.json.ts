@@ -22,17 +22,11 @@ export default {
   "defaultBuilderData": {
     "providers": [
       {
-        "caption": "OpenSwap",
-        "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
         "key": "OpenSwap",
-        "dexId": 1,
         "chainId": 97
       },
       {
-        "caption": "OpenSwap",
-        "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
         "key": "OpenSwap",
-        "dexId": 1,
         "chainId": 43113
       }
     ],

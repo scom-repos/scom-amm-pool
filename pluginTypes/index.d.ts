@@ -30,25 +30,11 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
         toToken?: string;
     }
     export interface IProvider {
-        caption: string;
-        image: string;
         key: string;
-        dexId?: number;
     }
     export interface IProviderUI {
-        caption: string;
-        image: string;
         key: string;
-        dexId?: number;
         chainId: string | number;
-        factoryAddress: string;
-        routerAddress: string;
-        fromToken?: string;
-        toToken?: string;
-        tradeFee: {
-            fee: string;
-            base: string;
-        };
     }
     export interface ICommissionInfo {
         chainId: number;
@@ -465,10 +451,7 @@ declare module "@scom/scom-amm-pool/data.json.ts" {
         embedderCommissionFee: string;
         defaultBuilderData: {
             providers: {
-                caption: string;
-                image: string;
                 key: string;
-                dexId: number;
                 chainId: number;
             }[];
             mode: string;
@@ -526,20 +509,9 @@ declare module "@scom/scom-amm-pool/formSchema.ts" {
                     items: {
                         type: string;
                         properties: {
-                            caption: {
-                                type: string;
-                                required: boolean;
-                            };
-                            image: {
-                                type: string;
-                                required: boolean;
-                            };
                             key: {
                                 type: string;
                                 required: boolean;
-                            };
-                            dexId: {
-                                type: string;
                             };
                             chainId: {
                                 type: string;

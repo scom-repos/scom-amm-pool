@@ -63,20 +63,9 @@ export default {
                 items: {
                     type: 'object',
                     properties: {
-                        caption: {
-                            type: 'string',
-                            required: true
-                        },
-                        image: {
-                            type: 'string',
-                            required: true
-                        },
                         key: {
                             type: 'string',
                             required: true
-                        },
-                        dexId: {
-                            type: 'number'
                         },
                         chainId: {
                             type: 'number',

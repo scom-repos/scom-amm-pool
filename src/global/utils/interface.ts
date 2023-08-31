@@ -12,27 +12,12 @@ export interface IContractInfo {
 }
 
 export interface IProvider {
-  caption: string;
-  image: string;
   key: string;
-  dexId?: number;
 }
 
 export interface IProviderUI {
-  caption: string;
-  image: string;
   key: string;
-  dexId?: number;
-  // Contract Info
   chainId: string | number;
-  factoryAddress: string;
-  routerAddress: string;
-  fromToken?: string;
-  toToken?: string;
-  tradeFee: {
-    fee: string;
-    base: string;
-  }
 }
 
 export interface ICommissionInfo {

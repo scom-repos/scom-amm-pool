@@ -1274,12 +1274,9 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             });
             Object.keys(providersByKeys).forEach(k => {
                 const arr = providersByKeys[k];
-                const { key, caption, image, dexId } = arr[0];
+                const { key } = arr[0];
                 let defaultProvider = {
-                    caption,
-                    image,
-                    key,
-                    dexId
+                    key
                 };
                 _providers.push(defaultProvider);
             });
@@ -2141,12 +2138,9 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             if (!(providers === null || providers === void 0 ? void 0 : providers.length))
                 return undefined;
             let _providers = [];
-            const { key, caption, image, dexId } = providers[0];
+            const { key } = providers[0];
             let defaultProvider = {
-                caption,
-                image,
-                key,
-                dexId
+                key
             };
             _providers.push(defaultProvider);
             return { providers: _providers };
@@ -2622,17 +2616,11 @@ define("@scom/scom-amm-pool/data.json.ts", ["require", "exports"], function (req
         "defaultBuilderData": {
             "providers": [
                 {
-                    "caption": "OpenSwap",
-                    "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
                     "key": "OpenSwap",
-                    "dexId": 1,
                     "chainId": 97
                 },
                 {
-                    "caption": "OpenSwap",
-                    "image": "ipfs://bafkreidoi5pywhyo4hqdltlosvrvefgqj4nuclmjl325exzmjgnyl2cc4y",
                     "key": "OpenSwap",
-                    "dexId": 1,
                     "chainId": 43113
                 }
             ],
@@ -2737,20 +2725,9 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
                     items: {
                         type: 'object',
                         properties: {
-                            caption: {
-                                type: 'string',
-                                required: true
-                            },
-                            image: {
-                                type: 'string',
-                                required: true
-                            },
                             key: {
                                 type: 'string',
                                 required: true
-                            },
-                            dexId: {
-                                type: 'number'
                             },
                             chainId: {
                                 type: 'number',

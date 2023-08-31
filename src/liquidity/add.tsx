@@ -150,12 +150,9 @@ export class ScomAmmPoolAdd extends Module {
     });
     Object.keys(providersByKeys).forEach(k => {
       const arr = providersByKeys[k];
-      const { key, caption, image, dexId } = arr[0];
+      const { key } = arr[0];
       let defaultProvider: IProvider = {
-        caption,
-        image,
-        key,
-        dexId
+        key
       }
       _providers.push(defaultProvider);
     })

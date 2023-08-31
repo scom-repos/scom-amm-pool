@@ -121,12 +121,9 @@ export class ScomAmmPoolRemove extends Module {
     const { providers } = this._data;
     if (!providers?.length) return undefined;
     let _providers: IProvider[] = [];
-    const { key, caption, image, dexId } = providers[0];
+    const { key } = providers[0];
     let defaultProvider: IProvider = {
-      caption,
-      image,
-      key,
-      dexId
+      key
     };
     _providers.push(defaultProvider);
     return { providers: _providers };
