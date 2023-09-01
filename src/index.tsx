@@ -3,7 +3,7 @@ import { Constants, IEventBusRegistry, Wallet } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
 import { State, isClientWalletConnected } from './store/index';
 import { poolStyle } from './index.css';
-import { ChainNativeTokenByChainId, DefaultERC20Tokens } from '@scom/scom-token-list';
+import { ChainNativeTokenByChainId, DefaultERC20Tokens, tokenStore } from '@scom/scom-token-list';
 import ScomWalletModal, { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
@@ -287,6 +287,7 @@ export default class ScomAmmPool extends Module {
     const rpcWalletId = await this.state.initRpcWallet(this.defaultChainId);
     const rpcWallet = this.rpcWallet;
     const chainChangedEvent = rpcWallet.registerWalletEvent(this, Constants.RpcWalletEvent.ChainChanged, async (chainId: number) => {
+      await this.initializeWidgetConfig();
       if (this.poolAdd) this.poolAdd.onChainChange();
       if (this.poolRemove) this.poolRemove.onChainChange();
     });
@@ -425,8 +426,18 @@ export default class ScomAmmPool extends Module {
     } catch { }
   }
 
+  private async updateBalance() {
+    const rpcWallet = this.state.getRpcWallet();
+    if (rpcWallet.address) {
+      await tokenStore.updateAllTokenBalances(rpcWallet);
+    }
+  }
+
   private async initializeWidgetConfig() {
+    const chainId = this.state.getChainId();
+    tokenStore.updateTokenMapData(chainId);
     await this.initWallet();
+    await this.updateBalance();
     this.vStackAmmPool.clearInnerHTML();
     if (this.isAddLiquidity) {
       this.poolAdd = new ScomAmmPoolAdd(undefined, {

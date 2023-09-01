@@ -722,6 +722,7 @@ declare module "@scom/scom-amm-pool" {
             getActions?: undefined;
         })[];
         private initWallet;
+        private updateBalance;
         private initializeWidgetConfig;
         init(): Promise<void>;
         removeRpcWalletEvents(): void;

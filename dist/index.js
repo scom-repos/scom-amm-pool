@@ -1151,7 +1151,6 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             this.initializeWidgetConfig = async (connected, _chainId) => {
                 setTimeout(async () => {
                     const chainId = this.state.getChainId();
-                    scom_token_list_2.tokenStore.updateTokenMapData(chainId);
                     if (!this.btnSupply.isConnected)
                         await this.btnSupply.ready();
                     if (!this.firstTokenInput.isConnected)
@@ -1345,7 +1344,6 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         async updateBalance() {
             const rpcWallet = this.state.getRpcWallet();
             if (rpcWallet.address) {
-                await scom_token_list_2.tokenStore.updateAllTokenBalances(rpcWallet);
                 this.allTokenBalancesMap = scom_token_list_2.tokenStore.tokenBalances;
             }
             else {
@@ -2017,9 +2015,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                 this.resetFirstInput();
                 this.resetSecondInput();
                 this.liquidityInput.value = '';
-                scom_token_list_3.tokenStore.updateTokenMapData(chainId);
                 if (connected) {
-                    await scom_token_list_3.tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
                     if (!this.approvalModelAction)
                         await this.initApprovalModelAction();
                 }
@@ -3135,6 +3131,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             const rpcWalletId = await this.state.initRpcWallet(this.defaultChainId);
             const rpcWallet = this.rpcWallet;
             const chainChangedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_7.Constants.RpcWalletEvent.ChainChanged, async (chainId) => {
+                await this.initializeWidgetConfig();
                 if (this.poolAdd)
                     this.poolAdd.onChainChange();
                 if (this.poolRemove)
@@ -3257,8 +3254,17 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                 }
             ];
         }
+        async updateBalance() {
+            const rpcWallet = this.state.getRpcWallet();
+            if (rpcWallet.address) {
+                await scom_token_list_4.tokenStore.updateAllTokenBalances(rpcWallet);
+            }
+        }
         async initializeWidgetConfig() {
+            const chainId = this.state.getChainId();
+            scom_token_list_4.tokenStore.updateTokenMapData(chainId);
             await this.initWallet();
+            await this.updateBalance();
             this.vStackAmmPool.clearInnerHTML();
             if (this.isAddLiquidity) {
                 this.poolAdd = new index_8.ScomAmmPoolAdd(undefined, {

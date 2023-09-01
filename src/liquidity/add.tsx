@@ -229,7 +229,6 @@ export class ScomAmmPoolAdd extends Module {
   private initializeWidgetConfig = async (connected: boolean, _chainId?: number) => {
     setTimeout(async () => {
       const chainId = this.state.getChainId();
-      tokenStore.updateTokenMapData(chainId);
       if (!this.btnSupply.isConnected) await this.btnSupply.ready();
       if (!this.firstTokenInput.isConnected) await this.firstTokenInput.ready();
       if (!this.secondTokenInput.isConnected) await this.secondTokenInput.ready();
@@ -319,7 +318,6 @@ export class ScomAmmPoolAdd extends Module {
   private async updateBalance() {
     const rpcWallet = this.state.getRpcWallet();
     if (rpcWallet.address) {
-      await tokenStore.updateAllTokenBalances(rpcWallet);
       this.allTokenBalancesMap = tokenStore.tokenBalances;
     }
     else {

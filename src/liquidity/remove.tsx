@@ -173,9 +173,7 @@ export class ScomAmmPoolRemove extends Module {
     this.resetFirstInput();
     this.resetSecondInput();
     this.liquidityInput.value = '';
-    tokenStore.updateTokenMapData(chainId);
     if (connected) {
-      await tokenStore.updateAllTokenBalances(this.state.getRpcWallet());
       if (!this.approvalModelAction) await this.initApprovalModelAction();
     }
     this.firstTokenInput.isBtnMaxShown = false;
