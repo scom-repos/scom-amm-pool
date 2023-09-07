@@ -205,3 +205,70 @@ export default {
         }
     }
 }
+
+export function getProjectOwnerSchema() {
+    return {
+        dataSchema: {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    required: true,
+                    enum: [
+                        'add',
+                        'remove',
+                        'both'
+                    ]
+                },
+                dark: theme,
+                light: theme
+            }
+        },
+        uiSchema: {
+            type: 'Categorization',
+            elements: [
+                {
+                    type: 'Category',
+                    label: 'General',
+                    elements: [
+                        {
+                            type: 'VerticalLayout',
+                            elements: [
+                                {
+                                    type: 'Control',
+                                    scope: '#/properties/mode',
+                                    options: {
+                                        detail: {
+                                            type: 'HorizontalLayout'
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    type: 'Category',
+                    label: 'Theme',
+                    elements: [
+                        {
+                            type: 'VerticalLayout',
+                            elements: [
+                                {
+                                    type: 'Control',
+                                    label: 'Dark',
+                                    scope: '#/properties/dark'
+                                },
+                                {
+                                    type: 'Control',
+                                    label: 'Light',
+                                    scope: '#/properties/light'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

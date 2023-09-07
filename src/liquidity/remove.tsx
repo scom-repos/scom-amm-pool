@@ -158,7 +158,7 @@ export class ScomAmmPoolRemove extends Module {
   }
 
   private updateContractAddress = () => {
-    this.contractAddress = getRouterAddress(this.state.getChainId());
+    this.contractAddress = getRouterAddress(this.state, this.state.getChainId());
     if (this.state?.approvalModel && this.approvalModelAction) {
       this.state.approvalModel.spenderAddress = this.contractAddress;
     }

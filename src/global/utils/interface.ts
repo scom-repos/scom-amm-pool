@@ -17,7 +17,7 @@ export interface IProvider {
 
 export interface IProviderUI {
   key: string;
-  chainId: string | number;
+  chainId: number;
 }
 
 export interface ICommissionInfo {
