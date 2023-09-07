@@ -3,7 +3,8 @@ import { } from '@ijstech/eth-contract';
 import { Contracts } from "@scom/oswap-openswap-contract";
 import { Contracts as ProxyContracts } from '@scom/scom-commission-proxy-contract';
 import {
-  ICommissionInfo
+  ICommissionInfo,
+  IProviderUI
 } from "./global/index";
 import {
   State,
@@ -49,8 +50,8 @@ interface ITokensBack {
 
 export const ERC20MaxAmount = new BigNumber(2).pow(256).minus(1);
 
-function getDexDetailItem(chainId: number) {
-  const dexInfoList = getDexList();
+function getDexDetailItem(state: State, chainId: number) {
+  const dexInfoList = state.getDexInfoList();
   for (const dex of dexInfoList) {
     const dexDetail: IDexDetail = dex.details.find(v => v.chainId === chainId);
     if (dexDetail) {
@@ -60,13 +61,13 @@ function getDexDetailItem(chainId: number) {
   return undefined;
 }
 
-export function getRouterAddress(chainId: number): string {
-  const dexItem = getDexDetailItem(chainId);
+export function getRouterAddress(state: State, chainId: number): string {
+  const dexItem = getDexDetailItem(state, chainId);
   return dexItem?.routerAddress || '';
 }
 
-function getFactoryAddress(chainId: number): string {
-  const dexItem = getDexDetailItem(chainId);
+function getFactoryAddress(state: State, chainId: number): string {
+  const dexItem = getDexDetailItem(state, chainId);
   return dexItem?.factoryAddress || '';
 }
 
@@ -212,7 +213,7 @@ const getRemoveLiquidityInfo = async (state: State, tokenA: ITokenObject, tokenB
 const getPairFromTokens = async (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => {
   let wallet = state.getRpcWallet();
   let chainId = state.getChainId();
-  const factoryAddress = getFactoryAddress(chainId);
+  const factoryAddress = getFactoryAddress(state, chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
   let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
@@ -295,7 +296,7 @@ const getNewShareInfo = async (state: State, tokenA: ITokenObject, tokenB: IToke
   let quote = Utils.fromDecimals(reserves.reserveB, tokenB.decimals).times(amountIn).div(Utils.fromDecimals(reserves.reserveA, tokenA.decimals)).toFixed();
   let amountADesiredToDecimals = Utils.toDecimals(amountADesired, tokenA.decimals);
   let amountBDesiredToDecimals = Utils.toDecimals(amountBDesired, tokenB.decimals);
-  const factoryAddress = getFactoryAddress(chainId);
+  const factoryAddress = getFactoryAddress(state, chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
   let newPrice0 = Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals).div(Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals)).toFixed();
   let newPrice1 = Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals).div(Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals)).toFixed();
@@ -320,7 +321,7 @@ const addLiquidity = async (state: State, tokenA: ITokenObject, tokenB: ITokenOb
     const amountAMin = new BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
     const amountBMin = new BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
     const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
-    const routerAddress = getRouterAddress(chainId);
+    const routerAddress = getRouterAddress(state, chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
 
     const proxyAddress = state.getProxyAddress();
@@ -478,7 +479,7 @@ const removeLiquidity = async (state: State, tokenA: ITokenObject, tokenB: IToke
     const amountAMin = new BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
     const amountBMin = new BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
     const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
-    const routerAddress = getRouterAddress(chainId);
+    const routerAddress = getRouterAddress(state, chainId);
     let router = new Contracts.OSWAP_Router(wallet, routerAddress);
     if (!tokenA.address || !tokenB.address) {
       let erc20Token: ITokenObject, amountTokenMin: string, amountETHMin: string;
@@ -543,7 +544,7 @@ const getTokensBack = async (state: State, tokenA: ITokenObject, tokenB: ITokenO
   const WETH = getWETH(chainId);
   if (!tokenA.address) tokenA = WETH;
   if (!tokenB.address) tokenB = WETH;
-  const factoryAddress = getFactoryAddress(chainId);
+  const factoryAddress = getFactoryAddress(state, chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
   let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
@@ -597,7 +598,7 @@ const getTokensBackByAmountOut = async (state: State, tokenA: ITokenObject, toke
   if (!tokenB.address) tokenB = WETH;
   if (!tokenOut.address) tokenOut = WETH;
 
-  const factoryAddress = getFactoryAddress(chainId);
+  const factoryAddress = getFactoryAddress(state, chainId);
   const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
   let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
   if (!pairAddress || pairAddress == Utils.nullAddress) {
@@ -634,6 +635,39 @@ const getTokensBackByAmountOut = async (state: State, tokenA: ITokenObject, toke
   return tokensBack;
 }
 
+const getProviderProxySelectors = async (state: State, providers: IProviderUI[]) => {
+  const wallet = state.getRpcWallet();
+  await wallet.init();
+  let selectorsSet: Set<string> = new Set();
+  const permittedProxyFunctions: (keyof Contracts.OSWAP_Router)[] = [
+    "addLiquidity",
+    "addLiquidityETH",
+    "removeLiquidity",
+    "removeLiquidityETH"
+  ];
+  for (let provider of providers) {
+    const dex = state.getDexInfoList({ key: provider.key, chainId: provider.chainId })[0];
+    if (dex) {
+      const routerAddress = dex.details.find(v => v.chainId === provider.chainId)?.routerAddress || '';
+      const router = new Contracts.OSWAP_Router(wallet, routerAddress);
+      const selectors = permittedProxyFunctions
+        .map(e => e + "(" + router._abi.filter(f => f.name == e)[0].inputs.map(f => f.type).join(',') + ")")
+        .map(e => wallet.soliditySha3(e).substring(0, 10))
+        .map(e => router.address.toLowerCase() + e.replace("0x", ""));
+      selectors.forEach(v => selectorsSet.add(v));
+    }
+  }
+  return Array.from(selectorsSet);
+}
+
+const getPair = async (state: State, market: string, tokenA: ITokenObject, tokenB: ITokenObject) => {
+  const wallet: any = state.getRpcWallet();
+  const factoryAddress = state.getDexDetail(market, state.getChainId())?.factoryAddress || '';
+  const factory = new Contracts.OSWAP_Factory(wallet, factoryAddress);
+  let pair = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
+  return pair;
+}
+
 export {
   IAmmPair,
   IUserShare,
@@ -647,5 +681,7 @@ export {
   getRemoveLiquidityInfo,
   removeLiquidity,
   getTokensBack,
-  getTokensBackByAmountOut
+  getTokensBackByAmountOut,
+  getProviderProxySelectors,
+  getPair
 }

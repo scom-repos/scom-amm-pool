@@ -3,6 +3,7 @@
 /// <reference path="@scom/scom-commission-proxy-contract/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-token-input/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@scom/scom-token-input/@scom/scom-token-modal/@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@scom/scom-dex-list/index.d.ts" />
 /// <amd-module name="@scom/scom-amm-pool/global/utils/helper.ts" />
 declare module "@scom/scom-amm-pool/global/utils/helper.ts" {
     export const formatNumber: (value: any, decimals?: number) => string;
@@ -34,7 +35,7 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
     }
     export interface IProviderUI {
         key: string;
-        chainId: string | number;
+        chainId: number;
     }
     export interface ICommissionInfo {
         chainId: number;
@@ -83,7 +84,7 @@ declare module "@scom/scom-amm-pool/global/index.ts" {
 /// <amd-module name="@scom/scom-amm-pool/store/utils.ts" />
 declare module "@scom/scom-amm-pool/store/utils.ts" {
     import { BigNumber, ERC20ApprovalModel, IERC20ApprovalEventOptions, INetwork } from '@ijstech/eth-wallet';
-    import { IDexInfo } from '@scom/scom-dex-list';
+    import { IDexDetail, IDexInfo } from '@scom/scom-dex-list';
     import { ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
     export type ProxyAddresses = {
         [key: number]: string;
@@ -108,6 +109,11 @@ declare module "@scom/scom-amm-pool/store/utils.ts" {
         isRpcWalletConnected(): boolean;
         getChainId(): number;
         setDexInfoList(value: IDexInfo[]): void;
+        getDexInfoList(options?: {
+            key?: string;
+            chainId?: number;
+        }): IDexInfo[];
+        getDexDetail(key: string, chainId: number): IDexDetail;
         private setNetworkList;
         getCurrentCommissions(commissions: ICommissionInfo[]): ICommissionInfo[];
         getCommissionAmount: (commissions: ICommissionInfo[], amount: BigNumber) => BigNumber;
@@ -144,7 +150,7 @@ declare module "@scom/scom-amm-pool/index.css.ts" {
 declare module "@scom/scom-amm-pool/API.ts" {
     import { BigNumber, TransactionReceipt } from "@ijstech/eth-wallet";
     import { Contracts } from "@scom/oswap-openswap-contract";
-    import { ICommissionInfo } from "@scom/scom-amm-pool/global/index.ts";
+    import { ICommissionInfo, IProviderUI } from "@scom/scom-amm-pool/global/index.ts";
     import { State } from "@scom/scom-amm-pool/store/index.ts";
     import { ITokenObject } from "@scom/scom-token-list";
     interface IAmmPairToken {
@@ -178,7 +184,7 @@ declare module "@scom/scom-amm-pool/API.ts" {
         newshare: string;
     }
     export const ERC20MaxAmount: BigNumber;
-    export function getRouterAddress(chainId: number): string;
+    export function getRouterAddress(state: State, chainId: number): string;
     const getRemoveLiquidityInfo: (state: State, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<{
         lpToken: ITokenObject;
         price0: string;
@@ -212,7 +218,9 @@ declare module "@scom/scom-amm-pool/API.ts" {
     const removeLiquidity: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string, amountADesired: string, amountBDesired: string) => Promise<TransactionReceipt>;
     const getTokensBack: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, liquidity: string) => Promise<ITokensBack>;
     const getTokensBackByAmountOut: (state: State, tokenA: ITokenObject, tokenB: ITokenObject, tokenOut: ITokenObject, amountOut: string) => Promise<ITokensBack>;
-    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut };
+    const getProviderProxySelectors: (state: State, providers: IProviderUI[]) => Promise<string[]>;
+    const getPair: (state: State, market: string, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<string>;
+    export { IAmmPair, IUserShare, INewShare, ITokensBack, getNewShareInfo, getPricesInfo, addLiquidity, calculateNewPairShareInfo, getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getProviderProxySelectors, getPair };
 }
 /// <amd-module name="@scom/scom-amm-pool/liquidity/index.css.ts" />
 declare module "@scom/scom-amm-pool/liquidity/index.css.ts" {
@@ -618,11 +626,96 @@ declare module "@scom/scom-amm-pool/formSchema.ts" {
         };
     };
     export default _default_1;
+    export function getProjectOwnerSchema(): {
+        dataSchema: {
+            type: string;
+            properties: {
+                mode: {
+                    type: string;
+                    required: boolean;
+                    enum: string[];
+                };
+                dark: {
+                    type: string;
+                    properties: {
+                        backgroundColor: {
+                            type: string;
+                            format: string;
+                        };
+                        fontColor: {
+                            type: string;
+                            format: string;
+                        };
+                        inputBackgroundColor: {
+                            type: string;
+                            format: string;
+                        };
+                        inputFontColor: {
+                            type: string;
+                            format: string;
+                        };
+                    };
+                };
+                light: {
+                    type: string;
+                    properties: {
+                        backgroundColor: {
+                            type: string;
+                            format: string;
+                        };
+                        fontColor: {
+                            type: string;
+                            format: string;
+                        };
+                        inputBackgroundColor: {
+                            type: string;
+                            format: string;
+                        };
+                        inputFontColor: {
+                            type: string;
+                            format: string;
+                        };
+                    };
+                };
+            };
+        };
+        uiSchema: {
+            type: string;
+            elements: ({
+                type: string;
+                label: string;
+                elements: {
+                    type: string;
+                    elements: {
+                        type: string;
+                        scope: string;
+                        options: {
+                            detail: {
+                                type: string;
+                            };
+                        };
+                    }[];
+                }[];
+            } | {
+                type: string;
+                label: string;
+                elements: {
+                    type: string;
+                    elements: {
+                        type: string;
+                        label: string;
+                        scope: string;
+                    }[];
+                }[];
+            })[];
+        };
+    };
 }
 /// <amd-module name="@scom/scom-amm-pool" />
 declare module "@scom/scom-amm-pool" {
     import { Module, Container, ControlElement } from '@ijstech/components';
     import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from "@scom/scom-amm-pool/global/index.ts";
+    import { ITokenObject } from '@scom/scom-token-list';
     import { IWalletPlugin } from '@scom/scom-wallet-modal';
     import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
     interface ScomAmmPoolElement extends ControlElement {
@@ -684,7 +777,23 @@ declare module "@scom/scom-amm-pool" {
         private setTag;
         private updateStyle;
         private updateTheme;
+        private getProjectOwnerActions;
         getConfigurators(): ({
+            name: string;
+            target: string;
+            getProxySelectors: () => Promise<string[]>;
+            getDexProviderOptions: (chainId: number) => import("@scom/scom-dex-list").IDexInfo[];
+            getPair: (market: string, tokenA: ITokenObject, tokenB: ITokenObject) => Promise<string>;
+            getActions: () => any[];
+            getData: any;
+            setData: (data: IPoolConfig) => Promise<void>;
+            getTag: any;
+            setTag: any;
+            elementName?: undefined;
+            getLinkParams?: undefined;
+            setLinkParams?: undefined;
+            bindOnChanged?: undefined;
+        } | {
             name: string;
             target: string;
             getActions: (category?: string) => any;
@@ -692,6 +801,9 @@ declare module "@scom/scom-amm-pool" {
             setData: (data: IPoolConfig) => Promise<void>;
             getTag: any;
             setTag: any;
+            getProxySelectors?: undefined;
+            getDexProviderOptions?: undefined;
+            getPair?: undefined;
             elementName?: undefined;
             getLinkParams?: undefined;
             setLinkParams?: undefined;
@@ -719,6 +831,9 @@ declare module "@scom/scom-amm-pool" {
             setData: any;
             getTag: any;
             setTag: any;
+            getProxySelectors?: undefined;
+            getDexProviderOptions?: undefined;
+            getPair?: undefined;
             getActions?: undefined;
         })[];
         private initWallet;

@@ -3,14 +3,15 @@ import { Constants, IEventBusRegistry, Wallet } from '@ijstech/eth-wallet';
 import { INetworkConfig, IPoolConfig, IProviderUI, ModeType, ICommissionInfo, ICustomTokenObject } from './global/index';
 import { State, isClientWalletConnected } from './store/index';
 import { poolStyle } from './index.css';
-import { ChainNativeTokenByChainId, DefaultERC20Tokens, tokenStore } from '@scom/scom-token-list';
+import { ChainNativeTokenByChainId, DefaultERC20Tokens, ITokenObject, tokenStore } from '@scom/scom-token-list';
 import ScomWalletModal, { IWalletPlugin } from '@scom/scom-wallet-modal';
 import ScomDappContainer from '@scom/scom-dapp-container';
 import getDexList from '@scom/scom-dex-list';
 import { ScomAmmPoolAdd, ScomAmmPoolRemove } from './liquidity/index';
 import ScomCommissionFeeSetup from '@scom/scom-commission-fee-setup';
 import configData from './data.json';
-import formSchema from './formSchema';
+import formSchema, { getProjectOwnerSchema } from './formSchema';
+import { getPair, getProviderProxySelectors } from './API';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -314,8 +315,6 @@ export default class ScomAmmPool extends Module {
   }
 
   private async refreshUI() {
-    const dexList = getDexList();
-    this.state.setDexInfoList(dexList);
     await this.initializeWidgetConfig();
   }
 
@@ -360,9 +359,46 @@ export default class ScomAmmPool extends Module {
     this.updateStyle('--input-background', this.tag[themeVar]?.inputBackgroundColor);
   }
 
+  private getProjectOwnerActions() {
+    const formSchema = getProjectOwnerSchema();
+    const actions: any[] = [
+      {
+        name: 'Settings',
+        userInputDataSchema: formSchema.dataSchema,
+        userInputUISchema: formSchema.uiSchema
+      }
+    ];
+    return actions
+  }
+
   getConfigurators() {
     const self = this;
     return [
+      {
+        name: 'Project Owner Configurator',
+        target: 'Project Owners',
+        getProxySelectors: async () => {
+          const selectors = await getProviderProxySelectors(this.state, this._data.providers);
+          return selectors;
+        },
+        getDexProviderOptions: (chainId: number) => {
+          const providers = this.state.getDexInfoList({ chainId });
+          return providers;
+        },
+        getPair: async (market: string, tokenA: ITokenObject, tokenB: ITokenObject) => {
+          const pair = await getPair(this.state, market, tokenA, tokenB);
+          return pair;
+        },
+        getActions: () => {
+          return this.getProjectOwnerActions();
+        },
+        getData: this.getData.bind(this),
+        setData: async (data: IPoolConfig) => {
+          await this.setData(data);
+        },
+        getTag: this.getTag.bind(this),
+        setTag: this.setTag.bind(this)
+      },
       {
         name: 'Builder Configurator',
         target: 'Builders',
@@ -484,6 +520,8 @@ export default class ScomAmmPool extends Module {
     this.isReadyCallbackQueued = true;
     super.init();
     this.state = new State(configData);
+    const dexList = getDexList();
+    this.state.setDexInfoList(dexList);
     const lazyLoad = this.getAttribute('lazyLoad', true, false);
     if (!lazyLoad) {
       const mode = this.getAttribute('mode', true);

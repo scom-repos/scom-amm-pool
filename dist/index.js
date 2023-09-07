@@ -237,6 +237,30 @@ define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/et
         setDexInfoList(value) {
             this.dexInfoList = value;
         }
+        getDexInfoList(options) {
+            if (!options)
+                return this.dexInfoList;
+            const { key, chainId } = options;
+            let dexList = this.dexInfoList;
+            if (key) {
+                dexList = dexList.filter(v => v.dexCode === key);
+            }
+            if (chainId) {
+                dexList = dexList.filter(v => v.details.some(d => d.chainId === chainId));
+            }
+            return dexList;
+        }
+        getDexDetail(key, chainId) {
+            for (const dex of this.dexInfoList) {
+                if (dex.dexCode === key) {
+                    const dexDetail = dex.details.find(v => v.chainId === chainId);
+                    if (dexDetail) {
+                        return dexDetail;
+                    }
+                }
+            }
+            return undefined;
+        }
         setNetworkList(networkList, infuraId) {
             const wallet = eth_wallet_3.Wallet.getClientInstance();
             this.networkMap = {};
@@ -457,13 +481,13 @@ define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/comp
         }
     });
 });
-define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-commission-proxy-contract", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-dex-list"], function (require, exports, eth_wallet_4, oswap_openswap_contract_1, scom_commission_proxy_contract_1, index_2, scom_dex_list_1) {
+define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-commission-proxy-contract", "@scom/scom-amm-pool/store/index.ts"], function (require, exports, eth_wallet_4, oswap_openswap_contract_1, scom_commission_proxy_contract_1, index_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getTokensBackByAmountOut = exports.getTokensBack = exports.removeLiquidity = exports.getRemoveLiquidityInfo = exports.getPairFromTokens = exports.calculateNewPairShareInfo = exports.addLiquidity = exports.getPricesInfo = exports.getNewShareInfo = exports.getRouterAddress = exports.ERC20MaxAmount = void 0;
+    exports.getPair = exports.getProviderProxySelectors = exports.getTokensBackByAmountOut = exports.getTokensBack = exports.removeLiquidity = exports.getRemoveLiquidityInfo = exports.getPairFromTokens = exports.calculateNewPairShareInfo = exports.addLiquidity = exports.getPricesInfo = exports.getNewShareInfo = exports.getRouterAddress = exports.ERC20MaxAmount = void 0;
     exports.ERC20MaxAmount = new eth_wallet_4.BigNumber(2).pow(256).minus(1);
-    function getDexDetailItem(chainId) {
-        const dexInfoList = (0, scom_dex_list_1.default)();
+    function getDexDetailItem(state, chainId) {
+        const dexInfoList = state.getDexInfoList();
         for (const dex of dexInfoList) {
             const dexDetail = dex.details.find(v => v.chainId === chainId);
             if (dexDetail) {
@@ -472,13 +496,13 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         }
         return undefined;
     }
-    function getRouterAddress(chainId) {
-        const dexItem = getDexDetailItem(chainId);
+    function getRouterAddress(state, chainId) {
+        const dexItem = getDexDetailItem(state, chainId);
         return (dexItem === null || dexItem === void 0 ? void 0 : dexItem.routerAddress) || '';
     }
     exports.getRouterAddress = getRouterAddress;
-    function getFactoryAddress(chainId) {
-        const dexItem = getDexDetailItem(chainId);
+    function getFactoryAddress(state, chainId) {
+        const dexItem = getDexDetailItem(state, chainId);
         return (dexItem === null || dexItem === void 0 ? void 0 : dexItem.factoryAddress) || '';
     }
     const MINIMUM_LIQUIDITY = 10 ** 3;
@@ -610,7 +634,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
     const getPairFromTokens = async (state, tokenA, tokenB) => {
         let wallet = state.getRpcWallet();
         let chainId = state.getChainId();
-        const factoryAddress = getFactoryAddress(chainId);
+        const factoryAddress = getFactoryAddress(state, chainId);
         const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
         let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
         if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
@@ -689,7 +713,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         let quote = eth_wallet_4.Utils.fromDecimals(reserves.reserveB, tokenB.decimals).times(amountIn).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveA, tokenA.decimals)).toFixed();
         let amountADesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountADesired, tokenA.decimals);
         let amountBDesiredToDecimals = eth_wallet_4.Utils.toDecimals(amountBDesired, tokenB.decimals);
-        const factoryAddress = getFactoryAddress(chainId);
+        const factoryAddress = getFactoryAddress(state, chainId);
         const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
         let newPrice0 = eth_wallet_4.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals)).toFixed();
         let newPrice1 = eth_wallet_4.Utils.fromDecimals(reserves.reserveA.plus(amountADesiredToDecimals), tokenA.decimals).div(eth_wallet_4.Utils.fromDecimals(reserves.reserveB.plus(amountBDesiredToDecimals), tokenB.decimals)).toFixed();
@@ -714,7 +738,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             const amountAMin = new eth_wallet_4.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
             const amountBMin = new eth_wallet_4.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
             const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
-            const routerAddress = getRouterAddress(chainId);
+            const routerAddress = getRouterAddress(state, chainId);
             let router = new oswap_openswap_contract_1.Contracts.OSWAP_Router(wallet, routerAddress);
             const proxyAddress = state.getProxyAddress();
             const proxy = new scom_commission_proxy_contract_1.Contracts.Proxy(wallet, proxyAddress);
@@ -873,7 +897,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             const amountAMin = new eth_wallet_4.BigNumber(amountADesired).times(1 - slippageTolerance / 100).toFixed();
             const amountBMin = new eth_wallet_4.BigNumber(amountBDesired).times(1 - slippageTolerance / 100).toFixed();
             const deadline = Math.floor(Date.now() / 1000 + state.transactionDeadline * 60);
-            const routerAddress = getRouterAddress(chainId);
+            const routerAddress = getRouterAddress(state, chainId);
             let router = new oswap_openswap_contract_1.Contracts.OSWAP_Router(wallet, routerAddress);
             if (!tokenA.address || !tokenB.address) {
                 let erc20Token, amountTokenMin, amountETHMin;
@@ -938,7 +962,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             tokenA = WETH;
         if (!tokenB.address)
             tokenB = WETH;
-        const factoryAddress = getFactoryAddress(chainId);
+        const factoryAddress = getFactoryAddress(state, chainId);
         const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
         let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
         if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
@@ -990,7 +1014,7 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
             tokenB = WETH;
         if (!tokenOut.address)
             tokenOut = WETH;
-        const factoryAddress = getFactoryAddress(chainId);
+        const factoryAddress = getFactoryAddress(state, chainId);
         const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
         let pairAddress = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
         if (!pairAddress || pairAddress == eth_wallet_4.Utils.nullAddress) {
@@ -1026,6 +1050,41 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
         return tokensBack;
     };
     exports.getTokensBackByAmountOut = getTokensBackByAmountOut;
+    const getProviderProxySelectors = async (state, providers) => {
+        var _a;
+        const wallet = state.getRpcWallet();
+        await wallet.init();
+        let selectorsSet = new Set();
+        const permittedProxyFunctions = [
+            "addLiquidity",
+            "addLiquidityETH",
+            "removeLiquidity",
+            "removeLiquidityETH"
+        ];
+        for (let provider of providers) {
+            const dex = state.getDexInfoList({ key: provider.key, chainId: provider.chainId })[0];
+            if (dex) {
+                const routerAddress = ((_a = dex.details.find(v => v.chainId === provider.chainId)) === null || _a === void 0 ? void 0 : _a.routerAddress) || '';
+                const router = new oswap_openswap_contract_1.Contracts.OSWAP_Router(wallet, routerAddress);
+                const selectors = permittedProxyFunctions
+                    .map(e => e + "(" + router._abi.filter(f => f.name == e)[0].inputs.map(f => f.type).join(',') + ")")
+                    .map(e => wallet.soliditySha3(e).substring(0, 10))
+                    .map(e => router.address.toLowerCase() + e.replace("0x", ""));
+                selectors.forEach(v => selectorsSet.add(v));
+            }
+        }
+        return Array.from(selectorsSet);
+    };
+    exports.getProviderProxySelectors = getProviderProxySelectors;
+    const getPair = async (state, market, tokenA, tokenB) => {
+        var _a;
+        const wallet = state.getRpcWallet();
+        const factoryAddress = ((_a = state.getDexDetail(market, state.getChainId())) === null || _a === void 0 ? void 0 : _a.factoryAddress) || '';
+        const factory = new oswap_openswap_contract_1.Contracts.OSWAP_Factory(wallet, factoryAddress);
+        let pair = await getPairAddressFromTokens(state, factory, tokenA, tokenB);
+        return pair;
+    };
+    exports.getPair = getPair;
 });
 define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
@@ -1119,7 +1178,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.contractAddress = this.state.getProxyAddress();
                 }
                 else {
-                    this.contractAddress = (0, API_1.getRouterAddress)(this.state.getChainId());
+                    this.contractAddress = (0, API_1.getRouterAddress)(this.state, this.state.getChainId());
                 }
                 if (((_a = this.state) === null || _a === void 0 ? void 0 : _a.approvalModel) && this.approvalModelAction) {
                     this.state.approvalModel.spenderAddress = this.contractAddress;
@@ -1997,7 +2056,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
             };
             this.updateContractAddress = () => {
                 var _a;
-                this.contractAddress = (0, API_2.getRouterAddress)(this.state.getChainId());
+                this.contractAddress = (0, API_2.getRouterAddress)(this.state, this.state.getChainId());
                 if (((_a = this.state) === null || _a === void 0 ? void 0 : _a.approvalModel) && this.approvalModelAction) {
                     this.state.approvalModel.spenderAddress = this.contractAddress;
                 }
@@ -2661,6 +2720,7 @@ define("@scom/scom-amm-pool/data.json.ts", ["require", "exports"], function (req
 define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-network-picker", "@scom/scom-token-input"], function (require, exports, scom_network_picker_1, scom_token_input_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.getProjectOwnerSchema = void 0;
     const chainIds = [1, 56, 137, 250, 97, 80001, 43113, 43114];
     const networks = chainIds.map(v => { return { chainId: v }; });
     const theme = {
@@ -2869,8 +2929,75 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
             };
         }
     };
+    function getProjectOwnerSchema() {
+        return {
+            dataSchema: {
+                type: 'object',
+                properties: {
+                    mode: {
+                        type: 'string',
+                        required: true,
+                        enum: [
+                            'add',
+                            'remove',
+                            'both'
+                        ]
+                    },
+                    dark: theme,
+                    light: theme
+                }
+            },
+            uiSchema: {
+                type: 'Categorization',
+                elements: [
+                    {
+                        type: 'Category',
+                        label: 'General',
+                        elements: [
+                            {
+                                type: 'VerticalLayout',
+                                elements: [
+                                    {
+                                        type: 'Control',
+                                        scope: '#/properties/mode',
+                                        options: {
+                                            detail: {
+                                                type: 'HorizontalLayout'
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'Category',
+                        label: 'Theme',
+                        elements: [
+                            {
+                                type: 'VerticalLayout',
+                                elements: [
+                                    {
+                                        type: 'Control',
+                                        label: 'Dark',
+                                        scope: '#/properties/dark'
+                                    },
+                                    {
+                                        type: 'Control',
+                                        label: 'Light',
+                                        scope: '#/properties/light'
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+    }
+    exports.getProjectOwnerSchema = getProjectOwnerSchema;
 });
-define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.ts"], function (require, exports, components_6, eth_wallet_7, index_7, index_css_3, scom_token_list_4, scom_dex_list_2, index_8, scom_commission_fee_setup_1, data_json_1, formSchema_1) {
+define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.ts", "@scom/scom-amm-pool/API.ts"], function (require, exports, components_6, eth_wallet_7, index_7, index_css_3, scom_token_list_4, scom_dex_list_1, index_8, scom_commission_fee_setup_1, data_json_1, formSchema_1, API_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_6.Styles.Theme.ThemeVars;
@@ -3160,8 +3287,6 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             await this.refreshUI();
         }
         async refreshUI() {
-            const dexList = (0, scom_dex_list_2.default)();
-            this.state.setDexInfoList(dexList);
             await this.initializeWidgetConfig();
         }
         async getTag() {
@@ -3202,9 +3327,45 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             this.updateStyle('--input-font_color', (_d = this.tag[themeVar]) === null || _d === void 0 ? void 0 : _d.inputFontColor);
             this.updateStyle('--input-background', (_e = this.tag[themeVar]) === null || _e === void 0 ? void 0 : _e.inputBackgroundColor);
         }
+        getProjectOwnerActions() {
+            const formSchema = (0, formSchema_1.getProjectOwnerSchema)();
+            const actions = [
+                {
+                    name: 'Settings',
+                    userInputDataSchema: formSchema.dataSchema,
+                    userInputUISchema: formSchema.uiSchema
+                }
+            ];
+            return actions;
+        }
         getConfigurators() {
             const self = this;
             return [
+                {
+                    name: 'Project Owner Configurator',
+                    target: 'Project Owners',
+                    getProxySelectors: async () => {
+                        const selectors = await (0, API_3.getProviderProxySelectors)(this.state, this._data.providers);
+                        return selectors;
+                    },
+                    getDexProviderOptions: (chainId) => {
+                        const providers = this.state.getDexInfoList({ chainId });
+                        return providers;
+                    },
+                    getPair: async (market, tokenA, tokenB) => {
+                        const pair = await (0, API_3.getPair)(this.state, market, tokenA, tokenB);
+                        return pair;
+                    },
+                    getActions: () => {
+                        return this.getProjectOwnerActions();
+                    },
+                    getData: this.getData.bind(this),
+                    setData: async (data) => {
+                        await this.setData(data);
+                    },
+                    getTag: this.getTag.bind(this),
+                    setTag: this.setTag.bind(this)
+                },
                 {
                     name: 'Builder Configurator',
                     target: 'Builders',
@@ -3312,6 +3473,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             this.isReadyCallbackQueued = true;
             super.init();
             this.state = new index_7.State(data_json_1.default);
+            const dexList = (0, scom_dex_list_1.default)();
+            this.state.setDexInfoList(dexList);
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
                 const mode = this.getAttribute('mode', true);

@@ -197,7 +197,7 @@ export class ScomAmmPoolAdd extends Module {
     if (this.state.getCurrentCommissions(this.commissions).length) {
       this.contractAddress = this.state.getProxyAddress();
     } else {
-      this.contractAddress = getRouterAddress(this.state.getChainId());
+      this.contractAddress = getRouterAddress(this.state, this.state.getChainId());
     }
     if (this.state?.approvalModel && this.approvalModelAction) {
       this.state.approvalModel.spenderAddress = this.contractAddress;
