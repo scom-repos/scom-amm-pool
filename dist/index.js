@@ -29,87 +29,35 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
-define("@scom/scom-amm-pool/global/utils/helper.ts", ["require", "exports", "@ijstech/eth-wallet"], function (require, exports, eth_wallet_1) {
+define("@scom/scom-amm-pool/global/utils/helper.ts", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet"], function (require, exports, components_1, eth_wallet_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.limitDecimals = exports.limitInputNumber = exports.isInvalidInput = exports.formatNumberWithSeparators = exports.formatNumber = void 0;
-    const formatNumber = (value, decimals) => {
-        let val = value;
+    exports.limitInputNumber = exports.formatNumber = void 0;
+    const formatNumber = (value, decimalFigures) => {
+        if (typeof value === 'object') {
+            value = value.toString();
+        }
         const minValue = '0.0000001';
-        if (typeof value === 'string') {
-            val = new eth_wallet_1.BigNumber(value).toNumber();
-        }
-        else if (typeof value === 'object') {
-            val = value.toNumber();
-        }
-        if (val != 0 && new eth_wallet_1.BigNumber(val).lt(minValue)) {
-            return `<${minValue}`;
-        }
-        return (0, exports.formatNumberWithSeparators)(val, decimals || 4);
+        return components_1.FormatUtils.formatNumber(value, { decimalFigures: decimalFigures || 4, minValue });
     };
     exports.formatNumber = formatNumber;
-    const formatNumberWithSeparators = (value, precision) => {
-        if (!value)
-            value = 0;
-        if (precision) {
-            let outputStr = '';
-            if (value >= 1) {
-                const unit = Math.pow(10, precision);
-                const rounded = Math.floor(value * unit) / unit;
-                outputStr = rounded.toLocaleString('en-US', { maximumFractionDigits: precision });
-            }
-            else {
-                outputStr = value.toLocaleString('en-US', { maximumSignificantDigits: precision });
-            }
-            if (outputStr.length > 18) {
-                outputStr = outputStr.substring(0, 18) + '...';
-            }
-            return outputStr;
-        }
-        return value.toLocaleString('en-US');
-    };
-    exports.formatNumberWithSeparators = formatNumberWithSeparators;
     const isInvalidInput = (val) => {
         const value = new eth_wallet_1.BigNumber(val);
         if (value.lt(0))
             return true;
         return (val || '').toString().substring(0, 2) === '00' || val === '-';
     };
-    exports.isInvalidInput = isInvalidInput;
     const limitInputNumber = (input, decimals) => {
         const amount = input.value;
-        if ((0, exports.isInvalidInput)(amount)) {
+        if (isInvalidInput(amount)) {
             input.value = '0';
             return;
         }
         if (!new eth_wallet_1.BigNumber(amount).isNaN()) {
-            input.value = (0, exports.limitDecimals)(amount, decimals || 18);
+            input.value = new eth_wallet_1.BigNumber(amount).dp(decimals || 18, 1).toString();
         }
     };
     exports.limitInputNumber = limitInputNumber;
-    const limitDecimals = (value, decimals) => {
-        let val = value;
-        if (typeof value !== 'string') {
-            val = val.toString();
-        }
-        let chart;
-        if (val.includes('.')) {
-            chart = '.';
-        }
-        else if (val.includes(',')) {
-            chart = ',';
-        }
-        else {
-            return value;
-        }
-        const parts = val.split(chart);
-        let decimalsPart = parts[1];
-        if (decimalsPart && decimalsPart.length > decimals) {
-            parts[1] = decimalsPart.substr(0, decimals);
-        }
-        return parts.join(chart);
-    };
-    exports.limitDecimals = limitDecimals;
 });
 define("@scom/scom-amm-pool/global/utils/common.ts", ["require", "exports", "@ijstech/eth-wallet"], function (require, exports, eth_wallet_2) {
     "use strict";
@@ -139,12 +87,9 @@ define("@scom/scom-amm-pool/global/utils/interface.ts", ["require", "exports"], 
 define("@scom/scom-amm-pool/global/utils/index.ts", ["require", "exports", "@scom/scom-amm-pool/global/utils/helper.ts", "@scom/scom-amm-pool/global/utils/common.ts", "@scom/scom-amm-pool/global/utils/interface.ts"], function (require, exports, helper_1, common_1, interface_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.registerSendTxEvents = exports.isInvalidInput = exports.limitInputNumber = exports.limitDecimals = exports.formatNumberWithSeparators = exports.formatNumber = void 0;
+    exports.registerSendTxEvents = exports.limitInputNumber = exports.formatNumber = void 0;
     Object.defineProperty(exports, "formatNumber", { enumerable: true, get: function () { return helper_1.formatNumber; } });
-    Object.defineProperty(exports, "formatNumberWithSeparators", { enumerable: true, get: function () { return helper_1.formatNumberWithSeparators; } });
-    Object.defineProperty(exports, "limitDecimals", { enumerable: true, get: function () { return helper_1.limitDecimals; } });
     Object.defineProperty(exports, "limitInputNumber", { enumerable: true, get: function () { return helper_1.limitInputNumber; } });
-    Object.defineProperty(exports, "isInvalidInput", { enumerable: true, get: function () { return helper_1.isInvalidInput; } });
     Object.defineProperty(exports, "registerSendTxEvents", { enumerable: true, get: function () { return common_1.registerSendTxEvents; } });
     __exportStar(interface_1, exports);
 });
@@ -154,7 +99,7 @@ define("@scom/scom-amm-pool/global/index.ts", ["require", "exports", "@scom/scom
     ///<amd-module name='@scom/scom-amm-pool/global/index.ts'/> 
     __exportStar(index_1, exports);
 });
-define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-network-list", "@ijstech/components"], function (require, exports, eth_wallet_3, scom_network_list_1, components_1) {
+define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/scom-network-list", "@ijstech/components"], function (require, exports, eth_wallet_3, scom_network_list_1, components_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isClientWalletConnected = exports.State = void 0;
@@ -201,12 +146,12 @@ define("@scom/scom-amm-pool/store/utils.ts", ["require", "exports", "@ijstech/et
                 return this.rpcWalletId;
             }
             const clientWallet = eth_wallet_3.Wallet.getClientInstance();
-            const networkList = Object.values(((_a = components_1.application.store) === null || _a === void 0 ? void 0 : _a.networkMap) || []);
+            const networkList = Object.values(((_a = components_2.application.store) === null || _a === void 0 ? void 0 : _a.networkMap) || []);
             const instanceId = clientWallet.initRpcWallet({
                 networks: networkList,
                 defaultChainId,
-                infuraId: (_b = components_1.application.store) === null || _b === void 0 ? void 0 : _b.infuraId,
-                multicalls: (_c = components_1.application.store) === null || _c === void 0 ? void 0 : _c.multicalls
+                infuraId: (_b = components_2.application.store) === null || _b === void 0 ? void 0 : _b.infuraId,
+                multicalls: (_c = components_2.application.store) === null || _c === void 0 ? void 0 : _c.multicalls
             });
             this.rpcWalletId = instanceId;
             if (clientWallet.address) {
@@ -322,12 +267,12 @@ define("@scom/scom-amm-pool/store/index.ts", ["require", "exports", "@scom/scom-
     };
     exports.getSupportedTokens = getSupportedTokens;
 });
-define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_2) {
+define("@scom/scom-amm-pool/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.poolStyle = void 0;
-    const Theme = components_2.Styles.Theme.ThemeVars;
-    exports.poolStyle = components_2.Styles.style({
+    const Theme = components_3.Styles.Theme.ThemeVars;
+    exports.poolStyle = components_3.Styles.style({
         $nest: {
             '.disabled': {
                 opacity: '0.5',
@@ -1086,11 +1031,11 @@ define("@scom/scom-amm-pool/API.ts", ["require", "exports", "@ijstech/eth-wallet
     };
     exports.getPair = getPair;
 });
-define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
+define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.poolRemoveStyle = exports.poolAddStyle = void 0;
-    exports.poolAddStyle = components_3.Styles.style({
+    exports.poolAddStyle = components_4.Styles.style({
         $nest: {
             'i-scom-token-input': {
                 $nest: {
@@ -1112,7 +1057,7 @@ define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ij
             }
         }
     });
-    exports.poolRemoveStyle = components_3.Styles.style({
+    exports.poolRemoveStyle = components_4.Styles.style({
         $nest: {
             'i-scom-token-input': {
                 $nest: {
@@ -1135,12 +1080,13 @@ define("@scom/scom-amm-pool/liquidity/index.css.ts", ["require", "exports", "@ij
         }
     });
 });
-define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_4, index_3, eth_wallet_5, index_4, API_1, scom_token_list_2, index_css_1) {
+define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_5, index_3, eth_wallet_5, index_4, API_1, scom_token_list_2, index_css_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ScomAmmPoolAdd = void 0;
-    const Theme = components_4.Styles.Theme.ThemeVars;
-    let ScomAmmPoolAdd = class ScomAmmPoolAdd extends components_4.Module {
+    const Theme = components_5.Styles.Theme.ThemeVars;
+    const ROUNDING_NUMBER = 1;
+    let ScomAmmPoolAdd = class ScomAmmPoolAdd extends components_5.Module {
         constructor(parent, options) {
             super(parent, options);
             this.firstBalance = '0';
@@ -1554,12 +1500,12 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 inputVal = inputVal.dividedBy(totalFee);
             }
             if (isFrom) {
-                const maxVal = (0, index_3.limitDecimals)(inputVal, this.firstTokenDecimals);
+                const maxVal = inputVal.dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
                 this.firstInputAmount = maxVal;
                 this.firstTokenInput.value = maxVal;
             }
             else {
-                const maxVal = (0, index_3.limitDecimals)(inputVal, this.secondTokenDecimals);
+                const maxVal = inputVal.dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
                 this.secondInputAmount = maxVal;
                 this.secondTokenInput.value = maxVal;
             }
@@ -1598,7 +1544,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.firstInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_3.limitDecimals)(this.firstInputAmount, token.decimals || 18);
+                    const limit = new eth_wallet_5.BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_5.BigNumber(this.firstInputAmount).eq(limit)) {
                         if (this.firstTokenInput.isConnected)
                             this.firstTokenInput.value = limit;
@@ -1617,7 +1563,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.secondInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_3.limitDecimals)(this.secondInputAmount || '0', token.decimals || 18);
+                    const limit = new eth_wallet_5.BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_5.BigNumber(this.secondInputAmount).eq(limit)) {
                         if (this.secondTokenInput.isConnected)
                             this.secondTokenInput.value = limit;
@@ -1840,8 +1786,9 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 if (this.isFromEstimated) {
                     invalidVal = new eth_wallet_5.BigNumber(this.firstTokenInput.value).isNaN();
                     newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = (0, index_3.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.firstTokenDecimals);
+                    const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
                     this.firstInputAmount = val;
+                    console.log('getNewShareInfo', val);
                     this.firstTokenInput.value = val;
                     if (invalidVal)
                         newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
@@ -1849,7 +1796,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 else {
                     invalidVal = new eth_wallet_5.BigNumber(this.secondTokenInput.value).isNaN();
                     newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = (0, index_3.limitDecimals)((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0', this.secondTokenDecimals);
+                    const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
                     this.secondInputAmount = val;
                     this.secondTokenInput.value = val;
                     if (invalidVal)
@@ -1892,15 +1839,16 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     if (this.isFromEstimated) {
                         if (new eth_wallet_5.BigNumber(this.secondTokenInput.value).gt(0)) {
                             const price = new eth_wallet_5.BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
-                            const val = (0, index_3.limitDecimals)(price, this.firstTokenDecimals);
+                            const val = new eth_wallet_5.BigNumber(price || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
                             this.firstTokenInput.value = val;
+                            console.log('set 2: ', val);
                             this.firstInputAmount = val;
                         }
                     }
                     else {
                         if (new eth_wallet_5.BigNumber(this.firstTokenInput.value).gt(0)) {
                             const price = new eth_wallet_5.BigNumber(price0).multipliedBy(this.firstTokenInput.value).toFixed();
-                            const val = (0, index_3.limitDecimals)(price, this.secondTokenDecimals);
+                            const val = new eth_wallet_5.BigNumber(price || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
                             this.secondTokenInput.value = val;
                             this.secondInputAmount = val;
                         }
@@ -2006,17 +1954,18 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         }
     };
     ScomAmmPoolAdd = __decorate([
-        components_4.customModule,
-        (0, components_4.customElements)('i-scom-amm-pool-add')
+        components_5.customModule,
+        (0, components_5.customElements)('i-scom-amm-pool-add')
     ], ScomAmmPoolAdd);
     exports.ScomAmmPoolAdd = ScomAmmPoolAdd;
 });
-define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_5, index_5, eth_wallet_6, index_6, API_2, scom_token_list_3, index_css_2) {
+define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-amm-pool/global/index.ts", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/API.ts", "@scom/scom-token-list", "@scom/scom-amm-pool/liquidity/index.css.ts"], function (require, exports, components_6, index_5, eth_wallet_6, index_6, API_2, scom_token_list_3, index_css_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ScomAmmPoolRemove = void 0;
-    const Theme = components_5.Styles.Theme.ThemeVars;
-    let ScomAmmPoolRemove = class ScomAmmPoolRemove extends components_5.Module {
+    const Theme = components_6.Styles.Theme.ThemeVars;
+    const ROUNDING_NUMBER = 1;
+    let ScomAmmPoolRemove = class ScomAmmPoolRemove extends components_6.Module {
         constructor(parent, options) {
             super(parent, options);
             this.firstInputAmount = '';
@@ -2382,7 +2331,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.firstInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_5.limitDecimals)(this.firstInputAmount, token.decimals || 18);
+                    const limit = new eth_wallet_6.BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_6.BigNumber(this.firstInputAmount).eq(limit)) {
                         if (this.firstTokenInput.isConnected)
                             this.firstTokenInput.value = limit;
@@ -2400,7 +2349,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     this.secondInputAmount = '';
                 }
                 else {
-                    const limit = (0, index_5.limitDecimals)(this.secondInputAmount, token.decimals || 18);
+                    const limit = new eth_wallet_6.BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_6.BigNumber(this.secondInputAmount).eq(limit)) {
                         if (this.secondTokenInput.isConnected)
                             this.secondTokenInput.value = limit;
@@ -2629,11 +2578,11 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
         }
     };
     __decorate([
-        (0, components_5.observable)()
+        (0, components_6.observable)()
     ], ScomAmmPoolRemove.prototype, "removeInfo", void 0);
     ScomAmmPoolRemove = __decorate([
-        components_5.customModule,
-        (0, components_5.customElements)('i-scom-amm-pool-remove')
+        components_6.customModule,
+        (0, components_6.customElements)('i-scom-amm-pool-remove')
     ], ScomAmmPoolRemove);
     exports.ScomAmmPoolRemove = ScomAmmPoolRemove;
 });
@@ -2997,11 +2946,11 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
     }
     exports.getProjectOwnerSchema = getProjectOwnerSchema;
 });
-define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.ts", "@scom/scom-amm-pool/API.ts"], function (require, exports, components_6, eth_wallet_7, index_7, index_css_3, scom_token_list_4, scom_dex_list_1, index_8, scom_commission_fee_setup_1, data_json_1, formSchema_1, API_3) {
+define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ijstech/eth-wallet", "@scom/scom-amm-pool/store/index.ts", "@scom/scom-amm-pool/index.css.ts", "@scom/scom-token-list", "@scom/scom-dex-list", "@scom/scom-amm-pool/liquidity/index.tsx", "@scom/scom-commission-fee-setup", "@scom/scom-amm-pool/data.json.ts", "@scom/scom-amm-pool/formSchema.ts", "@scom/scom-amm-pool/API.ts"], function (require, exports, components_7, eth_wallet_7, index_7, index_css_3, scom_token_list_4, scom_dex_list_1, index_8, scom_commission_fee_setup_1, data_json_1, formSchema_1, API_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const Theme = components_6.Styles.Theme.ThemeVars;
-    let ScomAmmPool = class ScomAmmPool extends components_6.Module {
+    const Theme = components_7.Styles.Theme.ThemeVars;
+    let ScomAmmPool = class ScomAmmPool extends components_7.Module {
         constructor(parent, options) {
             super(parent, options);
             this._data = {
@@ -3023,7 +2972,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
             };
             this.connectWallet = async () => {
                 if (!(0, index_7.isClientWalletConnected)()) {
-                    await components_6.application.loadPackage('@scom/scom-wallet-modal', '*');
+                    await components_7.application.loadPackage('@scom/scom-wallet-modal', '*');
                     this.mdWallet.networks = this.networks;
                     this.mdWallet.wallets = this.wallets;
                     this.mdWallet.showModal();
@@ -3144,16 +3093,16 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                     },
                     customUI: {
                         render: (data, onConfirm) => {
-                            const vstack = new components_6.VStack();
+                            const vstack = new components_7.VStack();
                             const config = new scom_commission_fee_setup_1.default(null, {
                                 commissions: self._data.commissions || [],
                                 fee: this.state.embedderCommissionFee,
                                 networks: self._data.networks
                             });
-                            const hstack = new components_6.HStack(null, {
+                            const hstack = new components_7.HStack(null, {
                                 verticalAlignment: 'center',
                             });
-                            const button = new components_6.Button(hstack, {
+                            const button = new components_7.Button(hstack, {
                                 caption: 'Confirm',
                                 width: '100%',
                                 height: 40,
@@ -3445,7 +3394,7 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
                 this.vStackAmmPool.appendChild(this.poolRemove);
             }
             else {
-                const tabs = new components_6.Tabs();
+                const tabs = new components_7.Tabs();
                 this.vStackAmmPool.appendChild(tabs);
                 this.poolAdd = new index_8.ScomAmmPoolAdd(undefined, {
                     state: this.state,
@@ -3510,8 +3459,8 @@ define("@scom/scom-amm-pool", ["require", "exports", "@ijstech/components", "@ij
         }
     };
     ScomAmmPool = __decorate([
-        components_6.customModule,
-        (0, components_6.customElements)('i-scom-amm-pool')
+        components_7.customModule,
+        (0, components_7.customElements)('i-scom-amm-pool')
     ], ScomAmmPool);
     exports.default = ScomAmmPool;
 });

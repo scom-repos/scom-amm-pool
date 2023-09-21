@@ -6,11 +6,9 @@
 /// <reference path="@scom/scom-dex-list/index.d.ts" />
 /// <amd-module name="@scom/scom-amm-pool/global/utils/helper.ts" />
 declare module "@scom/scom-amm-pool/global/utils/helper.ts" {
-    export const formatNumber: (value: any, decimals?: number) => string;
-    export const formatNumberWithSeparators: (value: number, precision?: number) => string;
-    export const isInvalidInput: (val: any) => boolean;
+    import { BigNumber } from "@ijstech/eth-wallet";
+    export const formatNumber: (value: number | string | BigNumber, decimalFigures?: number) => string;
     export const limitInputNumber: (input: any, decimals?: number) => void;
-    export const limitDecimals: (value: any, decimals: number) => any;
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/common.ts" />
 declare module "@scom/scom-amm-pool/global/utils/common.ts" {
@@ -73,7 +71,7 @@ declare module "@scom/scom-amm-pool/global/utils/interface.ts" {
 }
 /// <amd-module name="@scom/scom-amm-pool/global/utils/index.ts" />
 declare module "@scom/scom-amm-pool/global/utils/index.ts" {
-    export { formatNumber, formatNumberWithSeparators, limitDecimals, limitInputNumber, isInvalidInput } from "@scom/scom-amm-pool/global/utils/helper.ts";
+    export { formatNumber, limitInputNumber } from "@scom/scom-amm-pool/global/utils/helper.ts";
     export { registerSendTxEvents } from "@scom/scom-amm-pool/global/utils/common.ts";
     export * from "@scom/scom-amm-pool/global/utils/interface.ts";
 }

@@ -1,5 +1,5 @@
 import { customModule, Module, Styles, Input, Button, Panel, Label, Container, customElements, ControlElement, observable } from '@ijstech/components';
-import { formatNumber, limitInputNumber, limitDecimals, IPoolDetailConfig, IProviderUI, IProvider, ICustomTokenObject } from '../global/index';
+import { formatNumber, limitInputNumber, IPoolDetailConfig, IProviderUI, IProvider, ICustomTokenObject } from '../global/index';
 import { BigNumber, IERC20ApprovalAction, Utils } from '@ijstech/eth-wallet';
 import { isClientWalletConnected, getSupportedTokens, State } from '../store/index';
 import { getPairFromTokens, getRemoveLiquidityInfo, removeLiquidity, getTokensBack, getTokensBackByAmountOut, getRouterAddress } from '../API';
@@ -9,6 +9,7 @@ import ScomTokenInput from '@scom/scom-token-input';
 import { poolRemoveStyle } from './index.css';
 
 const Theme = Styles.Theme.ThemeVars;
+const ROUNDING_NUMBER = 1;
 
 interface ScomAmmPoolRemoveElement extends ControlElement {
   state: State;
@@ -399,7 +400,7 @@ export class ScomAmmPoolRemove extends Module {
         if (this.firstTokenInput.isConnected) this.firstTokenInput.value = '';
         this.firstInputAmount = '';
       } else {
-        const limit = limitDecimals(this.firstInputAmount, token.decimals || 18);
+        const limit = new BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.firstInputAmount).eq(limit)) {
           if (this.firstTokenInput.isConnected) this.firstTokenInput.value = limit;
           this.firstInputAmount = limit;
@@ -413,7 +414,7 @@ export class ScomAmmPoolRemove extends Module {
         if (this.secondTokenInput.isConnected) this.secondTokenInput.value = '';
         this.secondInputAmount = '';
       } else {
-        const limit = limitDecimals(this.secondInputAmount, token.decimals || 18);
+        const limit = new BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.secondInputAmount).eq(limit)) {
           if (this.secondTokenInput.isConnected) this.secondTokenInput.value = limit;
           this.secondInputAmount = limit;
