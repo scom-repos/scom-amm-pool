@@ -1,5 +1,5 @@
 import { customModule, Control, Module, Styles, Button, Panel, Label, Modal, Image, Container, customElements, ControlElement, Icon, HStack } from '@ijstech/components';
-import { formatNumber, limitInputNumber, limitDecimals, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
+import { formatNumber, limitInputNumber, IProviderUI, IProvider, ICommissionInfo, IPoolDetailConfig, ICustomTokenObject } from '../global/index';
 import { BigNumber, IERC20ApprovalAction, Utils } from '@ijstech/eth-wallet';
 import { State, getSupportedTokens, isClientWalletConnected } from '../store/index';
 import { getNewShareInfo, getPricesInfo, addLiquidity, calculateNewPairShareInfo, getPairFromTokens, getRouterAddress } from '../API';
@@ -9,6 +9,7 @@ import ScomTokenInput from '@scom/scom-token-input';
 import { poolAddStyle } from './index.css';
 
 const Theme = Styles.Theme.ThemeVars;
+const ROUNDING_NUMBER = 1;
 
 interface ScomAmmPoolAddElement extends ControlElement {
   state: State;
@@ -464,11 +465,11 @@ export class ScomAmmPoolAdd extends Module {
       inputVal = inputVal.dividedBy(totalFee);
     }
     if (isFrom) {
-      const maxVal = limitDecimals(inputVal, this.firstTokenDecimals);
+      const maxVal = inputVal.dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
       this.firstInputAmount = maxVal;
       this.firstTokenInput.value = maxVal;
     } else {
-      const maxVal = limitDecimals(inputVal, this.secondTokenDecimals);
+      const maxVal = inputVal.dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
       this.secondInputAmount = maxVal;
       this.secondTokenInput.value = maxVal;
     }
@@ -504,7 +505,7 @@ export class ScomAmmPoolAdd extends Module {
         if (this.firstTokenInput.isConnected) this.firstTokenInput.value = '';
         this.firstInputAmount = '';
       } else {
-        const limit = limitDecimals(this.firstInputAmount, token.decimals || 18);
+        const limit = new BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.firstInputAmount).eq(limit)) {
           if (this.firstTokenInput.isConnected) this.firstTokenInput.value = limit;
           this.firstInputAmount = limit;
@@ -519,7 +520,7 @@ export class ScomAmmPoolAdd extends Module {
         if (this.secondTokenInput.isConnected) this.secondTokenInput.value = '';
         this.secondInputAmount = '';
       } else {
-        const limit = limitDecimals(this.secondInputAmount || '0', token.decimals || 18);
+        const limit = new BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.secondInputAmount).eq(limit)) {
           if (this.secondTokenInput.isConnected) this.secondTokenInput.value = limit;
           this.secondInputAmount = limit;
@@ -750,8 +751,9 @@ export class ScomAmmPoolAdd extends Module {
       if (this.isFromEstimated) {
         invalidVal = new BigNumber(this.firstTokenInput.value).isNaN();
         newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-        const val = limitDecimals(newShareInfo?.quote || '0', this.firstTokenDecimals);
+        const val = new BigNumber(newShareInfo?.quote || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
         this.firstInputAmount = val;
+        console.log('getNewShareInfo', val)
         this.firstTokenInput.value = val;
         if (invalidVal)
           newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
@@ -759,7 +761,7 @@ export class ScomAmmPoolAdd extends Module {
       else {
         invalidVal = new BigNumber(this.secondTokenInput.value).isNaN();
         newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-        const val = limitDecimals(newShareInfo?.quote || '0', this.secondTokenDecimals);
+        const val = new BigNumber(newShareInfo?.quote || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
         this.secondInputAmount = val;
         this.secondTokenInput.value = val;
         if (invalidVal)
@@ -802,14 +804,15 @@ export class ScomAmmPoolAdd extends Module {
         if (this.isFromEstimated) {
           if (new BigNumber(this.secondTokenInput.value).gt(0)) {
             const price = new BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
-            const val = limitDecimals(price, this.firstTokenDecimals);
+            const val = new BigNumber(price || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
             this.firstTokenInput.value = val;
+            console.log('set 2: ', val)
             this.firstInputAmount = val;
           }
         } else {
           if (new BigNumber(this.firstTokenInput.value).gt(0)) {
             const price = new BigNumber(price0).multipliedBy(this.firstTokenInput.value).toFixed();
-            const val = limitDecimals(price, this.secondTokenDecimals);
+            const val = new BigNumber(price || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
             this.secondTokenInput.value = val;
             this.secondInputAmount = val;
           }

@@ -1,9 +1,6 @@
 export {
   formatNumber,
-  formatNumberWithSeparators,
-  limitDecimals,
-  limitInputNumber,
-  isInvalidInput
+  limitInputNumber
 } from './helper';
 
 export {
