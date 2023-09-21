@@ -21,7 +21,8 @@ export const limitInputNumber = (input: any, decimals?: number) => {
     input.value = '0';
     return;
   }
-  if (!new BigNumber(amount).isNaN()) {
-    input.value = new BigNumber(amount).dp(decimals || 18, 1).toString();
+  if (!new BigNumber(amount).isNaN() && /\d+\.\d+/g.test(amount || '')) {
+    const newValue = new BigNumber(amount).dp(decimals || 18, 1).toString();
+    input.value = newValue;
   }
 }

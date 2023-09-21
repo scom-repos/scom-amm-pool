@@ -53,8 +53,9 @@ define("@scom/scom-amm-pool/global/utils/helper.ts", ["require", "exports", "@ij
             input.value = '0';
             return;
         }
-        if (!new eth_wallet_1.BigNumber(amount).isNaN()) {
-            input.value = new eth_wallet_1.BigNumber(amount).dp(decimals || 18, 1).toString();
+        if (!new eth_wallet_1.BigNumber(amount).isNaN() && /\d+\.\d+/g.test(amount || '')) {
+            const newValue = new eth_wallet_1.BigNumber(amount).dp(decimals || 18, 1).toString();
+            input.value = newValue;
         }
     };
     exports.limitInputNumber = limitInputNumber;
@@ -1544,7 +1545,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.firstInputAmount = '';
                 }
                 else {
-                    const limit = new eth_wallet_5.BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
+                    const limit = new eth_wallet_5.BigNumber(this.firstInputAmount || '0').dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_5.BigNumber(this.firstInputAmount).eq(limit)) {
                         if (this.firstTokenInput.isConnected)
                             this.firstTokenInput.value = limit;
@@ -1563,7 +1564,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.secondInputAmount = '';
                 }
                 else {
-                    const limit = new eth_wallet_5.BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
+                    const limit = new eth_wallet_5.BigNumber(this.secondInputAmount || '0').dp(token.decimals || 18, ROUNDING_NUMBER).toString();
                     if (!new eth_wallet_5.BigNumber(this.secondInputAmount).eq(limit)) {
                         if (this.secondTokenInput.isConnected)
                             this.secondTokenInput.value = limit;
@@ -1788,7 +1789,6 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
                     const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
                     this.firstInputAmount = val;
-                    console.log('getNewShareInfo', val);
                     this.firstTokenInput.value = val;
                     if (invalidVal)
                         newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
@@ -1841,7 +1841,6 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                             const price = new eth_wallet_5.BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
                             const val = new eth_wallet_5.BigNumber(price || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
                             this.firstTokenInput.value = val;
-                            console.log('set 2: ', val);
                             this.firstInputAmount = val;
                         }
                     }

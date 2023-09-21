@@ -505,7 +505,7 @@ export class ScomAmmPoolAdd extends Module {
         if (this.firstTokenInput.isConnected) this.firstTokenInput.value = '';
         this.firstInputAmount = '';
       } else {
-        const limit = new BigNumber(this.firstInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
+        const limit = new BigNumber(this.firstInputAmount || '0').dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.firstInputAmount).eq(limit)) {
           if (this.firstTokenInput.isConnected) this.firstTokenInput.value = limit;
           this.firstInputAmount = limit;
@@ -520,7 +520,7 @@ export class ScomAmmPoolAdd extends Module {
         if (this.secondTokenInput.isConnected) this.secondTokenInput.value = '';
         this.secondInputAmount = '';
       } else {
-        const limit = new BigNumber(this.secondInputAmount).dp(token.decimals || 18, ROUNDING_NUMBER).toString();
+        const limit = new BigNumber(this.secondInputAmount || '0').dp(token.decimals || 18, ROUNDING_NUMBER).toString();
         if (!new BigNumber(this.secondInputAmount).eq(limit)) {
           if (this.secondTokenInput.isConnected) this.secondTokenInput.value = limit;
           this.secondInputAmount = limit;
@@ -753,7 +753,6 @@ export class ScomAmmPoolAdd extends Module {
         newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
         const val = new BigNumber(newShareInfo?.quote || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
         this.firstInputAmount = val;
-        console.log('getNewShareInfo', val)
         this.firstTokenInput.value = val;
         if (invalidVal)
           newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
@@ -806,7 +805,6 @@ export class ScomAmmPoolAdd extends Module {
             const price = new BigNumber(price1).multipliedBy(this.secondTokenInput.value).toFixed();
             const val = new BigNumber(price || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
             this.firstTokenInput.value = val;
-            console.log('set 2: ', val)
             this.firstInputAmount = val;
           }
         } else {
