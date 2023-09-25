@@ -1,6 +1,6 @@
 {
   "name": "@scom/scom-amm-pool",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "main": "dist/index.js",
   "plugin": "dist",
   "pluginTypes": "pluginTypes/index.d.ts",
