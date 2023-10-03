@@ -1166,6 +1166,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                     this.resetFirstInput();
                     this.resetSecondInput();
                     this.updateCommissionInfo();
+                    this.firstTokenInput.chainId = this.secondTokenInput.chainId = chainId;
                     this.firstTokenInput.isBtnMaxShown = true;
                     this.secondTokenInput.isBtnMaxShown = true;
                     const tokens = (0, index_4.getSupportedTokens)(this._data.tokens || [], chainId);
@@ -1293,14 +1294,7 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
             await this.refreshUI();
         }
         async refreshUI() {
-            var _a;
             await this.initData();
-            const instanceId = (_a = this.state.getRpcWallet()) === null || _a === void 0 ? void 0 : _a.instanceId;
-            const inputRpcWalletId = this.firstTokenInput.rpcWalletId;
-            if (instanceId && inputRpcWalletId !== instanceId) {
-                this.firstTokenInput.rpcWalletId = instanceId;
-                this.secondTokenInput.rpcWalletId = instanceId;
-            }
             await this.initializeWidgetConfig((0, index_4.isClientWalletConnected)());
         }
         setFixedPairData() {
@@ -1440,13 +1434,13 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
         async handleInputChange(isFrom) {
             let amount;
             if (isFrom) {
-                (0, index_3.limitInputNumber)(this.firstTokenInput, this.firstTokenDecimals);
+                // limitInputNumber(this.firstTokenInput, this.firstTokenDecimals);
                 amount = this.firstTokenInput.value;
                 if (this.firstInputAmount === amount)
                     return;
             }
             else {
-                (0, index_3.limitInputNumber)(this.secondTokenInput, this.secondTokenDecimals);
+                // limitInputNumber(this.secondTokenInput, this.secondTokenDecimals);
                 amount = this.secondTokenInput.value;
                 if (this.secondInputAmount === amount)
                     return;
@@ -1787,20 +1781,24 @@ define("@scom/scom-amm-pool/liquidity/add.tsx", ["require", "exports", "@ijstech
                 if (this.isFromEstimated) {
                     invalidVal = new eth_wallet_5.BigNumber(this.firstTokenInput.value).isNaN();
                     newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
-                    this.firstInputAmount = val;
-                    this.firstTokenInput.value = val;
-                    if (invalidVal)
-                        newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    if (newShareInfo) {
+                        const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
+                        this.firstInputAmount = val;
+                        this.firstTokenInput.value = val;
+                        if (invalidVal)
+                            newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    }
                 }
                 else {
                     invalidVal = new eth_wallet_5.BigNumber(this.secondTokenInput.value).isNaN();
                     newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-                    const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
-                    this.secondInputAmount = val;
-                    this.secondTokenInput.value = val;
-                    if (invalidVal)
-                        newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    if (newShareInfo) {
+                        const val = new eth_wallet_5.BigNumber((newShareInfo === null || newShareInfo === void 0 ? void 0 : newShareInfo.quote) || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
+                        this.secondInputAmount = val;
+                        this.secondTokenInput.value = val;
+                        if (invalidVal)
+                            newShareInfo = await (0, API_1.getNewShareInfo)(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+                    }
                 }
                 if (!newShareInfo) {
                     this.lbFirstPrice.caption = '0';
@@ -2026,6 +2024,7 @@ define("@scom/scom-amm-pool/liquidity/remove.tsx", ["require", "exports", "@ijst
                     if (!this.approvalModelAction)
                         await this.initApprovalModelAction();
                 }
+                this.firstTokenInput.chainId = this.secondTokenInput.chainId = chainId;
                 this.firstTokenInput.isBtnMaxShown = false;
                 this.secondTokenInput.isBtnMaxShown = false;
                 const tokens = (0, index_6.getSupportedTokens)(this._data.tokens || [], chainId);
@@ -2843,11 +2842,8 @@ define("@scom/scom-amm-pool/formSchema.ts", ["require", "exports", "@scom/scom-n
                             isBtnMaxShown: false,
                             isInputShown: false
                         });
-                        tokenInputs[idx].rpcWalletId = rpcWalletId;
                         const chainId = (_b = (_a = networkPickers[idx]) === null || _a === void 0 ? void 0 : _a.selectedNetwork) === null || _b === void 0 ? void 0 : _b.chainId;
-                        if (chainId && tokenInputs[idx].chainId !== chainId) {
-                            tokenInputs[idx].chainId = chainId;
-                        }
+                        tokenInputs[idx].chainId = chainId;
                         return tokenInputs[idx];
                     },
                     getData: (control) => {

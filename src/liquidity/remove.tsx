@@ -177,6 +177,7 @@ export class ScomAmmPoolRemove extends Module {
     if (connected) {
       if (!this.approvalModelAction) await this.initApprovalModelAction();
     }
+    this.firstTokenInput.chainId = this.secondTokenInput.chainId = chainId;
     this.firstTokenInput.isBtnMaxShown = false;
     this.secondTokenInput.isBtnMaxShown = false;
     const tokens = getSupportedTokens(this._data.tokens || [], chainId);

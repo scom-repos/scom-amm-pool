@@ -185,12 +185,6 @@ export class ScomAmmPoolAdd extends Module {
 
   private async refreshUI() {
     await this.initData();
-    const instanceId = this.state.getRpcWallet()?.instanceId;
-    const inputRpcWalletId = this.firstTokenInput.rpcWalletId;
-    if (instanceId && inputRpcWalletId !== instanceId) {
-      this.firstTokenInput.rpcWalletId = instanceId;
-      this.secondTokenInput.rpcWalletId = instanceId;
-    }
     await this.initializeWidgetConfig(isClientWalletConnected());
   }
 
@@ -236,6 +230,7 @@ export class ScomAmmPoolAdd extends Module {
       this.resetFirstInput();
       this.resetSecondInput();
       this.updateCommissionInfo();
+      this.firstTokenInput.chainId = this.secondTokenInput.chainId = chainId;
       this.firstTokenInput.isBtnMaxShown = true;
       this.secondTokenInput.isBtnMaxShown = true;
       const tokens = getSupportedTokens(this._data.tokens || [], chainId);
@@ -406,11 +401,11 @@ export class ScomAmmPoolAdd extends Module {
   private async handleInputChange(isFrom?: boolean) {
     let amount: string;
     if (isFrom) {
-      limitInputNumber(this.firstTokenInput, this.firstTokenDecimals);
+      // limitInputNumber(this.firstTokenInput, this.firstTokenDecimals);
       amount = this.firstTokenInput.value;
       if (this.firstInputAmount === amount) return;
     } else {
-      limitInputNumber(this.secondTokenInput, this.secondTokenDecimals);
+      // limitInputNumber(this.secondTokenInput, this.secondTokenDecimals);
       amount = this.secondTokenInput.value;
       if (this.secondInputAmount === amount) return;
     }
@@ -751,20 +746,24 @@ export class ScomAmmPoolAdd extends Module {
       if (this.isFromEstimated) {
         invalidVal = new BigNumber(this.firstTokenInput.value).isNaN();
         newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-        const val = new BigNumber(newShareInfo?.quote || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
-        this.firstInputAmount = val;
-        this.firstTokenInput.value = val;
-        if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        if (newShareInfo) {
+          const val = new BigNumber(newShareInfo?.quote || '0').dp(this.firstTokenDecimals, ROUNDING_NUMBER).toString();
+          this.firstInputAmount = val;
+          this.firstTokenInput.value = val;
+          if (invalidVal)
+            newShareInfo = await getNewShareInfo(this.state, this.secondToken, this.firstToken, this.secondTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        }
       }
       else {
         invalidVal = new BigNumber(this.secondTokenInput.value).isNaN();
         newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
-        const val = new BigNumber(newShareInfo?.quote || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
-        this.secondInputAmount = val;
-        this.secondTokenInput.value = val;
-        if (invalidVal)
-          newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        if (newShareInfo) {
+          const val = new BigNumber(newShareInfo?.quote || '0').dp(this.secondTokenDecimals, ROUNDING_NUMBER).toString();
+          this.secondInputAmount = val;
+          this.secondTokenInput.value = val;
+          if (invalidVal)
+            newShareInfo = await getNewShareInfo(this.state, this.firstToken, this.secondToken, this.firstTokenInput.value, this.firstTokenInput.value, this.secondTokenInput.value);
+        }
       }
       if (!newShareInfo) {
         this.lbFirstPrice.caption = '0';
